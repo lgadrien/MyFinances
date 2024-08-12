@@ -28,39 +28,39 @@ db.connect(err => {
 
 // Route de connexion
 app.post('/login', (req, res) => {
-  const { email } = req.body;
+  const { email, password } = req.body;
 
-  if (!email) {
-    return res.status(400).json({ message: 'Email requis' });
+  if (!email || !password) {
+    return res.status(400).json({ message: 'Email et mot de passe requis' });
   }
 
-  const sql = `SELECT user_id, name, email, date_of_birth FROM Users WHERE email = ?`;
-  db.query(sql, [email], (err, results) => {
+  const sql = `SELECT user_id, name, email, date_of_birth FROM Users WHERE email = ? AND password = ?`;
+  db.query(sql, [email, password], (err, results) => {
     if (err) {
       console.error('Erreur lors de la vérification de l\'email:', err.message);
       return res.status(500).json({ error: 'Erreur serveur' });
     }
 
     if (results.length === 0) {
-      return res.status(401).json({ message: 'Email non trouvé ou incorrect' });
+      return res.status(401).json({ message: 'Email ou mot de passe incorrect' });
     }
 
-    // Si l'utilisateur est trouvé, on peut retourner ses informations
-    // Pour un système sécurisé, on renverrait un token JWT ici
-    console.log('Utilisateur trouvé:', results[0]);
+    const user = results[0];
+    console.log('Utilisateur connecté:', user);
     res.json({
       message: 'Connexion réussie',
-      user: results[0]  // Vous pouvez renvoyer certaines informations utilisateur
+      user
     });
   });
 });
 
-
 // Routes pour les Utilisateurs
-
-// Créer un utilisateur
 app.post('/users', (req, res) => {
-  const { name, email, date_of_birth } = req.body;
+  const { name, email, password, date_of_birth } = req.body;
+
+  if (!name || !email || !password || !date_of_birth) {
+    return res.status(400).json({ error: 'Tous les champs sont requis' });
+  }
 
   db.beginTransaction(err => {
     if (err) {
@@ -68,8 +68,8 @@ app.post('/users', (req, res) => {
       return res.status(500).json({ error: 'Erreur serveur' });
     }
 
-    const insertUserSql = `INSERT INTO Users (name, email, date_of_birth) VALUES (?, ?, ?)`;
-    db.query(insertUserSql, [name, email, date_of_birth], (err, result) => {
+    const insertUserSql = `INSERT INTO Users (name, email, password, date_of_birth) VALUES (?, ?, ?, ?)`;
+    db.query(insertUserSql, [name, email, password, date_of_birth], (err, result) => {
       if (err) {
         console.error('Erreur lors de la création de l\'utilisateur:', err.message);
         return db.rollback(() => {
@@ -119,7 +119,7 @@ app.post('/users', (req, res) => {
             res.status(201).json({ message: 'Utilisateur créé avec les comptes appropriés', userId });
           });
         })
-        .catch((err) => {
+        .catch(err => {
           console.error('Erreur lors de la création des comptes:', err.message);
           db.rollback(() => {
             res.status(500).json({ error: 'Erreur serveur' });
@@ -129,7 +129,6 @@ app.post('/users', (req, res) => {
   });
 });
 
-// Obtenir tous les utilisateurs
 app.get('/users', (req, res) => {
   console.log('Récupération de tous les utilisateurs');
 
@@ -144,7 +143,6 @@ app.get('/users', (req, res) => {
   });
 });
 
-// Obtenir un utilisateur par ID
 app.get('/users/:id', (req, res) => {
   const userId = req.params.id;
   console.log(`Récupération de l'utilisateur avec ID ${userId}`);
@@ -164,7 +162,6 @@ app.get('/users/:id', (req, res) => {
   });
 });
 
-// Mettre à jour un utilisateur
 app.put('/users/:id', (req, res) => {
   const userId = req.params.id;
   const { name, email, date_of_birth } = req.body;
@@ -203,7 +200,6 @@ app.put('/users/:id', (req, res) => {
   });
 });
 
-// Supprimer un utilisateur
 app.delete('/users/:id', (req, res) => {
   const userId = req.params.id;
   console.log(`Suppression de l'utilisateur avec ID ${userId}`);
@@ -220,8 +216,6 @@ app.delete('/users/:id', (req, res) => {
 });
 
 // Routes pour les Comptes
-
-// Créer un compte
 app.post('/accounts', (req, res) => {
   const { user_id, account_type, balance } = req.body;
   console.log(`Création d'un compte pour l'utilisateur ID ${user_id} avec type ${account_type}`);
@@ -237,7 +231,6 @@ app.post('/accounts', (req, res) => {
   });
 });
 
-// Obtenir tous les comptes d'un utilisateur
 app.get('/accounts/:user_id', (req, res) => {
   const userId = req.params.user_id;
   console.log(`Récupération des comptes pour l'utilisateur ID ${userId}`);
@@ -253,7 +246,6 @@ app.get('/accounts/:user_id', (req, res) => {
   });
 });
 
-// Mettre à jour un compte
 app.put('/accounts/:id', (req, res) => {
   const accountId = req.params.id;
   const { balance } = req.body;
@@ -270,7 +262,6 @@ app.put('/accounts/:id', (req, res) => {
   });
 });
 
-// Supprimer un compte
 app.delete('/accounts/:id', (req, res) => {
   const accountId = req.params.id;
   console.log(`Suppression du compte avec ID ${accountId}`);
@@ -286,43 +277,84 @@ app.delete('/accounts/:id', (req, res) => {
   });
 });
 
-// Routes pour les Transactions
+// Route pour récupérer les transactions d'un utilisateur basé sur account_type avec options de tri
+app.get('/transactions/:user_id', (req, res) => {
+  const { user_id } = req.params;
+  const { account_type } = req.query;
+  const { sortBy = 'transaction_date', sortOrder = 'DESC' } = req.query;
 
-// Créer une transaction
-app.post('/transactions', (req, res) => {
-  const { account_id, amount, description } = req.body;
-  console.log(`Création d'une transaction pour le compte ID ${account_id}. Montant: ${amount}, Description: ${description}`);
+  if (!account_type) {
+    return res.status(400).json({ error: 'Type de compte manquant' });
+  }
 
-  const sql = `INSERT INTO Transactions (account_id, amount, description) VALUES (?, ?, ?)`;
-  db.query(sql, [account_id, amount, description], (err, result) => {
+  const getAccountIdSql = `SELECT account_id FROM Accounts WHERE user_id = ? AND account_type = ?`;
+  db.query(getAccountIdSql, [user_id, account_type], (err, results) => {
     if (err) {
-      console.error('Erreur lors de la création de la transaction:', err.message);
+      console.error('Erreur lors de la récupération de l\'ID du compte:', err.message);
       return res.status(500).json({ error: 'Erreur serveur' });
     }
-    console.log(`Transaction ajoutée avec ID ${result.insertId}`);
-    res.status(201).json({ message: 'Transaction ajoutée', transactionId: result.insertId });
+
+    if (results.length === 0) {
+      return res.status(404).json({ error: 'Compte non trouvé' });
+    }
+
+    const account_id = results[0].account_id;
+
+    const getTransactionsSql = `
+      SELECT t.*, a.account_type 
+      FROM Transactions t 
+      JOIN Accounts a ON t.account_id = a.account_id
+      WHERE t.account_id = ? 
+      ORDER BY t.${sortBy} ${sortOrder}
+    `;
+    db.query(getTransactionsSql, [account_id], (err, transactions) => {
+      if (err) {
+        console.error('Erreur lors de la récupération des transactions:', err.message);
+        return res.status(500).json({ error: 'Erreur serveur' });
+      }
+
+      res.json(transactions);
+    });
   });
 });
 
-// Obtenir toutes les transactions d'un compte
-app.get('/transactions/:account_id', (req, res) => {
-  const accountId = req.params.account_id;
-  console.log(`Récupération des transactions pour le compte ID ${accountId}`);
+// Ajouter une transaction
+app.post('/transactions/', (req, res) => {
+  const { user_id, account_type, amount, description } = req.body;
 
-  const sql = `SELECT transaction_id, amount, transaction_date, description FROM Transactions WHERE account_id = ?`;
-  db.query(sql, [accountId], (err, results) => {
+  if (!user_id || !account_type || amount === undefined || amount === null || !description) {
+    return res.status(400).json({ error: 'Tous les champs sont requis' });
+  }
+
+  const getAccountIdSql = `SELECT account_id FROM Accounts WHERE user_id = ? AND account_type = ?`;
+  db.query(getAccountIdSql, [user_id, account_type], (err, results) => {
     if (err) {
-      console.error('Erreur lors de la récupération des transactions:', err.message);
+      console.error('Erreur lors de la récupération de l\'ID du compte:', err.message);
       return res.status(500).json({ error: 'Erreur serveur' });
     }
-    console.log('Transactions récupérées:', results);
-    res.json(results);
+
+    if (results.length === 0) {
+      return res.status(404).json({ error: 'Compte non trouvé' });
+    }
+
+    const account_id = results[0].account_id;
+    const insertTransactionSql = `INSERT INTO Transactions (account_id, amount, description, transaction_date) VALUES (?, ?, ?, ?)`;
+    const transaction_date = new Date().toISOString();
+    db.query(insertTransactionSql, [account_id, amount, description, transaction_date], (err, result) => {
+      if (err) {
+        console.error('Erreur lors de l\'ajout de la transaction:', err.message);
+        return res.status(500).json({ error: 'Erreur serveur' });
+      }
+
+      console.log(`Transaction ajoutée avec ID ${result.insertId}`);
+      res.status(201).json({ message: 'Transaction ajoutée', transactionId: result.insertId });
+    });
   });
 });
 
 // Supprimer une transaction
-app.delete('/transactions/:id', (req, res) => {
-  const transactionId = req.params.id;
+app.delete('/transactions/:transactionId', (req, res) => {
+  const transactionId = req.params.transactionId;
   console.log(`Suppression de la transaction avec ID ${transactionId}`);
 
   const sql = `DELETE FROM Transactions WHERE transaction_id = ?`;
@@ -336,7 +368,6 @@ app.delete('/transactions/:id', (req, res) => {
   });
 });
 
-// Démarrer le serveur
 app.listen(PORT, () => {
   console.log(`Serveur démarré sur le port ${PORT}`);
 });

@@ -9,14 +9,17 @@ const Register = () => {
   const [dateOfBirth, setDateOfBirth] = useState('');
   const [showPassword, setShowPassword] = useState(false);
   const [showConfirmPassword, setShowConfirmPassword] = useState(false);
+  const [error, setError] = useState(null);
   const navigate = useNavigate(); // Utilisez useNavigate pour la redirection
 
   const handleSubmit = async (e) => {
     e.preventDefault();
     if (password !== confirmPassword) {
-      alert("Les mots de passe ne correspondent pas");
+      setError("Les mots de passe ne correspondent pas");
       return;
     }
+    setError(null);
+
     try {
       const response = await fetch('http://localhost:3000/users', {
         method: 'POST',
@@ -32,6 +35,9 @@ const Register = () => {
       });
 
       if (!response.ok) {
+        if (response.status === 400) {
+          throw new Error('Erreur lors de l\'inscription. Veuillez vérifier les informations.');
+        }
         throw new Error('Erreur lors de l\'inscription');
       }
 
@@ -42,6 +48,7 @@ const Register = () => {
       navigate('/login');
     } catch (error) {
       console.error('Erreur lors de l\'inscription:', error.message);
+      setError(error.message);
     }
   };
 
@@ -59,6 +66,11 @@ const Register = () => {
       <div className="bg-white p-8 rounded-lg shadow-md w-full max-w-md">
         <h2 className="text-2xl font-bold text-gray-900 mb-6 text-center">Créer un compte MyFinances</h2>
         <form onSubmit={handleSubmit}>
+          {error && (
+            <div className="mb-4 p-4 text-red-700 bg-red-100 rounded-lg">
+              {error}
+            </div>
+          )}
           <div className="mb-4">
             <label htmlFor="name" className="block text-sm font-medium text-gray-700 mb-2">
               Nom complet

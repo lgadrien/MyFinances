@@ -21,6 +21,9 @@ const Login = () => {
         body: JSON.stringify({ email, password }),
       });
 
+      const data = await response.json();
+      console.log('Réponse du serveur:', data); // Afficher la réponse du serveur
+
       if (!response.ok) {
         if (response.status === 401) {
           throw new Error('Email ou mot de passe incorrect');
@@ -28,11 +31,14 @@ const Login = () => {
         throw new Error('Erreur lors de la connexion');
       }
 
-      const data = await response.json();
-      console.log('Utilisateur connecté:', data);
+      // Vérifiez la présence des données utilisateur
+      if (!data.user || !data.user.user_id) {
+        throw new Error('ID utilisateur manquant');
+      }
 
-      // Stocker le token JWT
-      localStorage.setItem('token', data.token);
+      // Stocker l'ID utilisateur dans le localStorage
+      localStorage.setItem('user_id', data.user.user_id);
+      console.log('ID utilisateur stocké dans le localStorage:', localStorage.getItem('user_id'));
 
       // Rediriger vers la page d'accueil après une connexion réussie
       navigate('/my-account');
