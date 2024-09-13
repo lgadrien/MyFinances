@@ -76,4 +76,38 @@ function App() {
   );
 }
 
+// Ce que moi j'aurais fait <3
+// Tu auras probablement à l'adapter, mais c'est l'idée
+
+/*
+
+return (
+    <>
+    <Router>
+        <Header />
+          <Routes>
+            {user ? (
+              // Si on a un utilisateur
+              <Route path="/my-account" element={<MyAccount />} />
+              <Route path="/operations" element={<Opérations />} />
+            ) : (
+              // Si pas d'utilisateur
+              <Route path="/my-account" element={<Login />} />
+              <Route path="/operations" element={<Login />} />
+            )}
+            <Route path="/" element={<Home />} />
+            <Route path="*" element={<Error />} />
+            <Route path="/login" element={<Login />} />
+            <Route path="/register" element={<Register />} />
+            <Route path="/about" element={<About />} />
+            <Route path="/contact" element={<Contact />} />
+          </Routes>
+        <Footer />
+      </Router>
+    <>
+  );
+}
+
+*/
+
 export default App;
