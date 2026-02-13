@@ -1,12 +1,7 @@
 "use client";
 
 import { useEffect, useState, useMemo } from "react";
-import {
-  ArrowUpRight,
-  ArrowDownRight,
-  RefreshCw,
-  PieChart as PieChartIcon,
-} from "lucide-react";
+import { ArrowUpRight, ArrowDownRight, RefreshCw } from "lucide-react";
 import {
   PieChart,
   Pie,
@@ -31,23 +26,24 @@ import { FRENCH_INSTRUMENTS } from "@/lib/french-instruments";
 import Badge from "@/components/ui/Badge";
 
 const COLORS = [
-  "#10b981",
-  "#3b82f6",
-  "#f59e0b",
-  "#ef4444",
-  "#8b5cf6",
-  "#ec4899",
-  "#6366f1",
-  "#14b8a6",
+  "#8b5cf6", // Violet
+  "#d946ef", // Fuchsia
+  "#6366f1", // Indigo
+  "#a855f7", // Purple
+  "#fafafa", // White
+  "#71717a", // Zinc 500
+  "#3f3f46", // Zinc 700
 ];
 
+// eslint-disable-next-line @typescript-eslint/no-explicit-any
 const CustomTooltip = ({ active, payload, label }: any) => {
   if (active && payload && payload.length) {
     return (
-      <div className="rounded-lg border border-slate-700 bg-slate-800 p-3 shadow-xl">
-        <p className="mb-2 text-sm font-medium text-slate-400">
+      <div className="rounded-lg border border-zinc-700 bg-zinc-900 p-3 shadow-xl">
+        <p className="mb-2 text-sm font-medium text-zinc-400">
           {label ? format(parseISO(label), "d MMMM yyyy", { locale: fr }) : ""}
         </p>
+        {/* eslint-disable-next-line @typescript-eslint/no-explicit-any */}
         {payload.map((entry: any, index: number) => (
           <p
             key={index}
@@ -67,12 +63,13 @@ const CustomTooltip = ({ active, payload, label }: any) => {
   return null;
 };
 
+// eslint-disable-next-line @typescript-eslint/no-explicit-any
 const CustomPieTooltip = ({ active, payload }: any) => {
   if (active && payload && payload.length) {
     return (
-      <div className="rounded-lg border border-slate-700 bg-slate-800 p-2 shadow-xl">
+      <div className="rounded-lg border border-zinc-700 bg-zinc-900 p-2 shadow-xl">
         <p className="font-medium text-white">{payload[0].name}</p>
-        <p className="text-sm text-slate-300">
+        <p className="text-sm text-zinc-300">
           {new Intl.NumberFormat("fr-FR", {
             style: "currency",
             currency: "EUR",
@@ -86,7 +83,9 @@ const CustomPieTooltip = ({ active, payload }: any) => {
 
 export default function PortfolioPage() {
   const [positions, setPositions] = useState<PortfolioPosition[]>([]);
+  // eslint-disable-next-line @typescript-eslint/no-explicit-any
   const [history, setHistory] = useState<any[]>([]);
+  // eslint-disable-next-line @typescript-eslint/no-explicit-any
   const [filteredHistory, setFilteredHistory] = useState<any[]>([]);
   const [timeRange, setTimeRange] = useState<"1W" | "1M" | "1Y" | "Max">("1M");
 
@@ -169,7 +168,8 @@ export default function PortfolioPage() {
     }
 
     const now = new Date();
-    let filtered = [...history];
+    // eslint-disable-next-line @typescript-eslint/no-explicit-any
+    let filtered: any[] = [...history];
 
     if (timeRange === "1W") {
       const limit = subDays(now, 7);
@@ -233,7 +233,7 @@ export default function PortfolioPage() {
           <h1 className="text-3xl font-extrabold tracking-tight text-white">
             Mon Portefeuille
           </h1>
-          <p className="mt-1 text-sm text-slate-400">
+          <p className="mt-1 text-sm text-zinc-400">
             Vue détaillée de vos positions et de leur performance
           </p>
         </div>
@@ -241,14 +241,14 @@ export default function PortfolioPage() {
           <button
             onClick={handleSnapshot}
             disabled={snapshotting}
-            className="flex items-center gap-2 rounded-xl bg-indigo-500/10 px-4 py-2 text-sm font-medium text-indigo-400 transition-colors hover:bg-indigo-500/20 disabled:opacity-50"
+            className="flex items-center gap-2 rounded-xl bg-violet-500/10 px-4 py-2 text-sm font-medium text-violet-400 transition-colors hover:bg-violet-500/20 disabled:opacity-50"
           >
             {snapshotting ? "Sauvegarde..." : "Capturer valeur"}
           </button>
           <button
             onClick={loadData}
             disabled={refreshing}
-            className="flex items-center gap-2 rounded-xl bg-slate-800 px-4 py-2 text-sm font-medium text-slate-300 transition-colors hover:bg-slate-700 disabled:opacity-50"
+            className="flex items-center gap-2 rounded-xl bg-zinc-800 px-4 py-2 text-sm font-medium text-zinc-300 transition-colors hover:bg-zinc-700 disabled:opacity-50"
           >
             <RefreshCw
               className={`h-4 w-4 ${refreshing ? "animate-spin" : ""}`}
@@ -260,20 +260,20 @@ export default function PortfolioPage() {
 
       {/* Summary Cards */}
       <div className="grid gap-6 sm:grid-cols-3">
-        <div className="rounded-2xl border border-slate-800/50 bg-slate-900/50 p-6 backdrop-blur">
-          <p className="text-sm font-medium text-slate-400">Valeur Totale</p>
+        <div className="rounded-2xl border border-zinc-800 bg-zinc-900/50 p-6 backdrop-blur">
+          <p className="text-sm font-medium text-zinc-400">Valeur Totale</p>
           <p className="mt-2 text-3xl font-bold text-white">
             {loading ? "..." : formatEUR(totalValue)}
           </p>
         </div>
-        <div className="rounded-2xl border border-slate-800/50 bg-slate-900/50 p-6 backdrop-blur">
-          <p className="text-sm font-medium text-slate-400">Investissement</p>
-          <p className="mt-2 text-3xl font-bold text-slate-200">
+        <div className="rounded-2xl border border-zinc-800 bg-zinc-900/50 p-6 backdrop-blur">
+          <p className="text-sm font-medium text-zinc-400">Investissement</p>
+          <p className="mt-2 text-3xl font-bold text-zinc-200">
             {loading ? "..." : formatEUR(totalInvested)}
           </p>
         </div>
-        <div className="rounded-2xl border border-slate-800/50 bg-slate-900/50 p-6 backdrop-blur">
-          <p className="text-sm font-medium text-slate-400">Plus/Moins-Value</p>
+        <div className="rounded-2xl border border-zinc-800 bg-zinc-900/50 p-6 backdrop-blur">
+          <p className="text-sm font-medium text-zinc-400">Plus/Moins-Value</p>
           <div className="mt-2 flex items-baseline gap-2">
             <p
               className={`text-3xl font-bold ${
@@ -294,20 +294,20 @@ export default function PortfolioPage() {
       </div>
 
       {/* History Chart */}
-      <div className="rounded-2xl border border-slate-800/50 bg-slate-900/50 p-6 backdrop-blur">
+      <div className="rounded-2xl border border-zinc-800 bg-zinc-900/50 p-6 backdrop-blur">
         <div className="mb-6 flex items-center justify-between">
           <h3 className="text-lg font-semibold text-white">
             Évolution du Portefeuille
           </h3>
-          <div className="flex gap-1 rounded-lg bg-slate-800/50 p-1">
+          <div className="flex gap-1 rounded-lg bg-zinc-800/50 p-1">
             {(["1W", "1M", "1Y", "Max"] as const).map((range) => (
               <button
                 key={range}
                 onClick={() => setTimeRange(range)}
                 className={`rounded-md px-3 py-1 text-xs font-medium transition-colors ${
                   timeRange === range
-                    ? "bg-emerald-500 text-white shadow-sm"
-                    : "text-slate-400 hover:text-slate-200"
+                    ? "bg-violet-600 text-white shadow-sm"
+                    : "text-zinc-400 hover:text-zinc-200"
                 }`}
               >
                 {range}
@@ -322,24 +322,24 @@ export default function PortfolioPage() {
               <AreaChart data={filteredHistory}>
                 <defs>
                   <linearGradient id="colorValue" x1="0" y1="0" x2="0" y2="1">
-                    <stop offset="5%" stopColor="#10b981" stopOpacity={0.3} />
-                    <stop offset="95%" stopColor="#10b981" stopOpacity={0} />
+                    <stop offset="5%" stopColor="#8b5cf6" stopOpacity={0.3} />
+                    <stop offset="95%" stopColor="#8b5cf6" stopOpacity={0} />
                   </linearGradient>
                 </defs>
                 <CartesianGrid
                   strokeDasharray="3 3"
-                  stroke="#1e293b"
+                  stroke="#27272a"
                   vertical={false}
                 />
                 <XAxis
                   dataKey="date"
                   tickFormatter={(str) => format(parseISO(str), "dd/MM")}
-                  stroke="#475569"
+                  stroke="#52525b"
                   tick={{ fontSize: 12 }}
                   tickMargin={10}
                 />
                 <YAxis
-                  stroke="#475569"
+                  stroke="#52525b"
                   tick={{ fontSize: 12 }}
                   tickFormatter={(val) => `${(val / 1000).toFixed(1)}k`}
                   domain={["auto", "auto"]}
@@ -349,7 +349,7 @@ export default function PortfolioPage() {
                   type="monotone"
                   dataKey="total_value"
                   name="Valeur Totale"
-                  stroke="#10b981"
+                  stroke="#8b5cf6"
                   strokeWidth={2}
                   fillOpacity={1}
                   fill="url(#colorValue)"
@@ -358,7 +358,7 @@ export default function PortfolioPage() {
                   type="monotone"
                   dataKey="total_invested"
                   name="Investi"
-                  stroke="#64748b"
+                  stroke="#52525b"
                   strokeWidth={2}
                   strokeDasharray="4 4"
                   fill="transparent"
@@ -366,9 +366,9 @@ export default function PortfolioPage() {
               </AreaChart>
             </ResponsiveContainer>
           ) : (
-            <div className="flex h-full items-center justify-center text-sm text-slate-500">
-              Aucun historique disponible. Cliquez sur "Capturer valeur" pour
-              commencer.
+            <div className="flex h-full items-center justify-center text-sm text-zinc-500">
+              Aucun historique disponible. Cliquez sur &quot;Capturer
+              valeur&quot; pour commencer.
             </div>
           )}
         </div>
@@ -378,7 +378,7 @@ export default function PortfolioPage() {
       {!loading && positions.length > 0 && (
         <div className="grid gap-6 md:grid-cols-2">
           {/* Sector Allocation */}
-          <div className="rounded-2xl border border-slate-800/50 bg-slate-900/50 p-6 backdrop-blur">
+          <div className="rounded-2xl border border-zinc-800 bg-zinc-900/50 p-6 backdrop-blur">
             <h3 className="mb-4 text-lg font-semibold text-white">
               Répartition Sectorielle
             </h3>
@@ -410,7 +410,7 @@ export default function PortfolioPage() {
           </div>
 
           {/* Asset Allocation */}
-          <div className="rounded-2xl border border-slate-800/50 bg-slate-900/50 p-6 backdrop-blur">
+          <div className="rounded-2xl border border-zinc-800 bg-zinc-900/50 p-6 backdrop-blur">
             <h3 className="mb-4 text-lg font-semibold text-white">
               Répartition par Actif
             </h3>
@@ -444,42 +444,42 @@ export default function PortfolioPage() {
       )}
 
       {/* Positions Table */}
-      <div className="overflow-hidden rounded-2xl border border-slate-800/50 bg-gradient-to-br from-slate-900/50 to-slate-800/20 backdrop-blur-sm">
+      <div className="overflow-hidden rounded-2xl border border-zinc-800 bg-gradient-to-br from-zinc-900/50 to-black backdrop-blur-sm">
         <table className="w-full text-sm">
           <thead>
-            <tr className="border-b border-slate-800 bg-slate-900/50">
-              <th className="px-6 py-4 text-left font-semibold text-slate-400">
+            <tr className="border-b border-zinc-800 bg-zinc-900/50">
+              <th className="px-6 py-4 text-left font-semibold text-zinc-400">
                 Actif
               </th>
-              <th className="px-6 py-4 text-right font-semibold text-slate-400">
+              <th className="px-6 py-4 text-right font-semibold text-zinc-400">
                 Qté
               </th>
-              <th className="px-6 py-4 text-right font-semibold text-slate-400">
+              <th className="px-6 py-4 text-right font-semibold text-zinc-400">
                 PRU
               </th>
-              <th className="px-6 py-4 text-right font-semibold text-slate-400">
+              <th className="px-6 py-4 text-right font-semibold text-zinc-400">
                 Prix Actuel
               </th>
-              <th className="px-6 py-4 text-right font-semibold text-slate-400">
+              <th className="px-6 py-4 text-right font-semibold text-zinc-400">
                 Investi
               </th>
-              <th className="px-6 py-4 text-right font-semibold text-slate-400">
+              <th className="px-6 py-4 text-right font-semibold text-zinc-400">
                 Valeur
               </th>
-              <th className="px-6 py-4 text-right font-semibold text-slate-400">
+              <th className="px-6 py-4 text-right font-semibold text-zinc-400">
                 +/- Value
               </th>
-              <th className="px-6 py-4 text-right font-semibold text-slate-400">
+              <th className="px-6 py-4 text-right font-semibold text-zinc-400">
                 Perf.
               </th>
             </tr>
           </thead>
-          <tbody className="divide-y divide-slate-800/50">
+          <tbody className="divide-y divide-zinc-800/50">
             {loading ? (
               Array.from({ length: 3 }).map((_, i) => (
                 <tr key={i}>
                   <td colSpan={8} className="px-6 py-6">
-                    <div className="h-5 w-full animate-pulse rounded bg-slate-800" />
+                    <div className="h-5 w-full animate-pulse rounded bg-zinc-800" />
                   </td>
                 </tr>
               ))
@@ -487,7 +487,7 @@ export default function PortfolioPage() {
               <tr>
                 <td
                   colSpan={8}
-                  className="px-6 py-12 text-center text-slate-500"
+                  className="px-6 py-12 text-center text-zinc-500"
                 >
                   Aucune position active. Ajoutez des transactions pour
                   commencer.
@@ -504,7 +504,7 @@ export default function PortfolioPage() {
                 return (
                   <tr
                     key={pos.ticker}
-                    className="group transition-colors hover:bg-slate-800/30"
+                    className="group transition-colors hover:bg-zinc-900/50"
                   >
                     <td className="px-6 py-4">
                       <div
@@ -513,18 +513,18 @@ export default function PortfolioPage() {
                       >
                         {pos.name}
                       </div>
-                      <div className="text-xs text-slate-500">{pos.ticker}</div>
+                      <div className="text-xs text-zinc-500">{pos.ticker}</div>
                     </td>
-                    <td className="px-6 py-4 text-right font-medium text-slate-200">
+                    <td className="px-6 py-4 text-right font-medium text-zinc-200">
                       {pos.totalQuantity.toFixed(4).replace(/\.?0+$/, "")}
                     </td>
-                    <td className="px-6 py-4 text-right text-slate-400">
+                    <td className="px-6 py-4 text-right text-zinc-400">
                       {formatEUR(pos.pru)}
                     </td>
                     <td className="px-6 py-4 text-right font-medium text-white">
                       {pos.currentPrice ? formatEUR(pos.currentPrice) : "—"}
                     </td>
-                    <td className="px-6 py-4 text-right text-slate-400">
+                    <td className="px-6 py-4 text-right text-zinc-400">
                       {formatEUR(pos.totalInvested)}
                     </td>
                     <td className="px-6 py-4 text-right font-bold text-white">

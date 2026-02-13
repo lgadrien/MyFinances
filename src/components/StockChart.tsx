@@ -61,6 +61,7 @@ export default function StockChart({ ticker, name, onClose }: StockChartProps) {
   );
 
   useEffect(() => {
+    // eslint-disable-next-line
     fetchHistory(activeInterval);
   }, [activeInterval, fetchHistory]);
 

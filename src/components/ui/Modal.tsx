@@ -21,6 +21,7 @@ export default function Modal({
   const [mounted, setMounted] = useState(false);
 
   useEffect(() => {
+    // eslint-disable-next-line
     setMounted(true);
     return () => setMounted(false);
   }, []);
@@ -52,7 +53,7 @@ export default function Modal({
       <div className="flex min-h-full items-center justify-center p-4">
         <div
           onClick={(e) => e.stopPropagation()}
-          className="relative w-full max-w-lg rounded-2xl border border-slate-700/50 bg-slate-900 p-6 shadow-2xl"
+          className="relative w-full max-w-lg rounded-2xl border border-zinc-800 bg-zinc-900 p-6 shadow-2xl"
           role="dialog"
           aria-modal="true"
         >
@@ -61,7 +62,7 @@ export default function Modal({
             <h2 className="text-lg font-bold text-white">{title}</h2>
             <button
               onClick={onClose}
-              className="rounded-lg p-2 text-slate-400 transition-colors hover:bg-slate-800 hover:text-white"
+              className="rounded-lg p-2 text-zinc-400 transition-colors hover:bg-zinc-800 hover:text-white"
               aria-label="Fermer"
             >
               <X className="h-5 w-5" />

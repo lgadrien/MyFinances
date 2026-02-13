@@ -6,10 +6,10 @@ interface BadgeProps {
 export default function Badge({ variant, children }: BadgeProps) {
   const variantStyles: Record<string, string> = {
     success: "bg-emerald-500/10 text-emerald-400 border-emerald-500/20",
-    danger: "bg-red-500/10 text-red-400 border-red-500/20",
+    danger: "bg-rose-500/10 text-rose-400 border-rose-500/20",
     warning: "bg-amber-500/10 text-amber-400 border-amber-500/20",
-    info: "bg-blue-500/10 text-blue-400 border-blue-500/20",
-    neutral: "bg-slate-500/10 text-slate-400 border-slate-500/20",
+    info: "bg-violet-500/10 text-violet-400 border-violet-500/20",
+    neutral: "bg-zinc-500/10 text-zinc-400 border-zinc-500/20",
   };
 
   return (

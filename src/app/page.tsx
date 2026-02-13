@@ -26,14 +26,13 @@ import {
 import { FRENCH_INSTRUMENTS } from "@/lib/french-instruments";
 
 const CHART_COLORS = [
-  "#10b981",
-  "#3b82f6",
-  "#8b5cf6",
-  "#f59e0b",
-  "#ef4444",
-  "#06b6d4",
-  "#ec4899",
-  "#84cc16",
+  "#8b5cf6", // Violet
+  "#d946ef", // Fuchsia
+  "#6366f1", // Indigo
+  "#a855f7", // Purple
+  "#fafafa", // White
+  "#71717a", // Zinc 500
+  "#3f3f46", // Zinc 700
 ];
 
 export default function DashboardPage() {
@@ -116,7 +115,7 @@ export default function DashboardPage() {
   if (loading) {
     return (
       <div className="flex h-96 items-center justify-center">
-        <div className="h-8 w-8 animate-spin rounded-full border-2 border-emerald-500 border-t-transparent" />
+        <div className="h-8 w-8 animate-spin rounded-full border-2 border-violet-500 border-t-transparent" />
       </div>
     );
   }
@@ -128,7 +127,7 @@ export default function DashboardPage() {
         <h1 className="text-3xl font-extrabold tracking-tight text-white">
           Dashboard
         </h1>
-        <p className="mt-1 text-sm text-slate-400">
+        <p className="mt-1 text-sm text-zinc-400">
           Vue d&apos;ensemble de votre portefeuille PEA
         </p>
       </div>
@@ -139,13 +138,13 @@ export default function DashboardPage() {
           label="Total Investi"
           value={formatEUR(totalInvested)}
           icon={Wallet}
-          accentColor="blue"
+          accentColor="violet"
         />
         <StatsCard
           label="Dividendes Cumulés"
           value={formatEUR(totalDividends)}
           icon={Banknote}
-          accentColor="purple"
+          accentColor="fuchsia"
         />
         <StatsCard
           label="Plus-Value"
@@ -158,20 +157,20 @@ export default function DashboardPage() {
                 : "0%",
             positive: totalPlusValue >= 0,
           }}
-          accentColor={totalPlusValue >= 0 ? "emerald" : "amber"}
+          accentColor={totalPlusValue >= 0 ? "emerald" : "amber"} // Keep semantic colors for P&L
         />
         <StatsCard
           label="Capital Total"
           value={formatEUR(totalCapital)}
           icon={PiggyBank}
-          accentColor="emerald"
+          accentColor="violet"
         />
       </div>
 
       {/* Charts */}
       <div className="grid grid-cols-1 gap-6 xl:grid-cols-2">
         {/* Donut Chart — Capital Repartition */}
-        <div className="rounded-2xl border border-slate-800/50 bg-gradient-to-br from-slate-900/50 to-slate-800/20 p-6 backdrop-blur-sm">
+        <div className="rounded-2xl border border-zinc-800 bg-gradient-to-br from-zinc-900/50 to-black p-6 backdrop-blur-sm">
           <h2 className="mb-4 text-lg font-bold text-white">
             Répartition du Capital
           </h2>
@@ -199,19 +198,20 @@ export default function DashboardPage() {
                 <Tooltip
                   formatter={(value) => formatEUR(Number(value ?? 0))}
                   contentStyle={{
-                    backgroundColor: "#1e293b",
-                    border: "1px solid rgba(51, 65, 85, 0.6)",
+                    backgroundColor: "#09090b",
+                    border: "1px solid #27272a",
                     borderRadius: "12px",
                     fontSize: "13px",
+                    boxShadow: "0 10px 25px rgba(0,0,0,0.5)",
                   }}
-                  itemStyle={{ color: "#e2e8f0" }}
-                  labelStyle={{ color: "#94a3b8" }}
+                  itemStyle={{ color: "#fafafa" }}
+                  labelStyle={{ color: "#a1a1aa" }}
                 />
                 <Legend
                   verticalAlign="bottom"
                   height={36}
                   formatter={(value: string) => (
-                    <span className="text-xs text-slate-300">{value}</span>
+                    <span className="text-xs text-zinc-300">{value}</span>
                   )}
                 />
               </PieChart>
@@ -220,7 +220,7 @@ export default function DashboardPage() {
         </div>
 
         {/* Bar Chart — Dividend History */}
-        <div className="rounded-2xl border border-slate-800/50 bg-gradient-to-br from-slate-900/50 to-slate-800/20 p-6 backdrop-blur-sm">
+        <div className="rounded-2xl border border-zinc-800 bg-gradient-to-br from-zinc-900/50 to-black p-6 backdrop-blur-sm">
           <h2 className="mb-4 text-lg font-bold text-white">
             Historique des Dividendes
           </h2>
@@ -229,13 +229,13 @@ export default function DashboardPage() {
               <BarChart data={dividendHistory}>
                 <XAxis
                   dataKey="month"
-                  tick={{ fill: "#94a3b8", fontSize: 12 }}
-                  axisLine={{ stroke: "#334155" }}
+                  tick={{ fill: "#a1a1aa", fontSize: 12 }}
+                  axisLine={{ stroke: "#27272a" }}
                   tickLine={false}
                 />
                 <YAxis
-                  tick={{ fill: "#94a3b8", fontSize: 12 }}
-                  axisLine={{ stroke: "#334155" }}
+                  tick={{ fill: "#a1a1aa", fontSize: 12 }}
+                  axisLine={{ stroke: "#27272a" }}
                   tickLine={false}
                   tickFormatter={(v) => `${v}€`}
                 />
@@ -245,14 +245,15 @@ export default function DashboardPage() {
                     "Dividendes",
                   ]}
                   contentStyle={{
-                    backgroundColor: "#1e293b",
-                    border: "1px solid rgba(51, 65, 85, 0.6)",
+                    backgroundColor: "#09090b",
+                    border: "1px solid #27272a",
                     borderRadius: "12px",
                     fontSize: "13px",
+                    boxShadow: "0 10px 25px rgba(0,0,0,0.5)",
                   }}
-                  itemStyle={{ color: "#e2e8f0" }}
-                  labelStyle={{ color: "#94a3b8" }}
-                  cursor={{ fill: "rgba(16, 185, 129, 0.05)" }}
+                  itemStyle={{ color: "#fafafa" }}
+                  labelStyle={{ color: "#a1a1aa" }}
+                  cursor={{ fill: "rgba(139, 92, 246, 0.1)" }}
                 />
                 <Bar
                   dataKey="amount"
@@ -262,8 +263,8 @@ export default function DashboardPage() {
                 />
                 <defs>
                   <linearGradient id="barGradient" x1="0" y1="0" x2="0" y2="1">
-                    <stop offset="0%" stopColor="#10b981" stopOpacity={0.9} />
-                    <stop offset="100%" stopColor="#10b981" stopOpacity={0.3} />
+                    <stop offset="0%" stopColor="#8b5cf6" stopOpacity={0.9} />
+                    <stop offset="100%" stopColor="#8b5cf6" stopOpacity={0.3} />
                   </linearGradient>
                 </defs>
               </BarChart>
@@ -273,69 +274,69 @@ export default function DashboardPage() {
       </div>
 
       {/* Portfolio Positions Table */}
-      <div className="rounded-2xl border border-slate-800/50 bg-gradient-to-br from-slate-900/50 to-slate-800/20 p-6 backdrop-blur-sm">
+      <div className="rounded-2xl border border-zinc-800 bg-gradient-to-br from-zinc-900/50 to-black p-6 backdrop-blur-sm">
         <h2 className="mb-4 text-lg font-bold text-white">
           Positions du Portefeuille
         </h2>
         <div className="overflow-x-auto">
           <table className="w-full text-sm">
             <thead>
-              <tr className="border-b border-slate-800">
-                <th className="px-4 py-3 text-left font-semibold text-slate-400">
+              <tr className="border-b border-zinc-800">
+                <th className="px-4 py-3 text-left font-semibold text-zinc-400">
                   Action
                 </th>
-                <th className="px-4 py-3 text-right font-semibold text-slate-400">
+                <th className="px-4 py-3 text-right font-semibold text-zinc-400">
                   Qté
                 </th>
-                <th className="px-4 py-3 text-right font-semibold text-slate-400">
+                <th className="px-4 py-3 text-right font-semibold text-zinc-400">
                   PRU
                 </th>
-                <th className="px-4 py-3 text-right font-semibold text-slate-400">
+                <th className="px-4 py-3 text-right font-semibold text-zinc-400">
                   Prix Actuel
                 </th>
-                <th className="px-4 py-3 text-right font-semibold text-slate-400">
+                <th className="px-4 py-3 text-right font-semibold text-zinc-400">
                   Investi
                 </th>
-                <th className="px-4 py-3 text-right font-semibold text-slate-400">
+                <th className="px-4 py-3 text-right font-semibold text-zinc-400">
                   Valeur
                 </th>
-                <th className="px-4 py-3 text-right font-semibold text-slate-400">
+                <th className="px-4 py-3 text-right font-semibold text-zinc-400">
                   +/- Value
                 </th>
               </tr>
             </thead>
-            <tbody className="divide-y divide-slate-800/50">
+            <tbody className="divide-y divide-zinc-800/50">
               {positions.map((pos) => (
                 <tr
                   key={pos.ticker}
-                  className="transition-colors hover:bg-slate-800/30"
+                  className="transition-colors hover:bg-zinc-900/50"
                 >
                   <td className="px-4 py-3">
                     <div>
                       <p className="font-semibold text-white">{pos.name}</p>
-                      <p className="text-xs text-slate-500">{pos.ticker}</p>
+                      <p className="text-xs text-zinc-500">{pos.ticker}</p>
                     </div>
                   </td>
-                  <td className="px-4 py-3 text-right font-medium text-slate-200">
+                  <td className="px-4 py-3 text-right font-medium text-zinc-200">
                     {pos.totalQuantity}
                   </td>
-                  <td className="px-4 py-3 text-right font-medium text-slate-200">
+                  <td className="px-4 py-3 text-right font-medium text-zinc-200">
                     {pos.pru.toFixed(2)} €
                   </td>
-                  <td className="px-4 py-3 text-right font-medium text-slate-200">
+                  <td className="px-4 py-3 text-right font-medium text-zinc-200">
                     {pos.currentPrice?.toFixed(2)} €
                   </td>
-                  <td className="px-4 py-3 text-right font-medium text-slate-200">
+                  <td className="px-4 py-3 text-right font-medium text-zinc-200">
                     {formatEUR(pos.totalInvested)}
                   </td>
-                  <td className="px-4 py-3 text-right font-medium text-slate-200">
+                  <td className="px-4 py-3 text-right font-medium text-zinc-200">
                     {formatEUR(pos.capitalValue || 0)}
                   </td>
                   <td
                     className={`px-4 py-3 text-right font-bold ${
                       (pos.plusValue || 0) >= 0
                         ? "text-emerald-400"
-                        : "text-red-400"
+                        : "text-rose-400"
                     }`}
                   >
                     {(pos.plusValue || 0) >= 0 ? "+" : ""}

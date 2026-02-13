@@ -19,7 +19,13 @@ import {
   deleteTransaction,
 } from "@/lib/data";
 import type { Transaction } from "@/lib/calculations";
-import { FRENCH_INSTRUMENTS } from "@/lib/french-instruments";
+
+interface SearchResult {
+  symbol: string;
+  name: string;
+  type: string;
+  exchDisp: string;
+}
 
 export default function TransactionsPage() {
   const [transactions, setTransactions] = useState<Transaction[]>([]);
@@ -47,7 +53,7 @@ export default function TransactionsPage() {
 
   // Search State
   const [tickerSearch, setTickerSearch] = useState("");
-  const [searchResults, setSearchResults] = useState<any[]>([]);
+  const [searchResults, setSearchResults] = useState<SearchResult[]>([]);
   const [isSearching, setIsSearching] = useState(false);
 
   useEffect(() => {
@@ -213,13 +219,13 @@ export default function TransactionsPage() {
           <h1 className="text-3xl font-extrabold tracking-tight text-white">
             Transactions
           </h1>
-          <p className="mt-1 text-sm text-slate-400">
+          <p className="mt-1 text-sm text-zinc-400">
             Historique de vos opérations
           </p>
         </div>
         <button
           onClick={() => setIsModalOpen(true)}
-          className="flex items-center gap-2 rounded-xl bg-gradient-to-r from-emerald-500 to-emerald-600 px-5 py-2.5 text-sm font-semibold text-white shadow-lg shadow-emerald-500/20 transition-all hover:from-emerald-600 hover:to-emerald-700 hover:shadow-emerald-500/30"
+          className="flex items-center gap-2 rounded-xl bg-gradient-to-r from-violet-600 to-fuchsia-600 px-5 py-2.5 text-sm font-semibold text-white shadow-lg shadow-violet-500/20 transition-all hover:from-violet-700 hover:to-fuchsia-700 hover:shadow-violet-500/30"
         >
           <Plus className="h-4 w-4" />
           Ajouter une opération
@@ -228,32 +234,32 @@ export default function TransactionsPage() {
 
       {/* Filters */}
       <div className="flex items-center gap-3">
-        <Filter className="h-4 w-4 text-slate-500" />
+        <Filter className="h-4 w-4 text-zinc-500" />
         {["all", "Achat", "Dividende"].map((type) => (
           <button
             key={type}
             onClick={() => setFilterType(type)}
             className={`rounded-lg px-4 py-2 text-sm font-medium transition-all ${
               filterType === type
-                ? "bg-emerald-500/10 text-emerald-400 ring-1 ring-emerald-500/20"
-                : "text-slate-400 hover:bg-slate-800/50 hover:text-slate-200"
+                ? "bg-violet-500/10 text-violet-400 ring-1 ring-violet-500/20"
+                : "text-zinc-400 hover:bg-zinc-900 hover:text-zinc-200"
             }`}
           >
             {type === "all" ? "Toutes" : type}
           </button>
         ))}
-        <span className="ml-auto text-xs text-slate-500">
+        <span className="ml-auto text-xs text-zinc-500">
           {filteredTransactions.length} opération(s)
         </span>
       </div>
 
       {/* Table */}
-      <div className="overflow-hidden rounded-2xl border border-slate-800/50 bg-gradient-to-br from-slate-900/50 to-slate-800/20 backdrop-blur-sm">
+      <div className="overflow-hidden rounded-2xl border border-zinc-800 bg-gradient-to-br from-zinc-900/50 to-black backdrop-blur-sm">
         <table className="w-full text-sm">
           <thead>
-            <tr className="border-b border-slate-800">
+            <tr className="border-b border-zinc-800">
               <th
-                className="cursor-pointer px-6 py-4 text-left font-semibold text-slate-400 hover:text-white"
+                className="cursor-pointer px-6 py-4 text-left font-semibold text-zinc-400 hover:text-white"
                 onClick={() => handleSort("date")}
               >
                 <div className="flex items-center gap-2">
@@ -262,7 +268,7 @@ export default function TransactionsPage() {
                 </div>
               </th>
               <th
-                className="cursor-pointer px-6 py-4 text-center font-semibold text-slate-400 hover:text-white"
+                className="cursor-pointer px-6 py-4 text-center font-semibold text-zinc-400 hover:text-white"
                 onClick={() => handleSort("type")}
               >
                 <div className="flex items-center justify-center gap-1">
@@ -270,7 +276,7 @@ export default function TransactionsPage() {
                 </div>
               </th>
               <th
-                className="cursor-pointer px-6 py-4 text-left font-semibold text-slate-400 hover:text-white"
+                className="cursor-pointer px-6 py-4 text-left font-semibold text-zinc-400 hover:text-white"
                 onClick={() => handleSort("ticker")}
               >
                 <div className="flex items-center gap-1">
@@ -278,7 +284,7 @@ export default function TransactionsPage() {
                 </div>
               </th>
               <th
-                className="cursor-pointer px-6 py-4 text-right font-semibold text-slate-400 hover:text-white"
+                className="cursor-pointer px-6 py-4 text-right font-semibold text-zinc-400 hover:text-white"
                 onClick={() => handleSort("quantity")}
               >
                 <div className="flex items-center justify-end gap-1">
@@ -286,7 +292,7 @@ export default function TransactionsPage() {
                 </div>
               </th>
               <th
-                className="cursor-pointer px-6 py-4 text-right font-semibold text-slate-400 hover:text-white"
+                className="cursor-pointer px-6 py-4 text-right font-semibold text-zinc-400 hover:text-white"
                 onClick={() => handleSort("unit_price")}
               >
                 <div className="flex items-center justify-end gap-1">
@@ -294,34 +300,34 @@ export default function TransactionsPage() {
                 </div>
               </th>
               <th
-                className="cursor-pointer px-6 py-4 text-right font-semibold text-slate-400 hover:text-white"
+                className="cursor-pointer px-6 py-4 text-right font-semibold text-zinc-400 hover:text-white"
                 onClick={() => handleSort("total_amount")}
               >
                 <div className="flex items-center justify-end gap-1">
                   Montant <SortIcon colKey="total_amount" />
                 </div>
               </th>
-              <th className="px-6 py-4 text-right font-semibold text-slate-400">
+              <th className="px-6 py-4 text-right font-semibold text-zinc-400">
                 Frais
               </th>
               <th className="w-12 px-3 py-4"></th>
             </tr>
           </thead>
-          <tbody className="divide-y divide-slate-800/50">
+          <tbody className="divide-y divide-zinc-800/50">
             {loading
               ? Array.from({ length: 5 }).map((_, i) => (
                   <tr key={i}>
                     <td colSpan={8} className="px-6 py-5">
-                      <div className="h-4 animate-pulse rounded bg-slate-800" />
+                      <div className="h-4 animate-pulse rounded bg-zinc-800" />
                     </td>
                   </tr>
                 ))
               : sortedTransactions.map((tx) => (
                   <tr
                     key={tx.id}
-                    className="group transition-colors hover:bg-slate-800/30"
+                    className="group transition-colors hover:bg-zinc-900/50"
                   >
-                    <td className="px-6 py-4 font-medium text-slate-200">
+                    <td className="px-6 py-4 font-medium text-zinc-200">
                       {new Date(tx.date).toLocaleDateString("fr-FR", {
                         day: "2-digit",
                         month: "short",
@@ -339,10 +345,10 @@ export default function TransactionsPage() {
                         {tx.ticker}
                       </span>
                     </td>
-                    <td className="px-6 py-4 text-right font-medium text-slate-200">
+                    <td className="px-6 py-4 text-right font-medium text-zinc-200">
                       {tx.quantity > 0 ? tx.quantity : "—"}
                     </td>
-                    <td className="px-6 py-4 text-right font-medium text-slate-200">
+                    <td className="px-6 py-4 text-right font-medium text-zinc-200">
                       {tx.unit_price > 0
                         ? `${tx.unit_price.toFixed(2)} €`
                         : "—"}
@@ -350,14 +356,14 @@ export default function TransactionsPage() {
                     <td className="px-6 py-4 text-right font-bold text-white">
                       {formatEUR(tx.total_amount)}
                     </td>
-                    <td className="px-6 py-4 text-right text-slate-400">
+                    <td className="px-6 py-4 text-right text-zinc-400">
                       {tx.fees > 0 ? formatEUR(tx.fees) : "—"}
                     </td>
                     <td className="px-3 py-4 text-center">
                       <button
                         onClick={() => handleDelete(tx)}
                         disabled={deletingId === tx.id}
-                        className="rounded-lg p-1.5 text-slate-500 opacity-0 transition-all hover:bg-red-500/10 hover:text-red-400 group-hover:opacity-100 disabled:opacity-50"
+                        className="rounded-lg p-1.5 text-zinc-500 opacity-0 transition-all hover:bg-rose-500/10 hover:text-rose-400 group-hover:opacity-100 disabled:opacity-50"
                         title="Supprimer"
                       >
                         <Trash2
