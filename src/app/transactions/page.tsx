@@ -623,7 +623,7 @@ export default function TransactionsPage() {
               </div>
               <div>
                 <label className="mb-2 block text-sm font-medium text-zinc-300">
-                  Prix unitaire (€)
+                  Prix d'achat (€)
                 </label>
                 <input
                   type="number"
