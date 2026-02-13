@@ -1,5 +1,11 @@
 @import "tailwindcss";
 
+@layer utilities {
+  .pb-safe {
+    padding-bottom: env(safe-area-inset-bottom, 16px);
+  }
+}
+
 @theme inline {
   --color-background: #000000;
   --color-foreground: #fafafa;

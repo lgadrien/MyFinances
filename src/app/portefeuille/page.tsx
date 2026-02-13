@@ -444,7 +444,88 @@ export default function PortfolioPage() {
       )}
 
       {/* Positions Table */}
-      <div className="overflow-hidden rounded-2xl border border-zinc-800 bg-gradient-to-br from-zinc-900/50 to-black backdrop-blur-sm">
+
+      {/* Mobile Positions */}
+      <div className="space-y-4 md:hidden">
+        {loading
+          ? Array.from({ length: 3 }).map((_, i) => (
+              <div
+                key={i}
+                className="h-32 animate-pulse rounded-2xl bg-zinc-900"
+              />
+            ))
+          : positions.map((pos) => {
+              const perf =
+                pos.totalInvested > 0
+                  ? (pos.plusValue || 0) / pos.totalInvested
+                  : 0;
+              const isPositive = (pos.plusValue || 0) >= 0;
+
+              return (
+                <div
+                  key={pos.ticker}
+                  className="rounded-2xl border border-zinc-800 bg-zinc-900/50 p-4 shadow-sm backdrop-blur-sm"
+                >
+                  <div className="mb-3 flex items-start justify-between">
+                    <div>
+                      <p className="max-w-[150px] truncate font-bold text-white">
+                        {pos.name}
+                      </p>
+                      <p className="text-xs text-zinc-500">{pos.ticker}</p>
+                    </div>
+                    <Badge variant={isPositive ? "success" : "danger"}>
+                      {isPositive ? (
+                        <ArrowUpRight className="h-3 w-3" />
+                      ) : (
+                        <ArrowDownRight className="h-3 w-3" />
+                      )}
+                      {formatPercent(perf)}
+                    </Badge>
+                  </div>
+
+                  <div className="grid grid-cols-2 gap-4 border-t border-zinc-800/50 pt-3">
+                    <div>
+                      <p className="text-[10px] uppercase text-zinc-500">
+                        Valeur
+                      </p>
+                      <p className="font-semibold text-white">
+                        {pos.capitalValue ? formatEUR(pos.capitalValue) : "—"}
+                      </p>
+                    </div>
+                    <div className="text-right">
+                      <p className="text-[10px] uppercase text-zinc-500">
+                        +/- Value
+                      </p>
+                      <p
+                        className={`font-semibold ${
+                          isPositive ? "text-emerald-400" : "text-rose-400"
+                        }`}
+                      >
+                        {pos.plusValue
+                          ? (isPositive ? "+" : "") + formatEUR(pos.plusValue)
+                          : "—"}
+                      </p>
+                    </div>
+                    <div>
+                      <p className="text-[10px] uppercase text-zinc-500">Qté</p>
+                      <p className="text-sm text-zinc-300">
+                        {pos.totalQuantity.toFixed(4).replace(/\.?0+$/, "")}
+                      </p>
+                    </div>
+                    <div className="text-right">
+                      <p className="text-[10px] uppercase text-zinc-500">PRU</p>
+                      <p className="text-sm text-zinc-300">
+                        {formatEUR(pos.pru)}
+                      </p>
+                    </div>
+                  </div>
+                </div>
+              );
+            })}
+      </div>
+
+      {/* Desktop Table */}
+      <div className="hidden overflow-hidden rounded-2xl border border-zinc-800 bg-gradient-to-br from-zinc-900/50 to-black backdrop-blur-sm md:block">
         <div className="overflow-x-auto">
           <table className="w-full min-w-max text-sm">
             <thead>

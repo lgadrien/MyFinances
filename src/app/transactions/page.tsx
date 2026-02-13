@@ -253,8 +253,66 @@ export default function TransactionsPage() {
         </span>
       </div>
 
-      {/* Table */}
-      <div className="overflow-hidden rounded-2xl border border-zinc-800 bg-gradient-to-br from-zinc-900/50 to-black backdrop-blur-sm">
+      {/* Transactions List */}
+
+      {/* Mobile Cards */}
+      <div className="space-y-3 md:hidden">
+        {loading
+          ? Array.from({ length: 3 }).map((_, i) => (
+              <div
+                key={i}
+                className="h-24 animate-pulse rounded-2xl bg-zinc-900"
+              />
+            ))
+          : sortedTransactions.map((tx) => (
+              <div
+                key={tx.id}
+                className="relative rounded-2xl border border-zinc-800 bg-zinc-900/50 p-4 shadow-sm backdrop-blur-sm"
+              >
+                <div className="mb-2 flex items-start justify-between">
+                  <div className="flex items-center gap-2">
+                    <Badge variant={tx.type === "Achat" ? "info" : "success"}>
+                      {tx.type === "Achat" ? "ACHAT" : "DIV"}
+                    </Badge>
+                    <span className="text-xs text-zinc-500">
+                      {new Date(tx.date).toLocaleDateString("fr-FR")}
+                    </span>
+                  </div>
+                  <button
+                    onClick={() => handleDelete(tx)}
+                    className="p-1 text-zinc-500 hover:text-rose-400"
+                  >
+                    <Trash2 className="h-4 w-4" />
+                  </button>
+                </div>
+
+                <div className="flex items-center justify-between">
+                  <div>
+                    <p className="font-bold text-white">{tx.ticker}</p>
+                    {tx.quantity > 0 && (
+                      <p className="text-xs text-zinc-400">
+                        {tx.quantity} x{" "}
+                        {tx.unit_price > 0 ? tx.unit_price.toFixed(2) : "—"} €
+                      </p>
+                    )}
+                  </div>
+                  <div className="text-right">
+                    <p className="font-bold text-white">
+                      {formatEUR(tx.total_amount)}
+                    </p>
+                    {tx.fees > 0 && (
+                      <p className="text-xs text-zinc-500">
+                        Frais: {formatEUR(tx.fees)}
+                      </p>
+                    )}
+                  </div>
+                </div>
+              </div>
+            ))}
+      </div>
+
+      {/* Desktop Table */}
+      <div className="hidden overflow-hidden rounded-2xl border border-zinc-800 bg-gradient-to-br from-zinc-900/50 to-black backdrop-blur-sm md:block">
         <div className="overflow-x-auto">
           <table className="w-full min-w-max text-sm">
             <thead>
