@@ -34,6 +34,7 @@ export default function TransactionsPage() {
   const [sortDir, setSortDir] = useState<"asc" | "desc">("desc");
 
   // Form state
+  // ... (keep existing formData)
   const [formData, setFormData] = useState({
     date: new Date().toISOString().split("T")[0],
     type: "Achat" as "Achat" | "Dividende",
@@ -43,6 +44,35 @@ export default function TransactionsPage() {
     totalAmount: "",
     fees: "",
   });
+
+  // Search State
+  const [tickerSearch, setTickerSearch] = useState("");
+  const [searchResults, setSearchResults] = useState<any[]>([]);
+  const [isSearching, setIsSearching] = useState(false);
+
+  useEffect(() => {
+    const delayDebounceFn = setTimeout(async () => {
+      if (tickerSearch.length > 1) {
+        setIsSearching(true);
+        try {
+          const res = await fetch(
+            `/api/search?q=${encodeURIComponent(tickerSearch)}`,
+          );
+          const data = await res.json();
+          setSearchResults(data);
+        } catch (error) {
+          console.error("Search error", error);
+          setSearchResults([]);
+        } finally {
+          setIsSearching(false);
+        }
+      } else {
+        setSearchResults([]);
+      }
+    }, 500);
+
+    return () => clearTimeout(delayDebounceFn);
+  }, [tickerSearch]);
 
   const loadData = useCallback(async () => {
     setLoading(true);
@@ -379,26 +409,72 @@ export default function TransactionsPage() {
             </div>
           </div>
 
-          <div>
+          <div className="relative">
             <label className="mb-1.5 block text-xs font-medium text-slate-400">
-              Ticker
+              Rechercher un actif
             </label>
-            <select
-              name="ticker"
-              value={formData.ticker}
-              onChange={handleInputChange}
-              className={inputClasses}
-              required
-            >
-              <option value="">Sélectionner un actif</option>
-              {FRENCH_INSTRUMENTS.filter((i) => i.category === "Action").map(
-                (i) => (
-                  <option key={i.ticker} value={i.ticker}>
-                    {i.ticker} — {i.name}
-                  </option>
-                ),
+            <div className="relative">
+              <input
+                type="text"
+                value={formData.ticker}
+                onChange={(e) => {
+                  const val = e.target.value.toUpperCase();
+                  setFormData((prev) => ({ ...prev, ticker: val }));
+                  // Trigger search if length > 1
+                  if (val.length > 1) {
+                    setTickerSearch(val);
+                  } else {
+                    setSearchResults([]);
+                  }
+                }}
+                placeholder="Ex: LVMH, Apple, AIR..."
+                className={inputClasses}
+                autoComplete="off"
+                required
+              />
+              {isSearching && (
+                <div className="absolute right-3 top-2.5 h-4 w-4 animate-spin rounded-full border-2 border-slate-500 border-t-emerald-500" />
               )}
-            </select>
+            </div>
+
+            {/* Search Results Dropdown */}
+            {searchResults.length > 0 && (
+              <ul className="absolute z-50 mt-1 max-h-48 w-full overflow-y-auto rounded-xl border border-slate-700 bg-slate-800 py-1 shadow-xl">
+                {searchResults.map((result) => (
+                  <li
+                    key={result.symbol}
+                    onClick={() => {
+                      setFormData((prev) => ({
+                        ...prev,
+                        ticker: result.symbol,
+                      }));
+                      setSearchResults([]);
+                      setTickerSearch(""); // Stop searching
+                    }}
+                    className="cursor-pointer px-4 py-2 hover:bg-slate-700"
+                  >
+                    <div className="flex items-center justify-between">
+                      <span className="font-bold text-white">
+                        {result.symbol}
+                      </span>
+                      <span className="text-xs text-slate-400">
+                        {result.type}
+                      </span>
+                    </div>
+                    <div className="truncate text-xs text-slate-300">
+                      {result.name}
+                    </div>
+                    <div className="text-[10px] text-slate-500">
+                      {result.exchDisp}
+                    </div>
+                  </li>
+                ))}
+              </ul>
+            )}
+
+            <p className="mt-1 text-[10px] text-slate-500">
+              Tapez le nom ou le ticker (Yahoo Finance)
+            </p>
           </div>
 
           {formData.type === "Achat" && (

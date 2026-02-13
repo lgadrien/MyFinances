@@ -1,6 +1,7 @@
 "use client";
 
-import { useEffect, useRef } from "react";
+import { useEffect, useState } from "react";
+import { createPortal } from "react-dom";
 import { X } from "lucide-react";
 
 interface ModalProps {
@@ -16,7 +17,13 @@ export default function Modal({
   title,
   children,
 }: ModalProps) {
-  const overlayRef = useRef<HTMLDivElement>(null);
+  // Use state to handle hydration mismatch for portals
+  const [mounted, setMounted] = useState(false);
+
+  useEffect(() => {
+    setMounted(true);
+    return () => setMounted(false);
+  }, []);
 
   useEffect(() => {
     const handleEscape = (e: KeyboardEvent) => {
@@ -25,6 +32,7 @@ export default function Modal({
 
     if (isOpen) {
       document.addEventListener("keydown", handleEscape);
+      // Prevent body scroll
       document.body.style.overflow = "hidden";
     }
 
@@ -34,31 +42,37 @@ export default function Modal({
     };
   }, [isOpen, onClose]);
 
-  if (!isOpen) return null;
+  if (!isOpen || !mounted) return null;
 
-  return (
+  return createPortal(
     <div
-      ref={overlayRef}
-      onClick={(e) => {
-        if (e.target === overlayRef.current) onClose();
-      }}
-      className="fixed inset-0 z-50 flex items-center justify-center bg-black/60 backdrop-blur-sm"
+      className="fixed inset-0 z-[100] overflow-y-auto bg-black/60 p-4 backdrop-blur-sm"
+      onClick={onClose}
     >
-      <div className="w-full max-w-lg animate-in fade-in zoom-in-95 rounded-2xl border border-slate-700/50 bg-slate-900 p-6 shadow-2xl">
-        {/* Header */}
-        <div className="mb-6 flex items-center justify-between">
-          <h2 className="text-lg font-bold text-white">{title}</h2>
-          <button
-            onClick={onClose}
-            className="rounded-lg p-2 text-slate-400 transition-colors hover:bg-slate-800 hover:text-white"
-          >
-            <X className="h-5 w-5" />
-          </button>
-        </div>
+      <div className="flex min-h-full items-center justify-center p-4">
+        <div
+          onClick={(e) => e.stopPropagation()}
+          className="relative w-full max-w-lg rounded-2xl border border-slate-700/50 bg-slate-900 p-6 shadow-2xl"
+          role="dialog"
+          aria-modal="true"
+        >
+          {/* Header */}
+          <div className="mb-6 flex items-center justify-between">
+            <h2 className="text-lg font-bold text-white">{title}</h2>
+            <button
+              onClick={onClose}
+              className="rounded-lg p-2 text-slate-400 transition-colors hover:bg-slate-800 hover:text-white"
+              aria-label="Fermer"
+            >
+              <X className="h-5 w-5" />
+            </button>
+          </div>
 
-        {/* Content */}
-        {children}
+          {/* Content */}
+          {children}
+        </div>
       </div>
-    </div>
+    </div>,
+    document.body,
   );
 }

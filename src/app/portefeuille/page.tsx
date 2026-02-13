@@ -14,7 +14,14 @@ import {
   Tooltip,
   ResponsiveContainer,
   Legend,
+  AreaChart,
+  Area,
+  XAxis,
+  YAxis,
+  CartesianGrid,
 } from "recharts";
+import { format, subDays, subMonths, subYears, parseISO } from "date-fns";
+import { fr } from "date-fns/locale";
 import { fetchTransactions, fetchStockPrice } from "@/lib/data";
 import {
   calculatePortfolioPositions,
@@ -34,7 +41,33 @@ const COLORS = [
   "#14b8a6",
 ];
 
-const CustomTooltip = ({ active, payload }: any) => {
+const CustomTooltip = ({ active, payload, label }: any) => {
+  if (active && payload && payload.length) {
+    return (
+      <div className="rounded-lg border border-slate-700 bg-slate-800 p-3 shadow-xl">
+        <p className="mb-2 text-sm font-medium text-slate-400">
+          {label ? format(parseISO(label), "d MMMM yyyy", { locale: fr }) : ""}
+        </p>
+        {payload.map((entry: any, index: number) => (
+          <p
+            key={index}
+            className="text-sm font-semibold"
+            style={{ color: entry.color }}
+          >
+            {entry.name}:{" "}
+            {new Intl.NumberFormat("fr-FR", {
+              style: "currency",
+              currency: "EUR",
+            }).format(entry.value)}
+          </p>
+        ))}
+      </div>
+    );
+  }
+  return null;
+};
+
+const CustomPieTooltip = ({ active, payload }: any) => {
   if (active && payload && payload.length) {
     return (
       <div className="rounded-lg border border-slate-700 bg-slate-800 p-2 shadow-xl">
@@ -53,8 +86,13 @@ const CustomTooltip = ({ active, payload }: any) => {
 
 export default function PortfolioPage() {
   const [positions, setPositions] = useState<PortfolioPosition[]>([]);
+  const [history, setHistory] = useState<any[]>([]);
+  const [filteredHistory, setFilteredHistory] = useState<any[]>([]);
+  const [timeRange, setTimeRange] = useState<"1W" | "1M" | "1Y" | "Max">("1M");
+
   const [loading, setLoading] = useState(true);
   const [refreshing, setRefreshing] = useState(false);
+  const [snapshotting, setSnapshotting] = useState(false);
 
   // Map for instrument lookup
   const instrumentMap = useMemo(() => {
@@ -70,6 +108,11 @@ export default function PortfolioPage() {
       setRefreshing(true);
       const txs = await fetchTransactions();
       const initialPositions = calculatePortfolioPositions(txs, instrumentMap);
+
+      // Fetch history
+      const historyRes = await fetch("/api/portfolio/history");
+      const historyData = await historyRes.json();
+      setHistory(Array.isArray(historyData) ? historyData : []);
 
       // Filter only active positions
       const activePositions = initialPositions.filter(
@@ -102,10 +145,45 @@ export default function PortfolioPage() {
     }
   };
 
+  const handleSnapshot = async () => {
+    try {
+      setSnapshotting(true);
+      await fetch("/api/cron/snapshot");
+      await loadData(); // Reload to see new point
+    } catch (error) {
+      console.error("Snapshot failed", error);
+    } finally {
+      setSnapshotting(false);
+    }
+  };
+
   useEffect(() => {
     loadData();
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []);
+
+  useEffect(() => {
+    if (!history.length) {
+      setFilteredHistory([]);
+      return;
+    }
+
+    const now = new Date();
+    let filtered = [...history];
+
+    if (timeRange === "1W") {
+      const limit = subDays(now, 7);
+      filtered = history.filter((d) => parseISO(d.date) >= limit);
+    } else if (timeRange === "1M") {
+      const limit = subMonths(now, 1);
+      filtered = history.filter((d) => parseISO(d.date) >= limit);
+    } else if (timeRange === "1Y") {
+      const limit = subYears(now, 1);
+      filtered = history.filter((d) => parseISO(d.date) >= limit);
+    }
+
+    setFilteredHistory(filtered);
+  }, [history, timeRange]);
 
   // Calculate Chart Data
   const sectorData = useMemo(() => {
@@ -159,16 +237,25 @@ export default function PortfolioPage() {
             Vue détaillée de vos positions et de leur performance
           </p>
         </div>
-        <button
-          onClick={loadData}
-          disabled={refreshing}
-          className="flex items-center gap-2 rounded-xl bg-slate-800 px-4 py-2 text-sm font-medium text-slate-300 transition-colors hover:bg-slate-700 disabled:opacity-50"
-        >
-          <RefreshCw
-            className={`h-4 w-4 ${refreshing ? "animate-spin" : ""}`}
-          />
-          Actualiser
-        </button>
+        <div className="flex gap-2">
+          <button
+            onClick={handleSnapshot}
+            disabled={snapshotting}
+            className="flex items-center gap-2 rounded-xl bg-indigo-500/10 px-4 py-2 text-sm font-medium text-indigo-400 transition-colors hover:bg-indigo-500/20 disabled:opacity-50"
+          >
+            {snapshotting ? "Sauvegarde..." : "Capturer valeur"}
+          </button>
+          <button
+            onClick={loadData}
+            disabled={refreshing}
+            className="flex items-center gap-2 rounded-xl bg-slate-800 px-4 py-2 text-sm font-medium text-slate-300 transition-colors hover:bg-slate-700 disabled:opacity-50"
+          >
+            <RefreshCw
+              className={`h-4 w-4 ${refreshing ? "animate-spin" : ""}`}
+            />
+            Actualiser
+          </button>
+        </div>
       </div>
 
       {/* Summary Cards */}
@@ -206,7 +293,88 @@ export default function PortfolioPage() {
         </div>
       </div>
 
-      {/* Charts Section */}
+      {/* History Chart */}
+      <div className="rounded-2xl border border-slate-800/50 bg-slate-900/50 p-6 backdrop-blur">
+        <div className="mb-6 flex items-center justify-between">
+          <h3 className="text-lg font-semibold text-white">
+            Évolution du Portefeuille
+          </h3>
+          <div className="flex gap-1 rounded-lg bg-slate-800/50 p-1">
+            {(["1W", "1M", "1Y", "Max"] as const).map((range) => (
+              <button
+                key={range}
+                onClick={() => setTimeRange(range)}
+                className={`rounded-md px-3 py-1 text-xs font-medium transition-colors ${
+                  timeRange === range
+                    ? "bg-emerald-500 text-white shadow-sm"
+                    : "text-slate-400 hover:text-slate-200"
+                }`}
+              >
+                {range}
+              </button>
+            ))}
+          </div>
+        </div>
+
+        <div className="h-[300px] w-full">
+          {filteredHistory.length > 0 ? (
+            <ResponsiveContainer width="100%" height="100%">
+              <AreaChart data={filteredHistory}>
+                <defs>
+                  <linearGradient id="colorValue" x1="0" y1="0" x2="0" y2="1">
+                    <stop offset="5%" stopColor="#10b981" stopOpacity={0.3} />
+                    <stop offset="95%" stopColor="#10b981" stopOpacity={0} />
+                  </linearGradient>
+                </defs>
+                <CartesianGrid
+                  strokeDasharray="3 3"
+                  stroke="#1e293b"
+                  vertical={false}
+                />
+                <XAxis
+                  dataKey="date"
+                  tickFormatter={(str) => format(parseISO(str), "dd/MM")}
+                  stroke="#475569"
+                  tick={{ fontSize: 12 }}
+                  tickMargin={10}
+                />
+                <YAxis
+                  stroke="#475569"
+                  tick={{ fontSize: 12 }}
+                  tickFormatter={(val) => `${(val / 1000).toFixed(1)}k`}
+                  domain={["auto", "auto"]}
+                />
+                <Tooltip content={<CustomTooltip />} />
+                <Area
+                  type="monotone"
+                  dataKey="total_value"
+                  name="Valeur Totale"
+                  stroke="#10b981"
+                  strokeWidth={2}
+                  fillOpacity={1}
+                  fill="url(#colorValue)"
+                />
+                <Area
+                  type="monotone"
+                  dataKey="total_invested"
+                  name="Investi"
+                  stroke="#64748b"
+                  strokeWidth={2}
+                  strokeDasharray="4 4"
+                  fill="transparent"
+                />
+              </AreaChart>
+            </ResponsiveContainer>
+          ) : (
+            <div className="flex h-full items-center justify-center text-sm text-slate-500">
+              Aucun historique disponible. Cliquez sur "Capturer valeur" pour
+              commencer.
+            </div>
+          )}
+        </div>
+      </div>
+
+      {/* Allocation Charts */}
       {!loading && positions.length > 0 && (
         <div className="grid gap-6 md:grid-cols-2">
           {/* Sector Allocation */}
@@ -234,7 +402,7 @@ export default function PortfolioPage() {
                       />
                     ))}
                   </Pie>
-                  <Tooltip content={<CustomTooltip />} />
+                  <Tooltip content={<CustomPieTooltip />} />
                   <Legend />
                 </PieChart>
               </ResponsiveContainer>
@@ -266,7 +434,7 @@ export default function PortfolioPage() {
                       />
                     ))}
                   </Pie>
-                  <Tooltip content={<CustomTooltip />} />
+                  <Tooltip content={<CustomPieTooltip />} />
                   <Legend />
                 </PieChart>
               </ResponsiveContainer>
