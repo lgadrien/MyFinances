@@ -91,7 +91,6 @@ export default function PortfolioPage() {
 
   const [loading, setLoading] = useState(true);
   const [refreshing, setRefreshing] = useState(false);
-  const [snapshotting, setSnapshotting] = useState(false);
 
   // Map for instrument lookup
   const instrumentMap = useMemo(() => {
@@ -141,18 +140,6 @@ export default function PortfolioPage() {
     } finally {
       setLoading(false);
       setRefreshing(false);
-    }
-  };
-
-  const handleSnapshot = async () => {
-    try {
-      setSnapshotting(true);
-      await fetch("/api/cron/snapshot");
-      await loadData(); // Reload to see new point
-    } catch (error) {
-      console.error("Snapshot failed", error);
-    } finally {
-      setSnapshotting(false);
     }
   };
 
@@ -238,13 +225,6 @@ export default function PortfolioPage() {
           </p>
         </div>
         <div className="flex gap-2">
-          <button
-            onClick={handleSnapshot}
-            disabled={snapshotting}
-            className="flex items-center gap-2 rounded-xl bg-violet-500/10 px-4 py-2 text-sm font-medium text-violet-400 transition-colors hover:bg-violet-500/20 disabled:opacity-50"
-          >
-            {snapshotting ? "Sauvegarde..." : "Capturer valeur"}
-          </button>
           <button
             onClick={loadData}
             disabled={refreshing}
