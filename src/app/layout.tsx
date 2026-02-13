@@ -1,6 +1,6 @@
 import type { Metadata } from "next";
 import "./globals.css";
-import Sidebar from "@/components/layout/Sidebar";
+import ResponsiveLayout from "@/components/layout/ResponsiveLayout";
 
 export const metadata: Metadata = {
   title: "MyFinances — PEA Portfolio Tracker",
@@ -22,10 +22,7 @@ export default function RootLayout({
         />
       </head>
       <body className="min-h-screen bg-black text-zinc-50 antialiased selection:bg-violet-500/30 selection:text-violet-200">
-        <div className="flex">
-          <Sidebar />
-          <main className="ml-64 min-h-screen flex-1 p-8">{children}</main>
-        </div>
+        <ResponsiveLayout>{children}</ResponsiveLayout>
       </body>
     </html>
   );

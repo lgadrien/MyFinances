@@ -445,116 +445,120 @@ export default function PortfolioPage() {
 
       {/* Positions Table */}
       <div className="overflow-hidden rounded-2xl border border-zinc-800 bg-gradient-to-br from-zinc-900/50 to-black backdrop-blur-sm">
-        <table className="w-full text-sm">
-          <thead>
-            <tr className="border-b border-zinc-800 bg-zinc-900/50">
-              <th className="px-6 py-4 text-left font-semibold text-zinc-400">
-                Actif
-              </th>
-              <th className="px-6 py-4 text-right font-semibold text-zinc-400">
-                Qté
-              </th>
-              <th className="px-6 py-4 text-right font-semibold text-zinc-400">
-                PRU
-              </th>
-              <th className="px-6 py-4 text-right font-semibold text-zinc-400">
-                Prix Actuel
-              </th>
-              <th className="px-6 py-4 text-right font-semibold text-zinc-400">
-                Investi
-              </th>
-              <th className="px-6 py-4 text-right font-semibold text-zinc-400">
-                Valeur
-              </th>
-              <th className="px-6 py-4 text-right font-semibold text-zinc-400">
-                +/- Value
-              </th>
-              <th className="px-6 py-4 text-right font-semibold text-zinc-400">
-                Perf.
-              </th>
-            </tr>
-          </thead>
-          <tbody className="divide-y divide-zinc-800/50">
-            {loading ? (
-              Array.from({ length: 3 }).map((_, i) => (
-                <tr key={i}>
-                  <td colSpan={8} className="px-6 py-6">
-                    <div className="h-5 w-full animate-pulse rounded bg-zinc-800" />
-                  </td>
-                </tr>
-              ))
-            ) : positions.length === 0 ? (
-              <tr>
-                <td
-                  colSpan={8}
-                  className="px-6 py-12 text-center text-zinc-500"
-                >
-                  Aucune position active. Ajoutez des transactions pour
-                  commencer.
-                </td>
+        <div className="overflow-x-auto">
+          <table className="w-full min-w-max text-sm">
+            <thead>
+              <tr className="border-b border-zinc-800 bg-zinc-900/50">
+                <th className="px-6 py-4 text-left font-semibold text-zinc-400">
+                  Actif
+                </th>
+                <th className="px-6 py-4 text-right font-semibold text-zinc-400">
+                  Qté
+                </th>
+                <th className="px-6 py-4 text-right font-semibold text-zinc-400">
+                  PRU
+                </th>
+                <th className="px-6 py-4 text-right font-semibold text-zinc-400">
+                  Prix Actuel
+                </th>
+                <th className="px-6 py-4 text-right font-semibold text-zinc-400">
+                  Investi
+                </th>
+                <th className="px-6 py-4 text-right font-semibold text-zinc-400">
+                  Valeur
+                </th>
+                <th className="px-6 py-4 text-right font-semibold text-zinc-400">
+                  +/- Value
+                </th>
+                <th className="px-6 py-4 text-right font-semibold text-zinc-400">
+                  Perf.
+                </th>
               </tr>
-            ) : (
-              positions.map((pos) => {
-                const perf =
-                  pos.totalInvested > 0
-                    ? (pos.plusValue || 0) / pos.totalInvested
-                    : 0;
-                const isPositive = (pos.plusValue || 0) >= 0;
-
-                return (
-                  <tr
-                    key={pos.ticker}
-                    className="group transition-colors hover:bg-zinc-900/50"
-                  >
-                    <td className="px-6 py-4">
-                      <div
-                        className="font-bold text-white max-w-[150px] truncate"
-                        title={pos.name}
-                      >
-                        {pos.name}
-                      </div>
-                      <div className="text-xs text-zinc-500">{pos.ticker}</div>
-                    </td>
-                    <td className="px-6 py-4 text-right font-medium text-zinc-200">
-                      {pos.totalQuantity.toFixed(4).replace(/\.?0+$/, "")}
-                    </td>
-                    <td className="px-6 py-4 text-right text-zinc-400">
-                      {formatEUR(pos.pru)}
-                    </td>
-                    <td className="px-6 py-4 text-right font-medium text-white">
-                      {pos.currentPrice ? formatEUR(pos.currentPrice) : "—"}
-                    </td>
-                    <td className="px-6 py-4 text-right text-zinc-400">
-                      {formatEUR(pos.totalInvested)}
-                    </td>
-                    <td className="px-6 py-4 text-right font-bold text-white">
-                      {pos.capitalValue ? formatEUR(pos.capitalValue) : "—"}
-                    </td>
-                    <td
-                      className={`px-6 py-4 text-right font-medium ${
-                        isPositive ? "text-emerald-400" : "text-rose-400"
-                      }`}
-                    >
-                      {pos.plusValue
-                        ? `${isPositive ? "+" : ""}${formatEUR(pos.plusValue)}`
-                        : "—"}
-                    </td>
-                    <td className="px-6 py-4 text-right">
-                      <Badge variant={isPositive ? "success" : "danger"}>
-                        {isPositive ? (
-                          <ArrowUpRight className="h-3 w-3" />
-                        ) : (
-                          <ArrowDownRight className="h-3 w-3" />
-                        )}
-                        {formatPercent(perf)}
-                      </Badge>
+            </thead>
+            <tbody className="divide-y divide-zinc-800/50">
+              {loading ? (
+                Array.from({ length: 3 }).map((_, i) => (
+                  <tr key={i}>
+                    <td colSpan={8} className="px-6 py-6">
+                      <div className="h-5 w-full animate-pulse rounded bg-zinc-800" />
                     </td>
                   </tr>
-                );
-              })
-            )}
-          </tbody>
-        </table>
+                ))
+              ) : positions.length === 0 ? (
+                <tr>
+                  <td
+                    colSpan={8}
+                    className="px-6 py-12 text-center text-zinc-500"
+                  >
+                    Aucune position active. Ajoutez des transactions pour
+                    commencer.
+                  </td>
+                </tr>
+              ) : (
+                positions.map((pos) => {
+                  const perf =
+                    pos.totalInvested > 0
+                      ? (pos.plusValue || 0) / pos.totalInvested
+                      : 0;
+                  const isPositive = (pos.plusValue || 0) >= 0;
+
+                  return (
+                    <tr
+                      key={pos.ticker}
+                      className="group transition-colors hover:bg-zinc-900/50"
+                    >
+                      <td className="px-6 py-4">
+                        <div
+                          className="font-bold text-white max-w-[150px] truncate"
+                          title={pos.name}
+                        >
+                          {pos.name}
+                        </div>
+                        <div className="text-xs text-zinc-500">
+                          {pos.ticker}
+                        </div>
+                      </td>
+                      <td className="px-6 py-4 text-right font-medium text-zinc-200">
+                        {pos.totalQuantity.toFixed(4).replace(/\.?0+$/, "")}
+                      </td>
+                      <td className="px-6 py-4 text-right text-zinc-400">
+                        {formatEUR(pos.pru)}
+                      </td>
+                      <td className="px-6 py-4 text-right font-medium text-white">
+                        {pos.currentPrice ? formatEUR(pos.currentPrice) : "—"}
+                      </td>
+                      <td className="px-6 py-4 text-right text-zinc-400">
+                        {formatEUR(pos.totalInvested)}
+                      </td>
+                      <td className="px-6 py-4 text-right font-bold text-white">
+                        {pos.capitalValue ? formatEUR(pos.capitalValue) : "—"}
+                      </td>
+                      <td
+                        className={`px-6 py-4 text-right font-medium ${
+                          isPositive ? "text-emerald-400" : "text-rose-400"
+                        }`}
+                      >
+                        {pos.plusValue
+                          ? `${isPositive ? "+" : ""}${formatEUR(pos.plusValue)}`
+                          : "—"}
+                      </td>
+                      <td className="px-6 py-4 text-right">
+                        <Badge variant={isPositive ? "success" : "danger"}>
+                          {isPositive ? (
+                            <ArrowUpRight className="h-3 w-3" />
+                          ) : (
+                            <ArrowDownRight className="h-3 w-3" />
+                          )}
+                          {formatPercent(perf)}
+                        </Badge>
+                      </td>
+                    </tr>
+                  );
+                })
+              )}
+            </tbody>
+          </table>
+        </div>
       </div>
     </div>
   );

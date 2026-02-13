@@ -233,7 +233,7 @@ export default function TransactionsPage() {
       </div>
 
       {/* Filters */}
-      <div className="flex items-center gap-3">
+      <div className="flex flex-wrap items-center gap-3">
         <Filter className="h-4 w-4 text-zinc-500" />
         {["all", "Achat", "Dividende"].map((type) => (
           <button
@@ -255,126 +255,130 @@ export default function TransactionsPage() {
 
       {/* Table */}
       <div className="overflow-hidden rounded-2xl border border-zinc-800 bg-gradient-to-br from-zinc-900/50 to-black backdrop-blur-sm">
-        <table className="w-full text-sm">
-          <thead>
-            <tr className="border-b border-zinc-800">
-              <th
-                className="cursor-pointer px-6 py-4 text-left font-semibold text-zinc-400 hover:text-white"
-                onClick={() => handleSort("date")}
-              >
-                <div className="flex items-center gap-2">
-                  <Calendar className="h-3.5 w-3.5" /> Date{" "}
-                  <SortIcon colKey="date" />
-                </div>
-              </th>
-              <th
-                className="cursor-pointer px-6 py-4 text-center font-semibold text-zinc-400 hover:text-white"
-                onClick={() => handleSort("type")}
-              >
-                <div className="flex items-center justify-center gap-1">
-                  Type <SortIcon colKey="type" />
-                </div>
-              </th>
-              <th
-                className="cursor-pointer px-6 py-4 text-left font-semibold text-zinc-400 hover:text-white"
-                onClick={() => handleSort("ticker")}
-              >
-                <div className="flex items-center gap-1">
-                  Ticker <SortIcon colKey="ticker" />
-                </div>
-              </th>
-              <th
-                className="cursor-pointer px-6 py-4 text-right font-semibold text-zinc-400 hover:text-white"
-                onClick={() => handleSort("quantity")}
-              >
-                <div className="flex items-center justify-end gap-1">
-                  Quantité <SortIcon colKey="quantity" />
-                </div>
-              </th>
-              <th
-                className="cursor-pointer px-6 py-4 text-right font-semibold text-zinc-400 hover:text-white"
-                onClick={() => handleSort("unit_price")}
-              >
-                <div className="flex items-center justify-end gap-1">
-                  Prix Unit. <SortIcon colKey="unit_price" />
-                </div>
-              </th>
-              <th
-                className="cursor-pointer px-6 py-4 text-right font-semibold text-zinc-400 hover:text-white"
-                onClick={() => handleSort("total_amount")}
-              >
-                <div className="flex items-center justify-end gap-1">
-                  Montant <SortIcon colKey="total_amount" />
-                </div>
-              </th>
-              <th className="px-6 py-4 text-right font-semibold text-zinc-400">
-                Frais
-              </th>
-              <th className="w-12 px-3 py-4"></th>
-            </tr>
-          </thead>
-          <tbody className="divide-y divide-zinc-800/50">
-            {loading
-              ? Array.from({ length: 5 }).map((_, i) => (
-                  <tr key={i}>
-                    <td colSpan={8} className="px-6 py-5">
-                      <div className="h-4 animate-pulse rounded bg-zinc-800" />
-                    </td>
-                  </tr>
-                ))
-              : sortedTransactions.map((tx) => (
-                  <tr
-                    key={tx.id}
-                    className="group transition-colors hover:bg-zinc-900/50"
-                  >
-                    <td className="px-6 py-4 font-medium text-zinc-200">
-                      {new Date(tx.date).toLocaleDateString("fr-FR", {
-                        day: "2-digit",
-                        month: "short",
-                        year: "numeric",
-                      })}
-                    </td>
-                    <td className="px-6 py-4 text-center">
-                      <Badge variant={tx.type === "Achat" ? "info" : "success"}>
-                        <ArrowLeftRight className="h-3 w-3" />
-                        {tx.type}
-                      </Badge>
-                    </td>
-                    <td className="px-6 py-4">
-                      <span className="font-semibold text-white">
-                        {tx.ticker}
-                      </span>
-                    </td>
-                    <td className="px-6 py-4 text-right font-medium text-zinc-200">
-                      {tx.quantity > 0 ? tx.quantity : "—"}
-                    </td>
-                    <td className="px-6 py-4 text-right font-medium text-zinc-200">
-                      {tx.unit_price > 0
-                        ? `${tx.unit_price.toFixed(2)} €`
-                        : "—"}
-                    </td>
-                    <td className="px-6 py-4 text-right font-bold text-white">
-                      {formatEUR(tx.total_amount)}
-                    </td>
-                    <td className="px-6 py-4 text-right text-zinc-400">
-                      {tx.fees > 0 ? formatEUR(tx.fees) : "—"}
-                    </td>
-                    <td className="px-3 py-4 text-center">
-                      <button
-                        onClick={() => handleDelete(tx)}
-                        disabled={deletingId === tx.id}
-                        className="rounded-lg p-1.5 text-zinc-500 opacity-0 transition-all hover:bg-rose-500/10 hover:text-rose-400 group-hover:opacity-100 disabled:opacity-50"
-                        title="Supprimer"
-                      >
-                        <Trash2
-                          className={`h-4 w-4 ${deletingId === tx.id ? "animate-pulse" : ""}`}
-                        />
-                      </button>
-                    </td>
-                  </tr>
-                ))}
-          </tbody>
-        </table>
+        <div className="overflow-x-auto">
+          <table className="w-full min-w-max text-sm">
+            <thead>
+              <tr className="border-b border-zinc-800">
+                <th
+                  className="cursor-pointer px-6 py-4 text-left font-semibold text-zinc-400 hover:text-white"
+                  onClick={() => handleSort("date")}
+                >
+                  <div className="flex items-center gap-2">
+                    <Calendar className="h-3.5 w-3.5" /> Date{" "}
+                    <SortIcon colKey="date" />
+                  </div>
+                </th>
+                <th
+                  className="cursor-pointer px-6 py-4 text-center font-semibold text-zinc-400 hover:text-white"
+                  onClick={() => handleSort("type")}
+                >
+                  <div className="flex items-center justify-center gap-1">
+                    Type <SortIcon colKey="type" />
+                  </div>
+                </th>
+                <th
+                  className="cursor-pointer px-6 py-4 text-left font-semibold text-zinc-400 hover:text-white"
+                  onClick={() => handleSort("ticker")}
+                >
+                  <div className="flex items-center gap-1">
+                    Ticker <SortIcon colKey="ticker" />
+                  </div>
+                </th>
+                <th
+                  className="cursor-pointer px-6 py-4 text-right font-semibold text-zinc-400 hover:text-white"
+                  onClick={() => handleSort("quantity")}
+                >
+                  <div className="flex items-center justify-end gap-1">
+                    Quantité <SortIcon colKey="quantity" />
+                  </div>
+                </th>
+                <th
+                  className="cursor-pointer px-6 py-4 text-right font-semibold text-zinc-400 hover:text-white"
+                  onClick={() => handleSort("unit_price")}
+                >
+                  <div className="flex items-center justify-end gap-1">
+                    Prix Unit. <SortIcon colKey="unit_price" />
+                  </div>
+                </th>
+                <th
+                  className="cursor-pointer px-6 py-4 text-right font-semibold text-zinc-400 hover:text-white"
+                  onClick={() => handleSort("total_amount")}
+                >
+                  <div className="flex items-center justify-end gap-1">
+                    Montant <SortIcon colKey="total_amount" />
+                  </div>
+                </th>
+                <th className="px-6 py-4 text-right font-semibold text-zinc-400">
+                  Frais
+                </th>
+                <th className="w-12 px-3 py-4"></th>
+              </tr>
+            </thead>
+            <tbody className="divide-y divide-zinc-800/50">
+              {loading
+                ? Array.from({ length: 5 }).map((_, i) => (
+                    <tr key={i}>
+                      <td colSpan={8} className="px-6 py-5">
+                        <div className="h-4 animate-pulse rounded bg-zinc-800" />
+                      </td>
+                    </tr>
+                  ))
+                : sortedTransactions.map((tx) => (
+                    <tr
+                      key={tx.id}
+                      className="group transition-colors hover:bg-zinc-900/50"
+                    >
+                      <td className="px-6 py-4 font-medium text-zinc-200">
+                        {new Date(tx.date).toLocaleDateString("fr-FR", {
+                          day: "2-digit",
+                          month: "short",
+                          year: "numeric",
+                        })}
+                      </td>
+                      <td className="px-6 py-4 text-center">
+                        <Badge
+                          variant={tx.type === "Achat" ? "info" : "success"}
+                        >
+                          <ArrowLeftRight className="h-3 w-3" />
+                          {tx.type}
+                        </Badge>
+                      </td>
+                      <td className="px-6 py-4">
+                        <span className="font-semibold text-white">
+                          {tx.ticker}
+                        </span>
+                      </td>
+                      <td className="px-6 py-4 text-right font-medium text-zinc-200">
+                        {tx.quantity > 0 ? tx.quantity : "—"}
+                      </td>
+                      <td className="px-6 py-4 text-right font-medium text-zinc-200">
+                        {tx.unit_price > 0
+                          ? `${tx.unit_price.toFixed(2)} €`
+                          : "—"}
+                      </td>
+                      <td className="px-6 py-4 text-right font-bold text-white">
+                        {formatEUR(tx.total_amount)}
+                      </td>
+                      <td className="px-6 py-4 text-right text-zinc-400">
+                        {tx.fees > 0 ? formatEUR(tx.fees) : "—"}
+                      </td>
+                      <td className="px-3 py-4 text-center">
+                        <button
+                          onClick={() => handleDelete(tx)}
+                          disabled={deletingId === tx.id}
+                          className="rounded-lg p-1.5 text-zinc-500 opacity-0 transition-all hover:bg-rose-500/10 hover:text-rose-400 group-hover:opacity-100 disabled:opacity-50"
+                          title="Supprimer"
+                        >
+                          <Trash2
+                            className={`h-4 w-4 ${deletingId === tx.id ? "animate-pulse" : ""}`}
+                          />
+                        </button>
+                      </td>
+                    </tr>
+                  ))}
+            </tbody>
+          </table>
+        </div>
       </div>
 
       {/* Add Transaction Modal */}

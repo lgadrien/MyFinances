@@ -17,11 +17,18 @@ const navItems = [
   { href: "/transactions", label: "Transactions", icon: ArrowLeftRight },
 ];
 
-export default function Sidebar() {
+interface SidebarProps {
+  className?: string;
+  onNavigate?: () => void;
+}
+
+export default function Sidebar({ className = "", onNavigate }: SidebarProps) {
   const pathname = usePathname();
 
   return (
-    <aside className="fixed left-0 top-0 z-40 flex h-screen w-64 flex-col border-r border-zinc-800 bg-black backdrop-blur-xl">
+    <aside
+      className={`flex h-screen w-64 flex-col border-r border-zinc-800 bg-black backdrop-blur-xl ${className}`}
+    >
       {/* Logo */}
       <div className="flex h-16 items-center gap-3 border-b border-zinc-800 px-6">
         <div className="flex h-9 w-9 items-center justify-center rounded-lg bg-gradient-to-br from-violet-600 to-fuchsia-600 shadow-lg shadow-violet-500/20">
@@ -43,6 +50,7 @@ export default function Sidebar() {
             <Link
               key={item.href}
               href={item.href}
+              onClick={onNavigate}
               className={`group flex items-center gap-3 rounded-xl px-4 py-3 text-sm font-medium transition-all duration-200 ${
                 isActive
                   ? "bg-violet-500/10 text-violet-400 shadow-sm shadow-violet-500/5 ring-1 ring-violet-500/20"
