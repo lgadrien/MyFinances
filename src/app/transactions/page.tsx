@@ -223,12 +223,22 @@ export default function TransactionsPage() {
             Historique de vos opérations
           </p>
         </div>
+
+        {/* Desktop button */}
         <button
           onClick={() => setIsModalOpen(true)}
-          className="flex items-center gap-2 rounded-xl bg-gradient-to-r from-violet-600 to-fuchsia-600 px-5 py-2.5 text-sm font-semibold text-white shadow-lg shadow-violet-500/20 transition-all hover:from-violet-700 hover:to-fuchsia-700 hover:shadow-violet-500/30"
+          className="hidden items-center gap-2 rounded-xl bg-gradient-to-r from-violet-600 to-fuchsia-600 px-5 py-2.5 text-sm font-semibold text-white shadow-lg shadow-violet-500/20 transition-all hover:from-violet-700 hover:to-fuchsia-700 hover:shadow-violet-500/30 md:flex"
         >
           <Plus className="h-4 w-4" />
           Ajouter une opération
+        </button>
+
+        {/* Mobile floating button */}
+        <button
+          onClick={() => setIsModalOpen(true)}
+          className="fixed bottom-20 right-4 z-40 flex h-14 w-14 items-center justify-center rounded-full bg-gradient-to-r from-violet-600 to-fuchsia-600 text-white shadow-lg shadow-violet-500/30 transition-all hover:from-violet-700 hover:to-fuchsia-700 hover:shadow-violet-500/40 active:scale-95 md:hidden"
+        >
+          <Plus className="h-6 w-6" />
         </button>
       </div>
 
