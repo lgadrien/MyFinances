@@ -224,6 +224,14 @@ export default function TransactionsPage() {
           </p>
         </div>
 
+        {/* Mobile compact button */}
+        <button
+          onClick={() => setIsModalOpen(true)}
+          className="flex h-10 w-10 items-center justify-center rounded-full bg-gradient-to-r from-violet-600 to-fuchsia-600 text-white shadow-lg shadow-violet-500/20 transition-all hover:from-violet-700 hover:to-fuchsia-700 hover:shadow-violet-500/30 active:scale-95 md:hidden"
+        >
+          <Plus className="h-5 w-5" />
+        </button>
+
         {/* Desktop button */}
         <button
           onClick={() => setIsModalOpen(true)}
@@ -233,15 +241,6 @@ export default function TransactionsPage() {
           Ajouter une opération
         </button>
       </div>
-
-      {/* Mobile floating button */}
-      <button
-        onClick={() => setIsModalOpen(true)}
-        className="fixed bottom-[5rem] right-4 z-50 flex h-14 w-14 items-center justify-center rounded-full bg-gradient-to-r from-violet-600 to-fuchsia-600 text-white shadow-lg shadow-violet-500/30 transition-all hover:from-violet-700 hover:to-fuchsia-700 hover:shadow-violet-500/40 active:scale-95 md:hidden"
-        style={{ position: "fixed", bottom: "5rem", right: "1rem" }}
-      >
-        <Plus className="h-6 w-6" />
-      </button>
 
       {/* Filters */}
       <div className="flex flex-wrap items-center gap-3">
