@@ -108,14 +108,14 @@ export default function StockChart({ ticker, name, onClose }: StockChartProps) {
   }
 
   return (
-    <div className="animate-in slide-in-from-top-2 overflow-hidden rounded-2xl border border-slate-700/50 bg-gradient-to-br from-slate-900 via-slate-900/95 to-slate-800/80 shadow-2xl shadow-black/30">
+    <div className="animate-in slide-in-from-top-2 overflow-hidden rounded-2xl border border-zinc-700/50 bg-gradient-to-br from-zinc-900 via-zinc-900/95 to-zinc-800/80 shadow-2xl shadow-black/30">
       {/* Header */}
-      <div className="flex items-center justify-between border-b border-slate-800/50 px-6 py-4">
+      <div className="flex items-center justify-between border-b border-zinc-800/50 px-6 py-4">
         <div className="flex items-center gap-4">
           <div>
             <div className="flex items-center gap-2">
               <h3 className="text-lg font-bold text-white">{name}</h3>
-              <span className="rounded-md bg-slate-700/50 px-2 py-0.5 text-xs font-medium text-slate-400">
+              <span className="rounded-md bg-zinc-700/50 px-2 py-0.5 text-xs font-medium text-zinc-400">
                 {ticker}
               </span>
             </div>
@@ -146,14 +146,14 @@ export default function StockChart({ ticker, name, onClose }: StockChartProps) {
         </div>
         <button
           onClick={onClose}
-          className="rounded-lg p-2 text-slate-400 transition-colors hover:bg-slate-800 hover:text-white"
+          className="rounded-lg p-2 text-zinc-400 transition-colors hover:bg-zinc-800 hover:text-white"
         >
           <X className="h-5 w-5" />
         </button>
       </div>
 
       {/* Time period selector */}
-      <div className="flex items-center gap-1 border-b border-slate-800/30 px-6 py-3">
+      <div className="flex items-center gap-1 border-b border-zinc-800/30 px-6 py-3">
         {TIME_PERIODS.map((period) => (
           <button
             key={period.interval}
@@ -163,7 +163,7 @@ export default function StockChart({ ticker, name, onClose }: StockChartProps) {
                 ? isPositive
                   ? "bg-emerald-500/15 text-emerald-400 ring-1 ring-emerald-500/30"
                   : "bg-red-500/15 text-red-400 ring-1 ring-red-500/30"
-                : "text-slate-500 hover:bg-slate-800/50 hover:text-slate-300"
+                : "text-zinc-500 hover:bg-zinc-800/50 hover:text-zinc-300"
             }`}
             title={period.description}
           >
@@ -173,10 +173,10 @@ export default function StockChart({ ticker, name, onClose }: StockChartProps) {
 
         {/* OHLC info on hover */}
         {crosshairData && (
-          <div className="ml-auto flex gap-4 text-xs text-slate-500">
+          <div className="ml-auto flex gap-4 text-xs text-zinc-500">
             <span>
               O{" "}
-              <span className="font-medium text-slate-300">
+              <span className="font-medium text-zinc-300">
                 {crosshairData.open.toFixed(2)}
               </span>
             </span>
@@ -194,13 +194,13 @@ export default function StockChart({ ticker, name, onClose }: StockChartProps) {
             </span>
             <span>
               C{" "}
-              <span className="font-medium text-slate-200">
+              <span className="font-medium text-zinc-200">
                 {crosshairData.close.toFixed(2)}
               </span>
             </span>
             <span>
               Vol{" "}
-              <span className="font-medium text-slate-300">
+              <span className="font-medium text-zinc-300">
                 {(crosshairData.volume / 1000).toFixed(0)}K
               </span>
             </span>
@@ -212,10 +212,10 @@ export default function StockChart({ ticker, name, onClose }: StockChartProps) {
       <div className="px-4 py-4" style={{ height: 320 }}>
         {loading ? (
           <div className="flex h-full items-center justify-center">
-            <Loader2 className="h-8 w-8 animate-spin text-slate-500" />
+            <Loader2 className="h-8 w-8 animate-spin text-zinc-500" />
           </div>
         ) : data.length === 0 ? (
-          <div className="flex h-full items-center justify-center text-sm text-slate-500">
+          <div className="flex h-full items-center justify-center text-sm text-zinc-500">
             Aucune donnée disponible
           </div>
         ) : (
@@ -344,8 +344,8 @@ export default function StockChart({ ticker, name, onClose }: StockChartProps) {
 
       {/* Volume bar at bottom */}
       {!loading && data.length > 0 && (
-        <div className="border-t border-slate-800/30 px-6 py-3">
-          <div className="flex items-center justify-between text-xs text-slate-500">
+        <div className="border-t border-zinc-800/30 px-6 py-3">
+          <div className="flex items-center justify-between text-xs text-zinc-500">
             <span>
               Min:{" "}
               <span className="font-medium text-red-400">
@@ -354,7 +354,7 @@ export default function StockChart({ ticker, name, onClose }: StockChartProps) {
             </span>
             <span>
               Moy:{" "}
-              <span className="font-medium text-slate-300">
+              <span className="font-medium text-zinc-300">
                 {avgPrice.toFixed(2)} €
               </span>
             </span>
@@ -364,7 +364,7 @@ export default function StockChart({ ticker, name, onClose }: StockChartProps) {
                 {maxPrice.toFixed(2)} €
               </span>
             </span>
-            <span className="text-slate-600">
+            <span className="text-zinc-600">
               {data.length} points ·{" "}
               {TIME_PERIODS.find((p) => p.interval === activeInterval)
                 ?.description || activeInterval}

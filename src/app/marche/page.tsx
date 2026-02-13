@@ -327,14 +327,14 @@ export default function MarchePage() {
   }
 
   return (
-    <div className="animate-fade-in space-y-6">
+    <div className="animate-fade-in max-w-full space-y-6 overflow-x-hidden">
       {/* Header */}
       <div className="flex items-center justify-between">
         <div>
           <h1 className="text-3xl font-extrabold tracking-tight text-white">
             Marché
           </h1>
-          <p className="mt-1 text-sm text-slate-400">
+          <p className="mt-1 text-sm text-zinc-400">
             Watchlist & cotations en temps réel — {counts.actions} actions,{" "}
             {counts.indices} indices
           </p>
@@ -342,7 +342,7 @@ export default function MarchePage() {
         <button
           onClick={handleRefresh}
           disabled={refreshing || loading}
-          className="flex items-center gap-2 rounded-xl border border-slate-700/50 bg-slate-800/50 px-4 py-2.5 text-sm font-medium text-slate-300 transition-all hover:bg-slate-700/50 hover:text-white disabled:opacity-50"
+          className="flex items-center gap-2 rounded-xl border border-zinc-700/50 bg-zinc-800/50 px-4 py-2.5 text-sm font-medium text-zinc-300 transition-all hover:bg-zinc-700/50 hover:text-white disabled:opacity-50"
         >
           <RefreshCw
             className={`h-4 w-4 ${refreshing ? "animate-spin" : ""}`}
@@ -354,7 +354,7 @@ export default function MarchePage() {
       {/* Category Filters + Search */}
       <div className="flex flex-col gap-4 sm:flex-row sm:items-center sm:justify-between">
         {/* Category Tabs */}
-        <div className="flex items-center gap-2 rounded-xl bg-zinc-900/50 p-1">
+        <div className="flex flex-wrap items-center gap-2 rounded-xl bg-zinc-900/50 p-1">
           <button
             onClick={() => setCategoryFilter("Tous")}
             className={`flex items-center gap-2 rounded-lg px-4 py-2 text-sm font-medium transition-all ${
