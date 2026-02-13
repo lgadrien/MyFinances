@@ -7,6 +7,7 @@ import {
   Calendar,
   Filter,
   Trash2,
+  Pencil,
   ChevronsUpDown,
   ChevronUp,
   ChevronDown,
@@ -16,6 +17,7 @@ import Modal from "@/components/ui/Modal";
 import {
   fetchTransactions,
   insertTransaction,
+  updateTransaction,
   deleteTransaction,
 } from "@/lib/data";
 import type { Transaction } from "@/lib/calculations";
@@ -34,6 +36,8 @@ export default function TransactionsPage() {
   const [loading, setLoading] = useState(true);
   const [submitting, setSubmitting] = useState(false);
   const [deletingId, setDeletingId] = useState<string | null>(null);
+  const [editingTransaction, setEditingTransaction] =
+    useState<Transaction | null>(null);
 
   // Sorting state
   const [sortKey, setSortKey] = useState<keyof Transaction | null>("date");
@@ -150,7 +154,7 @@ export default function TransactionsPage() {
     e.preventDefault();
     setSubmitting(true);
 
-    const result = await insertTransaction({
+    const txData = {
       ticker: formData.ticker,
       type: formData.type,
       date: formData.date,
@@ -158,7 +162,11 @@ export default function TransactionsPage() {
       unit_price: parseFloat(formData.unitPrice) || 0,
       total_amount: parseFloat(formData.totalAmount) || 0,
       fees: parseFloat(formData.fees) || 0,
-    });
+    };
+
+    const result = editingTransaction
+      ? await updateTransaction(editingTransaction.id, txData)
+      : await insertTransaction(txData);
 
     if (result) {
       // Refresh data from Supabase
@@ -174,10 +182,25 @@ export default function TransactionsPage() {
         totalAmount: "",
         fees: "",
       });
+      setEditingTransaction(null);
       setIsModalOpen(false);
     }
 
     setSubmitting(false);
+  };
+
+  const handleEdit = (tx: Transaction) => {
+    setEditingTransaction(tx);
+    setFormData({
+      date: tx.date,
+      type: tx.type,
+      ticker: tx.ticker,
+      quantity: tx.quantity.toString(),
+      unitPrice: tx.unit_price.toString(),
+      totalAmount: tx.total_amount.toString(),
+      fees: tx.fees.toString(),
+    });
+    setIsModalOpen(true);
   };
 
   const handleDelete = async (tx: Transaction) => {
@@ -226,7 +249,10 @@ export default function TransactionsPage() {
 
         {/* Mobile compact button */}
         <button
-          onClick={() => setIsModalOpen(true)}
+          onClick={() => {
+            setEditingTransaction(null);
+            setIsModalOpen(true);
+          }}
           className="flex h-10 w-10 items-center justify-center rounded-full bg-gradient-to-r from-violet-600 to-fuchsia-600 text-white shadow-lg shadow-violet-500/20 transition-all hover:from-violet-700 hover:to-fuchsia-700 hover:shadow-violet-500/30 active:scale-95 md:hidden"
         >
           <Plus className="h-5 w-5" />
@@ -234,7 +260,10 @@ export default function TransactionsPage() {
 
         {/* Desktop button */}
         <button
-          onClick={() => setIsModalOpen(true)}
+          onClick={() => {
+            setEditingTransaction(null);
+            setIsModalOpen(true);
+          }}
           className="hidden items-center gap-2 rounded-xl bg-gradient-to-r from-violet-600 to-fuchsia-600 px-5 py-2.5 text-sm font-semibold text-white shadow-lg shadow-violet-500/20 transition-all hover:from-violet-700 hover:to-fuchsia-700 hover:shadow-violet-500/30 md:flex"
         >
           <Plus className="h-4 w-4" />
@@ -288,12 +317,22 @@ export default function TransactionsPage() {
                       {new Date(tx.date).toLocaleDateString("fr-FR")}
                     </span>
                   </div>
-                  <button
-                    onClick={() => handleDelete(tx)}
-                    className="p-1 text-zinc-500 hover:text-rose-400"
-                  >
-                    <Trash2 className="h-4 w-4" />
-                  </button>
+                  <div className="flex items-center gap-1">
+                    <button
+                      onClick={() => handleEdit(tx)}
+                      className="p-1 text-zinc-500 hover:text-violet-400"
+                      title="Modifier"
+                    >
+                      <Pencil className="h-4 w-4" />
+                    </button>
+                    <button
+                      onClick={() => handleDelete(tx)}
+                      className="p-1 text-zinc-500 hover:text-rose-400"
+                      title="Supprimer"
+                    >
+                      <Trash2 className="h-4 w-4" />
+                    </button>
+                  </div>
                 </div>
 
                 <div className="flex items-center justify-between">
@@ -380,6 +419,7 @@ export default function TransactionsPage() {
                   Frais
                 </th>
                 <th className="w-12 px-3 py-4"></th>
+                <th className="w-12 px-3 py-4"></th>
               </tr>
             </thead>
             <tbody className="divide-y divide-zinc-800/50">
@@ -432,6 +472,15 @@ export default function TransactionsPage() {
                       </td>
                       <td className="px-3 py-4 text-center">
                         <button
+                          onClick={() => handleEdit(tx)}
+                          className="rounded-lg p-1.5 text-zinc-500 opacity-0 transition-all hover:bg-violet-500/10 hover:text-violet-400 group-hover:opacity-100"
+                          title="Modifier"
+                        >
+                          <Pencil className="h-4 w-4" />
+                        </button>
+                      </td>
+                      <td className="px-3 py-4 text-center">
+                        <button
                           onClick={() => handleDelete(tx)}
                           disabled={deletingId === tx.id}
                           className="rounded-lg p-1.5 text-zinc-500 opacity-0 transition-all hover:bg-rose-500/10 hover:text-rose-400 group-hover:opacity-100 disabled:opacity-50"
@@ -449,11 +498,16 @@ export default function TransactionsPage() {
         </div>
       </div>
 
-      {/* Add Transaction Modal */}
+      {/* Add/Edit Transaction Modal */}
       <Modal
         isOpen={isModalOpen}
-        onClose={() => setIsModalOpen(false)}
-        title="Ajouter une opération"
+        onClose={() => {
+          setIsModalOpen(false);
+          setEditingTransaction(null);
+        }}
+        title={
+          editingTransaction ? "Modifier l'opération" : "Ajouter une opération"
+        }
       >
         <form onSubmit={handleSubmit} className="space-y-4">
           <div className="grid grid-cols-2 gap-4">

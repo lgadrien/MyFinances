@@ -111,6 +111,44 @@ export async function insertTransaction(tx: {
 }
 
 /**
+ * Update an existing transaction in Supabase
+ */
+export async function updateTransaction(
+  id: string,
+  tx: {
+    ticker: string;
+    type: "Achat" | "Dividende";
+    date: string;
+    quantity: number;
+    unit_price: number;
+    total_amount: number;
+    fees: number;
+  },
+): Promise<Transaction | null> {
+  const { data, error } = await supabase
+    .from("transactions")
+    .update(tx)
+    .eq("id", id)
+    .select()
+    .single();
+
+  if (error) {
+    console.error("Error updating transaction:", error);
+    return null;
+  }
+
+  return data
+    ? {
+        ...data,
+        quantity: Number(data.quantity),
+        unit_price: Number(data.unit_price),
+        total_amount: Number(data.total_amount),
+        fees: Number(data.fees),
+      }
+    : null;
+}
+
+/**
  * Delete a transaction from Supabase by ID
  */
 export async function deleteTransaction(id: string): Promise<boolean> {
