@@ -1,36 +1,98 @@
-This is a [Next.js](https://nextjs.org) project bootstrapped with [`create-next-app`](https://nextjs.org/docs/app/api-reference/cli/create-next-app).
+# MyFinances - PEA Stock Tracker 🚀
 
-## Getting Started
+Application moderne de suivi de portefeuille PEA, conçue pour être performante et esthétique.
 
-First, run the development server:
+## Fonctionnalités Principales
+
+- **Dashboard Complet** : Vue d'ensemble de la performance (PV/MV, Dividendes, Capital).
+- **Suivi de Marché** : Cours en temps réel via Yahoo Finance (gratuit & illimité).
+- **Recherche Dynamique** : Ajoutez n'importe quelle action (Actions, ETF, Indices) à votre liste.
+- **Favoris Persistants** : Vos actions favorites sont sauvegardées dans une base de données Supabase.
+- **Historique des Transactions** : Importez et suivez vos achats/ventes/dividendes.
+- **Charts Interactifs** : Graphiques financiers (1J, 5J, 1M, YTD, 1A).
+
+---
+
+## 🛠️ Pré-requis
+
+- **Node.js** (v18+)
+- Compte **Supabase** (gratuit) pour la base de données.
+
+---
+
+## 🚀 Installation & Configuration
+
+### 1. Cloner le projet
+
+```bash
+git clone <votre-repo-url>
+cd myfinances-pea
+npm install
+```
+
+### 2. Configurer les variables d'environnement
+
+Copiez le fichier d'exemple pour créer votre configuration locale :
+
+```bash
+cp .env.example .env.local
+```
+
+Ouvrez `.env.local` et remplissez les clés Supabase :
+
+```env
+# Supabase (Obligatoire pour les Favs & Transactions)
+NEXT_PUBLIC_SUPABASE_URL=https://votre-projet.supabase.co
+NEXT_PUBLIC_SUPABASE_ANON_KEY=votre-cle-anon-publique
+
+# Alpha Vantage (Optionnel - Backup API)
+ALPHA_VANTAGE_KEY=votre-cle-api
+```
+
+> **Note**: Yahoo Finance est utilisé par défaut pour les prix en temps réel et ne nécessite pas de clé API.
+
+### 3. Initialiser la Base de Données (Supabase)
+
+Allez dans votre dashboard Supabase > **SQL Editor** et exécutez les scripts suivants (dans l'ordre) :
+
+1.  **Créer les tables (Transactions, Assets)** :
+    - Ouvrez et copiez le contenu de `supabase-schema.sql`.
+    - Exécutez-le.
+
+2.  **Activer les Favoris (Table simplifiée)** :
+    - Ouvrez et copiez le contenu de `supabase-favorites.sql`.
+    - Exécutez-le.
+
+3.  **(Optionnel) Importer vos transactions** :
+    - Si vous avez des transactions à importer, utilisez le modèle `import-transactions.sql`.
+
+### 4. Lancer l'application
 
 ```bash
 npm run dev
-# or
-yarn dev
-# or
-pnpm dev
-# or
-bun dev
 ```
 
-Open [http://localhost:3000](http://localhost:3000) with your browser to see the result.
+Ouvrez [http://localhost:3000](http://localhost:3000) dans votre navigateur.
 
-You can start editing the page by modifying `app/page.tsx`. The page auto-updates as you edit the file.
+---
 
-This project uses [`next/font`](https://nextjs.org/docs/app/building-your-application/optimizing/fonts) to automatically optimize and load [Geist](https://vercel.com/font), a new font family for Vercel.
+## 📦 Structure du Projet
 
-## Learn More
+- `src/app` : Pages Next.js (Router).
+- `src/components` : Composants UI réutilisables.
+- `src/lib` : Utilitaires (API calls, calculs financiers).
+- `src/app/api` : Routes API backend (Proxy vers Yahoo Finance).
 
-To learn more about Next.js, take a look at the following resources:
+## 🛡️ Technologies
 
-- [Next.js Documentation](https://nextjs.org/docs) - learn about Next.js features and API.
-- [Learn Next.js](https://nextjs.org/learn) - an interactive Next.js tutorial.
+- **Framework** : Next.js 14+ (App Router)
+- **Langage** : TypeScript
+- **Style** : Tailwind CSS + Lucide React
+- **Base de données** : Supabase (PostgreSQL)
+- **Data** : Yahoo Finance API (via `yahoo-finance2` ou proxy custom)
 
-You can check out [the Next.js GitHub repository](https://github.com/vercel/next.js) - your feedback and contributions are welcome!
+---
 
-## Deploy on Vercel
+## 📄 Licence
 
-The easiest way to deploy your Next.js app is to use the [Vercel Platform](https://vercel.com/new?utm_medium=default-template&filter=next.js&utm_source=create-next-app&utm_campaign=create-next-app-readme) from the creators of Next.js.
-
-Check out our [Next.js deployment documentation](https://nextjs.org/docs/app/building-your-application/deploying) for more details.
+MIT
