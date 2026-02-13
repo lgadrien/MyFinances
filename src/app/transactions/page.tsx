@@ -509,10 +509,11 @@ export default function TransactionsPage() {
           editingTransaction ? "Modifier l'opération" : "Ajouter une opération"
         }
       >
-        <form onSubmit={handleSubmit} className="space-y-4">
+        <form onSubmit={handleSubmit} className="space-y-5">
+          {/* Date and Type */}
           <div className="grid grid-cols-2 gap-4">
             <div>
-              <label className="mb-1.5 block text-xs font-medium text-slate-400">
+              <label className="mb-2 block text-sm font-medium text-zinc-300">
                 Date
               </label>
               <input
@@ -520,19 +521,19 @@ export default function TransactionsPage() {
                 name="date"
                 value={formData.date}
                 onChange={handleInputChange}
-                className={inputClasses}
+                className="w-full rounded-xl border border-zinc-700 bg-zinc-800 px-4 py-2.5 text-sm text-zinc-200 outline-none transition-colors focus:border-violet-500 focus:ring-2 focus:ring-violet-500/20"
                 required
               />
             </div>
             <div>
-              <label className="mb-1.5 block text-xs font-medium text-slate-400">
+              <label className="mb-2 block text-sm font-medium text-zinc-300">
                 Type
               </label>
               <select
                 name="type"
                 value={formData.type}
                 onChange={handleInputChange}
-                className={inputClasses}
+                className="w-full rounded-xl border border-zinc-700 bg-zinc-800 px-4 py-2.5 text-sm text-zinc-200 outline-none transition-colors focus:border-violet-500 focus:ring-2 focus:ring-violet-500/20"
                 required
               >
                 <option value="Achat">Achat</option>
@@ -541,9 +542,10 @@ export default function TransactionsPage() {
             </div>
           </div>
 
+          {/* Ticker Search */}
           <div className="relative">
-            <label className="mb-1.5 block text-xs font-medium text-slate-400">
-              Rechercher un actif
+            <label className="mb-2 block text-sm font-medium text-zinc-300">
+              Actif (Ticker)
             </label>
             <div className="relative">
               <input
@@ -552,26 +554,25 @@ export default function TransactionsPage() {
                 onChange={(e) => {
                   const val = e.target.value.toUpperCase();
                   setFormData((prev) => ({ ...prev, ticker: val }));
-                  // Trigger search if length > 1
                   if (val.length > 1) {
                     setTickerSearch(val);
                   } else {
                     setSearchResults([]);
                   }
                 }}
-                placeholder="Ex: LVMH, Apple, AIR..."
-                className={inputClasses}
+                placeholder="Ex: LVMH, AAPL, AIR.PA..."
+                className="w-full rounded-xl border border-zinc-700 bg-zinc-800 px-4 py-2.5 text-sm text-zinc-200 outline-none transition-colors focus:border-violet-500 focus:ring-2 focus:ring-violet-500/20 placeholder:text-zinc-500"
                 autoComplete="off"
                 required
               />
               {isSearching && (
-                <div className="absolute right-3 top-2.5 h-4 w-4 animate-spin rounded-full border-2 border-slate-500 border-t-emerald-500" />
+                <div className="absolute right-3 top-3 h-4 w-4 animate-spin rounded-full border-2 border-zinc-500 border-t-violet-500" />
               )}
             </div>
 
             {/* Search Results Dropdown */}
             {searchResults.length > 0 && (
-              <ul className="absolute z-50 mt-1 max-h-48 w-full overflow-y-auto rounded-xl border border-slate-700 bg-slate-800 py-1 shadow-xl">
+              <ul className="absolute z-50 mt-2 max-h-48 w-full overflow-y-auto rounded-xl border border-zinc-700 bg-zinc-800 py-1 shadow-xl">
                 {searchResults.map((result) => (
                   <li
                     key={result.symbol}
@@ -581,38 +582,32 @@ export default function TransactionsPage() {
                         ticker: result.symbol,
                       }));
                       setSearchResults([]);
-                      setTickerSearch(""); // Stop searching
+                      setTickerSearch("");
                     }}
-                    className="cursor-pointer px-4 py-2 hover:bg-slate-700"
+                    className="cursor-pointer px-4 py-2.5 transition-colors hover:bg-zinc-700"
                   >
                     <div className="flex items-center justify-between">
-                      <span className="font-bold text-white">
+                      <span className="font-semibold text-white">
                         {result.symbol}
                       </span>
-                      <span className="text-xs text-slate-400">
+                      <span className="text-xs text-zinc-400">
                         {result.type}
                       </span>
                     </div>
-                    <div className="truncate text-xs text-slate-300">
+                    <div className="truncate text-sm text-zinc-300">
                       {result.name}
-                    </div>
-                    <div className="text-[10px] text-slate-500">
-                      {result.exchDisp}
                     </div>
                   </li>
                 ))}
               </ul>
             )}
-
-            <p className="mt-1 text-[10px] text-slate-500">
-              Tapez le nom ou le ticker (Yahoo Finance)
-            </p>
           </div>
 
+          {/* Quantity and Unit Price (for Achat only) */}
           {formData.type === "Achat" && (
             <div className="grid grid-cols-2 gap-4">
               <div>
-                <label className="mb-1.5 block text-xs font-medium text-slate-400">
+                <label className="mb-2 block text-sm font-medium text-zinc-300">
                   Quantité
                 </label>
                 <input
@@ -622,12 +617,12 @@ export default function TransactionsPage() {
                   onChange={handleInputChange}
                   placeholder="0"
                   step="0.0001"
-                  className={inputClasses}
+                  className="w-full rounded-xl border border-zinc-700 bg-zinc-800 px-4 py-2.5 text-sm text-zinc-200 outline-none transition-colors focus:border-violet-500 focus:ring-2 focus:ring-violet-500/20 placeholder:text-zinc-500"
                   required
                 />
               </div>
               <div>
-                <label className="mb-1.5 block text-xs font-medium text-slate-400">
+                <label className="mb-2 block text-sm font-medium text-zinc-300">
                   Prix unitaire (€)
                 </label>
                 <input
@@ -637,15 +632,16 @@ export default function TransactionsPage() {
                   onChange={handleInputChange}
                   placeholder="0.00"
                   step="0.01"
-                  className={inputClasses}
+                  className="w-full rounded-xl border border-zinc-700 bg-zinc-800 px-4 py-2.5 text-sm text-zinc-200 outline-none transition-colors focus:border-violet-500 focus:ring-2 focus:ring-violet-500/20 placeholder:text-zinc-500"
                   required
                 />
               </div>
             </div>
           )}
 
+          {/* Total Amount */}
           <div>
-            <label className="mb-1.5 block text-xs font-medium text-slate-400">
+            <label className="mb-2 block text-sm font-medium text-zinc-300">
               Montant total (€)
             </label>
             <input
@@ -655,41 +651,57 @@ export default function TransactionsPage() {
               onChange={handleInputChange}
               placeholder="0.00"
               step="0.01"
-              className={inputClasses}
+              className="w-full rounded-xl border border-zinc-700 bg-zinc-800 px-4 py-2.5 text-sm text-zinc-200 outline-none transition-colors focus:border-violet-500 focus:ring-2 focus:ring-violet-500/20 placeholder:text-zinc-500"
               required
               readOnly={formData.type === "Achat"}
             />
+            {formData.type === "Achat" && (
+              <p className="mt-1.5 text-xs text-zinc-500">
+                Calculé automatiquement : Quantité × Prix unitaire
+              </p>
+            )}
           </div>
 
-          <div>
-            <label className="mb-1.5 block text-xs font-medium text-slate-400">
-              Frais (€)
-            </label>
-            <input
-              type="number"
-              name="fees"
-              value={formData.fees}
-              onChange={handleInputChange}
-              placeholder="0.00"
-              step="0.01"
-              className={inputClasses}
-            />
-          </div>
+          {/* Fees (Optional, collapsed) */}
+          <details className="group">
+            <summary className="cursor-pointer text-sm font-medium text-zinc-400 transition-colors hover:text-zinc-200">
+              + Frais (optionnel)
+            </summary>
+            <div className="mt-3">
+              <input
+                type="number"
+                name="fees"
+                value={formData.fees}
+                onChange={handleInputChange}
+                placeholder="0.00"
+                step="0.01"
+                className="w-full rounded-xl border border-zinc-700 bg-zinc-800 px-4 py-2.5 text-sm text-zinc-200 outline-none transition-colors focus:border-violet-500 focus:ring-2 focus:ring-violet-500/20 placeholder:text-zinc-500"
+              />
+            </div>
+          </details>
 
-          <div className="flex justify-end gap-3 pt-2">
+          {/* Actions */}
+          <div className="flex justify-end gap-3 border-t border-zinc-800 pt-4">
             <button
               type="button"
-              onClick={() => setIsModalOpen(false)}
-              className="rounded-xl px-5 py-2.5 text-sm font-medium text-slate-400 transition-colors hover:bg-slate-800 hover:text-white"
+              onClick={() => {
+                setIsModalOpen(false);
+                setEditingTransaction(null);
+              }}
+              className="rounded-xl px-5 py-2.5 text-sm font-medium text-zinc-400 transition-colors hover:bg-zinc-800 hover:text-white"
             >
               Annuler
             </button>
             <button
               type="submit"
               disabled={submitting}
-              className="rounded-xl bg-gradient-to-r from-emerald-500 to-emerald-600 px-5 py-2.5 text-sm font-semibold text-white shadow-lg shadow-emerald-500/20 transition-all hover:from-emerald-600 hover:to-emerald-700 disabled:opacity-50"
+              className="rounded-xl bg-gradient-to-r from-violet-600 to-fuchsia-600 px-5 py-2.5 text-sm font-semibold text-white shadow-lg shadow-violet-500/20 transition-all hover:from-violet-700 hover:to-fuchsia-700 hover:shadow-violet-500/30 disabled:opacity-50"
             >
-              {submitting ? "Enregistrement..." : "Enregistrer"}
+              {submitting
+                ? "Enregistrement..."
+                : editingTransaction
+                  ? "Modifier"
+                  : "Ajouter"}
             </button>
           </div>
         </form>
