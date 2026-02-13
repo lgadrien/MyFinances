@@ -237,7 +237,8 @@ export default function TransactionsPage() {
       {/* Mobile floating button */}
       <button
         onClick={() => setIsModalOpen(true)}
-        className="fixed bottom-20 right-6 z-40 flex h-14 w-14 items-center justify-center rounded-full bg-gradient-to-r from-violet-600 to-fuchsia-600 text-white shadow-lg shadow-violet-500/30 transition-all hover:from-violet-700 hover:to-fuchsia-700 hover:shadow-violet-500/40 active:scale-95 md:hidden"
+        className="fixed bottom-[5rem] right-4 z-50 flex h-14 w-14 items-center justify-center rounded-full bg-gradient-to-r from-violet-600 to-fuchsia-600 text-white shadow-lg shadow-violet-500/30 transition-all hover:from-violet-700 hover:to-fuchsia-700 hover:shadow-violet-500/40 active:scale-95 md:hidden"
+        style={{ position: "fixed", bottom: "5rem", right: "1rem" }}
       >
         <Plus className="h-6 w-6" />
       </button>
