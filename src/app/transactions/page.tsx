@@ -1,7 +1,16 @@
 "use client";
 
 import { useEffect, useState, useCallback } from "react";
-import { Plus, ArrowLeftRight, Calendar, Filter, Trash2 } from "lucide-react";
+import {
+  Plus,
+  ArrowLeftRight,
+  Calendar,
+  Filter,
+  Trash2,
+  ChevronsUpDown,
+  ChevronUp,
+  ChevronDown,
+} from "lucide-react";
 import Badge from "@/components/ui/Badge";
 import Modal from "@/components/ui/Modal";
 import {
@@ -19,6 +28,10 @@ export default function TransactionsPage() {
   const [loading, setLoading] = useState(true);
   const [submitting, setSubmitting] = useState(false);
   const [deletingId, setDeletingId] = useState<string | null>(null);
+
+  // Sorting state
+  const [sortKey, setSortKey] = useState<keyof Transaction | null>("date");
+  const [sortDir, setSortDir] = useState<"asc" | "desc">("desc");
 
   // Form state
   const [formData, setFormData] = useState({
@@ -42,9 +55,38 @@ export default function TransactionsPage() {
     loadData();
   }, [loadData]);
 
+  const handleSort = (key: keyof Transaction) => {
+    if (sortKey === key) {
+      setSortDir(sortDir === "asc" ? "desc" : "asc");
+    } else {
+      setSortKey(key);
+      setSortDir("desc");
+    }
+  };
+
   const filteredTransactions = transactions.filter(
     (t) => filterType === "all" || t.type === filterType,
   );
+
+  const sortedTransactions = [...filteredTransactions].sort((a, b) => {
+    if (!sortKey) return 0;
+    const aValue = a[sortKey];
+    const bValue = b[sortKey];
+
+    if (aValue === bValue) return 0;
+
+    // Handle string (date, ticker, type) vs number
+    if (typeof aValue === "string" && typeof bValue === "string") {
+      return sortDir === "asc"
+        ? aValue.localeCompare(bValue)
+        : bValue.localeCompare(aValue);
+    }
+
+    // Handle numbers
+    return sortDir === "asc"
+      ? (aValue as number) - (bValue as number)
+      : (bValue as number) - (aValue as number);
+  });
 
   const handleInputChange = useCallback(
     (e: React.ChangeEvent<HTMLInputElement | HTMLSelectElement>) => {
@@ -123,6 +165,16 @@ export default function TransactionsPage() {
   const inputClasses =
     "w-full rounded-xl border border-slate-700/50 bg-slate-800/50 px-4 py-2.5 text-sm text-slate-200 outline-none transition-colors focus:border-emerald-500/50 focus:ring-1 focus:ring-emerald-500/20 placeholder:text-slate-500";
 
+  const SortIcon = ({ colKey }: { colKey: keyof Transaction }) => {
+    if (sortKey !== colKey)
+      return <ChevronsUpDown className="ml-1 h-3 w-3 text-slate-600" />;
+    return sortDir === "asc" ? (
+      <ChevronUp className="ml-1 h-3 w-3 text-emerald-500" />
+    ) : (
+      <ChevronDown className="ml-1 h-3 w-3 text-emerald-500" />
+    );
+  };
+
   return (
     <div className="animate-fade-in space-y-8">
       {/* Header */}
@@ -170,25 +222,54 @@ export default function TransactionsPage() {
         <table className="w-full text-sm">
           <thead>
             <tr className="border-b border-slate-800">
-              <th className="px-6 py-4 text-left font-semibold text-slate-400">
+              <th
+                className="cursor-pointer px-6 py-4 text-left font-semibold text-slate-400 hover:text-white"
+                onClick={() => handleSort("date")}
+              >
                 <div className="flex items-center gap-2">
-                  <Calendar className="h-3.5 w-3.5" /> Date
+                  <Calendar className="h-3.5 w-3.5" /> Date{" "}
+                  <SortIcon colKey="date" />
                 </div>
               </th>
-              <th className="px-6 py-4 text-center font-semibold text-slate-400">
-                Type
+              <th
+                className="cursor-pointer px-6 py-4 text-center font-semibold text-slate-400 hover:text-white"
+                onClick={() => handleSort("type")}
+              >
+                <div className="flex items-center justify-center gap-1">
+                  Type <SortIcon colKey="type" />
+                </div>
               </th>
-              <th className="px-6 py-4 text-left font-semibold text-slate-400">
-                Ticker
+              <th
+                className="cursor-pointer px-6 py-4 text-left font-semibold text-slate-400 hover:text-white"
+                onClick={() => handleSort("ticker")}
+              >
+                <div className="flex items-center gap-1">
+                  Ticker <SortIcon colKey="ticker" />
+                </div>
               </th>
-              <th className="px-6 py-4 text-right font-semibold text-slate-400">
-                Quantité
+              <th
+                className="cursor-pointer px-6 py-4 text-right font-semibold text-slate-400 hover:text-white"
+                onClick={() => handleSort("quantity")}
+              >
+                <div className="flex items-center justify-end gap-1">
+                  Quantité <SortIcon colKey="quantity" />
+                </div>
               </th>
-              <th className="px-6 py-4 text-right font-semibold text-slate-400">
-                Prix Unit.
+              <th
+                className="cursor-pointer px-6 py-4 text-right font-semibold text-slate-400 hover:text-white"
+                onClick={() => handleSort("unit_price")}
+              >
+                <div className="flex items-center justify-end gap-1">
+                  Prix Unit. <SortIcon colKey="unit_price" />
+                </div>
               </th>
-              <th className="px-6 py-4 text-right font-semibold text-slate-400">
-                Montant
+              <th
+                className="cursor-pointer px-6 py-4 text-right font-semibold text-slate-400 hover:text-white"
+                onClick={() => handleSort("total_amount")}
+              >
+                <div className="flex items-center justify-end gap-1">
+                  Montant <SortIcon colKey="total_amount" />
+                </div>
               </th>
               <th className="px-6 py-4 text-right font-semibold text-slate-400">
                 Frais
@@ -205,7 +286,7 @@ export default function TransactionsPage() {
                     </td>
                   </tr>
                 ))
-              : filteredTransactions.map((tx) => (
+              : sortedTransactions.map((tx) => (
                   <tr
                     key={tx.id}
                     className="group transition-colors hover:bg-slate-800/30"
