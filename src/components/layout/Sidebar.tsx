@@ -7,10 +7,12 @@ import {
   TrendingUp,
   ArrowLeftRight,
   Wallet,
+  Briefcase,
 } from "lucide-react";
 
 const navItems = [
   { href: "/", label: "Dashboard", icon: LayoutDashboard },
+  { href: "/portefeuille", label: "Portefeuille", icon: Briefcase },
   { href: "/marche", label: "Marché", icon: TrendingUp },
   { href: "/transactions", label: "Transactions", icon: ArrowLeftRight },
 ];
