@@ -219,7 +219,15 @@ export default function TransactionsPage() {
     new Intl.NumberFormat("fr-FR", {
       style: "currency",
       currency: "EUR",
+      minimumFractionDigits: 2,
+      maximumFractionDigits: 2,
     }).format(n);
+
+  const formatPrice = (n: number) =>
+    new Intl.NumberFormat("fr-FR", {
+      minimumFractionDigits: 2,
+      maximumFractionDigits: 2,
+    }).format(n) + " €";
 
   const inputClasses =
     "w-full rounded-xl border border-slate-700/50 bg-slate-800/50 px-4 py-2.5 text-sm text-slate-200 outline-none transition-colors focus:border-emerald-500/50 focus:ring-1 focus:ring-emerald-500/20 placeholder:text-slate-500";
@@ -341,7 +349,7 @@ export default function TransactionsPage() {
                     {tx.quantity > 0 && (
                       <p className="text-xs text-zinc-400">
                         {tx.quantity} x{" "}
-                        {tx.unit_price > 0 ? tx.unit_price.toFixed(2) : "—"} €
+                        {tx.unit_price > 0 ? formatPrice(tx.unit_price) : "—"}
                       </p>
                     )}
                   </div>
@@ -460,9 +468,7 @@ export default function TransactionsPage() {
                         {tx.quantity > 0 ? tx.quantity : "—"}
                       </td>
                       <td className="px-6 py-4 text-right font-medium text-zinc-200">
-                        {tx.unit_price > 0
-                          ? `${tx.unit_price.toFixed(2)} €`
-                          : "—"}
+                        {tx.unit_price > 0 ? formatPrice(tx.unit_price) : "—"}
                       </td>
                       <td className="px-6 py-4 text-right font-bold text-white">
                         {formatEUR(tx.total_amount)}

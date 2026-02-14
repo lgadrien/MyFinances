@@ -108,9 +108,15 @@ export default function DashboardPage() {
     new Intl.NumberFormat("fr-FR", {
       style: "currency",
       currency: "EUR",
-      minimumFractionDigits: 0,
-      maximumFractionDigits: 0,
+      minimumFractionDigits: 2,
+      maximumFractionDigits: 2,
     }).format(n);
+
+  const formatPrice = (n: number) =>
+    new Intl.NumberFormat("fr-FR", {
+      minimumFractionDigits: 2,
+      maximumFractionDigits: 2,
+    }).format(n) + " €";
 
   if (loading) {
     return (
@@ -321,10 +327,10 @@ export default function DashboardPage() {
                     {pos.totalQuantity}
                   </td>
                   <td className="px-4 py-3 text-right font-medium text-zinc-200">
-                    {pos.pru.toFixed(2)} €
+                    {formatPrice(pos.pru)}
                   </td>
                   <td className="px-4 py-3 text-right font-medium text-zinc-200">
-                    {pos.currentPrice?.toFixed(2)} €
+                    {pos.currentPrice ? formatPrice(pos.currentPrice) : "—"}
                   </td>
                   <td className="px-4 py-3 text-right font-medium text-zinc-200">
                     {formatEUR(pos.totalInvested)}

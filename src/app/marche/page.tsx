@@ -55,6 +55,20 @@ function getTrendLabel(changePercent: number): {
 type SortKey = "name" | "sector" | "price" | "changePercent";
 type SortDir = "asc" | "desc" | null;
 
+const formatEUR = (n: number) =>
+  new Intl.NumberFormat("fr-FR", {
+    style: "currency",
+    currency: "EUR",
+    minimumFractionDigits: 2,
+    maximumFractionDigits: 2,
+  }).format(n);
+
+const formatPrice = (n: number) =>
+  new Intl.NumberFormat("fr-FR", {
+    minimumFractionDigits: 2,
+    maximumFractionDigits: 2,
+  }).format(n) + " €";
+
 export default function MarchePage() {
   const [rows, setRows] = useState<MarketRow[]>([]);
   const [loading, setLoading] = useState(true);
@@ -547,7 +561,7 @@ export default function MarchePage() {
                     </div>
                     <div className="text-right">
                       <p className="font-bold text-white">
-                        {row.price > 0 ? row.price.toFixed(2) + " €" : "—"}
+                        {row.price > 0 ? formatPrice(row.price) : "—"}
                       </p>
                       <p
                         className={`text-xs font-semibold ${
@@ -698,7 +712,7 @@ export default function MarchePage() {
                         {row.loaded ? (
                           row.price > 0 ? (
                             <span className="font-semibold text-white">
-                              {row.price.toFixed(2)} €
+                              {formatPrice(row.price)}
                             </span>
                           ) : (
                             <span className="text-xs text-zinc-600">—</span>
@@ -719,7 +733,7 @@ export default function MarchePage() {
                                 }`}
                               >
                                 {row.changePercent >= 0 ? "+" : ""}
-                                {row.change.toFixed(2)} €
+                                {formatEUR(row.change)}
                               </span>
                               <br />
                               <span

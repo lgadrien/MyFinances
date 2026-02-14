@@ -194,7 +194,15 @@ export default function PortfolioPage() {
     new Intl.NumberFormat("fr-FR", {
       style: "currency",
       currency: "EUR",
+      minimumFractionDigits: 2,
+      maximumFractionDigits: 2,
     }).format(n);
+
+  const formatPrice = (n: number) =>
+    new Intl.NumberFormat("fr-FR", {
+      minimumFractionDigits: 2,
+      maximumFractionDigits: 2,
+    }).format(n) + " €";
 
   const formatPercent = (n: number) =>
     new Intl.NumberFormat("fr-FR", {
