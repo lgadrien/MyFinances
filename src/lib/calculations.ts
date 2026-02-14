@@ -57,12 +57,13 @@ export function calculateTotalInvested(transactions: Transaction[]): number {
 }
 
 /**
- * Calcule les dividendes cumulés : Σ total_amount (type = Dividende)
+ * Calcule les dividendes cumulés nets : Σ (total_amount - fees) (type = Dividende)
+ * Les frais sont soustraits car ils réduisent le montant réellement reçu
  */
 export function calculateDividends(transactions: Transaction[]): number {
   return transactions
     .filter((t) => t.type === "Dividende")
-    .reduce((sum, t) => sum + t.total_amount, 0);
+    .reduce((sum, t) => sum + t.total_amount - t.fees, 0);
 }
 
 /**
