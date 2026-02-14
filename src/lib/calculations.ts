@@ -35,26 +35,25 @@ export interface PortfolioPosition {
 
 /**
  * Calcule le PRU (Prix de Revient Unitaire) pour un ticker donné.
- * PRU = (Σ(quantité × prix_unitaire) + Σ frais) / Σ quantité
+ * PRU = Σ(quantité × prix_unitaire) / Σ quantité
+ * Note: Les frais ne sont PAS inclus dans le PRU pour le calcul de la plus-value
  */
 export function calculatePRU(transactions: Transaction[]): number {
   const buys = transactions.filter((t) => t.type === "Achat");
   const totalQty = buys.reduce((sum, t) => sum + t.quantity, 0);
   if (totalQty === 0) return 0;
-  const totalCost = buys.reduce(
-    (sum, t) => sum + t.quantity * t.unit_price + t.fees,
-    0,
-  );
+  const totalCost = buys.reduce((sum, t) => sum + t.quantity * t.unit_price, 0);
   return totalCost / totalQty;
 }
 
 /**
- * Calcule le total investi : Σ(quantité × prix_unitaire) + Σ frais (achats uniquement)
+ * Calcule le total investi : Σ(quantité × prix_unitaire) (achats uniquement)
+ * Note: Les frais ne sont PAS inclus dans le total investi pour le calcul de la plus-value
  */
 export function calculateTotalInvested(transactions: Transaction[]): number {
   return transactions
     .filter((t) => t.type === "Achat")
-    .reduce((sum, t) => sum + t.quantity * t.unit_price + t.fees, 0);
+    .reduce((sum, t) => sum + t.quantity * t.unit_price, 0);
 }
 
 /**
@@ -102,8 +101,7 @@ export function calculatePortfolioPositions(
       0,
     );
     const totalFees = buys.reduce((sum, t) => sum + t.fees, 0);
-    const pru =
-      totalQuantity > 0 ? (totalInvested + totalFees) / totalQuantity : 0;
+    const pru = totalQuantity > 0 ? totalInvested / totalQuantity : 0;
     const dividends = calculateDividends(assetTxs);
 
     const info = instrumentLookup?.get(ticker);
@@ -113,7 +111,7 @@ export function calculatePortfolioPositions(
       name: info?.name || ticker,
       sector: info?.sector || null,
       totalQuantity,
-      totalInvested: totalInvested + totalFees,
+      totalInvested,
       totalFees,
       pru,
       dividends,
