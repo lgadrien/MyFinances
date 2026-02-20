@@ -32,8 +32,8 @@ Application de suivi de portefeuille boursier PEA, construite avec Next.js 16, S
 ### 1. Cloner & installer
 
 ```bash
-git clone https://github.com/votre-username/myfinances.git
-cd myfinances
+git clone https://github.com/lgadrien/MyFinances.git
+cd MyFinances
 npm install
 ```
 
