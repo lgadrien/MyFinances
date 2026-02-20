@@ -1,31 +1,37 @@
 import { NextResponse } from "next/server";
 import type { NextRequest } from "next/server";
 
-// Define paths that do not require authentication
-const publicPaths = ["/login", "/api/auth/login", "/api/cron/snapshot"];
+// Paths accessible without authentication
+const PUBLIC_PATHS = ["/login", "/api/auth/login", "/api/cron/snapshot"];
+
+// Static asset prefixes — always bypassed
+const STATIC_PREFIXES = ["/_next/static", "/_next/image", "/favicon.ico"];
 
 export function middleware(request: NextRequest) {
   const { pathname } = request.nextUrl;
 
-  // Check if the path is public
-  if (
-    publicPaths.some((path) => pathname.startsWith(path)) ||
-    pathname.startsWith("/_next") ||
-    pathname.includes("/favicon.ico")
-  ) {
+  // Always allow static assets
+  if (STATIC_PREFIXES.some((prefix) => pathname.startsWith(prefix))) {
     return NextResponse.next();
   }
 
-  // Check for authentication cookie
-  const authToken = request.cookies.get("access_token");
+  // Always allow public routes
+  if (PUBLIC_PATHS.some((path) => pathname.startsWith(path))) {
+    return NextResponse.next();
+  }
 
-  if (!authToken) {
-    // If accessing API without token, return 401
+  // Validate authentication cookie
+  const authToken = request.cookies.get("access_token");
+  const isAuthenticated = authToken?.value === "true";
+
+  if (!isAuthenticated) {
     if (pathname.startsWith("/api")) {
       return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
     }
-    // Otherwise redirect to login
-    return NextResponse.redirect(new URL("/login", request.url));
+    // Preserve the original destination for post-login redirect
+    const loginUrl = new URL("/login", request.url);
+    loginUrl.searchParams.set("from", pathname);
+    return NextResponse.redirect(loginUrl);
   }
 
   return NextResponse.next();
@@ -33,12 +39,7 @@ export function middleware(request: NextRequest) {
 
 export const config = {
   matcher: [
-    /*
-     * Match all request paths except for the ones starting with:
-     * - _next/static (static files)
-     * - _next/image (image optimization files)
-     * - favicon.ico (favicon file)
-     */
+    // Match everything except Next.js internals and static files
     "/((?!_next/static|_next/image|favicon.ico).*)",
   ],
 };

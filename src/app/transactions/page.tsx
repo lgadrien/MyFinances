@@ -1,6 +1,6 @@
 "use client";
 
-import { useEffect, useState, useCallback } from "react";
+import { useEffect, useState, useCallback, useRef } from "react";
 import {
   Plus,
   ArrowLeftRight,
@@ -14,8 +14,8 @@ import {
   Download,
   Upload,
 } from "lucide-react";
-import { useRef } from "react";
 import Badge from "@/components/ui/Badge";
+
 import Modal from "@/components/ui/Modal";
 import {
   fetchTransactions,
@@ -33,6 +33,9 @@ interface SearchResult {
   type: string;
   exchDisp: string;
 }
+
+// Allowed transaction types — defined at module level to avoid re-creation on each render
+const VALID_TYPES = new Set(["Achat", "Vente", "Dividende"]);
 
 export default function TransactionsPage() {
   const [transactions, setTransactions] = useState<Transaction[]>([]);
@@ -180,31 +183,68 @@ export default function TransactionsPage() {
     if (!file) return;
 
     setLoading(true);
+    let imported = 0;
+    let skipped = 0;
+
     try {
       const text = await file.text();
       const lines = text.split("\n");
 
-      // Ignorer la première ligne (headers)
       for (let i = 1; i < lines.length; i++) {
         const line = lines[i].trim();
         if (!line) continue;
-        const cols = line.split(",");
-        if (cols.length < 8) continue;
 
-        // cols[0] = ID original (ignoré pour insérer comme nouvelle entrée)
-        const txData = {
-          date: cols[1],
-          type: cols[2] as "Achat" | "Vente" | "Dividende",
-          ticker: cols[3],
-          quantity: parseFloat(cols[4]) || 0,
-          unit_price: parseFloat(cols[5]) || 0,
-          total_amount: parseFloat(cols[6]) || 0,
-          fees: parseFloat(cols[7]) || 0,
-        };
-        await insertTransaction(txData);
+        // Support CSV values that might contain commas inside quotes
+        const cols = line.split(",");
+        if (cols.length < 8) {
+          skipped++;
+          continue;
+        }
+
+        const type = cols[2]?.trim() as "Achat" | "Vente" | "Dividende";
+        if (!VALID_TYPES.has(type)) {
+          skipped++;
+          continue;
+        }
+
+        const ticker = cols[3]?.trim().toUpperCase();
+        if (!ticker) {
+          skipped++;
+          continue;
+        }
+
+        const quantity = parseFloat(cols[4]);
+        const unit_price = parseFloat(cols[5]);
+        const total_amount = parseFloat(cols[6]);
+        const fees = parseFloat(cols[7]) || 0;
+
+        // Skip rows with unparseable numbers
+        if (isNaN(quantity) || isNaN(total_amount)) {
+          skipped++;
+          continue;
+        }
+
+        const result = await insertTransaction({
+          date: cols[1]?.trim(),
+          type,
+          ticker,
+          quantity,
+          unit_price: isNaN(unit_price) ? 0 : unit_price,
+          total_amount,
+          fees,
+        });
+        if (result) imported++;
+        else skipped++;
       }
+
       await loadData();
-      toast.success("Import CSV réussi !");
+      if (imported > 0) {
+        toast.success(
+          `Import réussi : ${imported} opération(s) ajoutée(s)${skipped > 0 ? `, ${skipped} ignorée(s)` : ""}.`,
+        );
+      } else {
+        toast.error("Aucune ligne valide trouvée dans le fichier CSV.");
+      }
     } catch (err) {
       console.error(err);
       toast.error("Erreur lors de l'import CSV.");

@@ -1,6 +1,6 @@
 "use client";
 
-import { useEffect, useState, useMemo } from "react";
+import { useEffect, useState, useMemo, useCallback } from "react";
 import {
   ArrowUpRight,
   ArrowDownRight,
@@ -157,7 +157,7 @@ export default function PortfolioPage() {
     return map;
   }, []);
 
-  const loadData = async () => {
+  const loadData = useCallback(async () => {
     try {
       setRefreshing(true);
       const txs = await fetchTransactions();
@@ -168,58 +168,50 @@ export default function PortfolioPage() {
       const historyData = await historyRes.json();
       setHistory(Array.isArray(historyData) ? historyData : []);
 
-      // Filter only active positions
+      // Filter only active positions (tolerance for floating-point residuals)
       const activePositions = initialPositions.filter(
         (p) => p.totalQuantity > 0.0001,
       );
 
-      // Fetch live prices
+      // Fetch live prices in parallel; individual failures return null (safe)
       const enrichedPositions = await Promise.all(
         activePositions.map(async (pos) => {
           const priceData = await fetchStockPrice(pos.ticker);
-          const currentPrice = priceData?.price || 0;
+          const currentPrice = priceData?.price ?? 0;
           const capitalValue = currentPrice * pos.totalQuantity;
           const plusValue = capitalValue - pos.totalInvested;
-
-          return {
-            ...pos,
-            currentPrice,
-            capitalValue,
-            plusValue,
-          };
+          return { ...pos, currentPrice, capitalValue, plusValue };
         }),
       );
 
       setPositions(enrichedPositions);
 
-      // Init target allocations if empty
-      if (
-        Object.keys(targetAllocations).length === 0 &&
-        enrichedPositions.length > 0
-      ) {
+      // Init target allocations once (first load only)
+      setTargetAllocations((prev) => {
+        if (Object.keys(prev).length > 0 || enrichedPositions.length === 0)
+          return prev;
         const total = enrichedPositions.reduce(
-          (sum, p) => sum + (p.capitalValue || 0),
+          (sum, p) => sum + (p.capitalValue ?? 0),
           0,
         );
         const targets: Record<string, number> = {};
-        enrichedPositions.forEach((p) => {
+        for (const p of enrichedPositions) {
           targets[p.ticker] =
-            total > 0 ? ((p.capitalValue || 0) / total) * 100 : 0;
-        });
-        setTargetAllocations(targets);
-      }
+            total > 0 ? ((p.capitalValue ?? 0) / total) * 100 : 0;
+        }
+        return targets;
+      });
     } catch (error) {
       console.error("Failed to load portfolio:", error);
     } finally {
       setLoading(false);
       setRefreshing(false);
     }
-  };
+  }, [instrumentMap]);
 
   useEffect(() => {
     loadData();
-    // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, []);
+  }, [loadData]);
 
   useEffect(() => {
     if (!history.length) {

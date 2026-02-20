@@ -1,25 +1,26 @@
 import { createClient } from "@supabase/supabase-js";
 
-// Safe retrieval of environment variables
-const supabaseUrl = process.env.NEXT_PUBLIC_SUPABASE_URL || "";
-const supabaseAnonKey = process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY || "";
+const supabaseUrl = process.env.NEXT_PUBLIC_SUPABASE_URL ?? "";
+const supabaseAnonKey = process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY ?? "";
 
-// Basic validation to prevent immediate crashes if env vars are missing/invalid
-const isValidUrl = (url: string) => {
+if (!supabaseUrl || !supabaseAnonKey) {
+  // In production this would be a fatal misconfiguration; log clearly.
+  console.warn(
+    "[supabase] Missing NEXT_PUBLIC_SUPABASE_URL or NEXT_PUBLIC_SUPABASE_ANON_KEY — " +
+      "database features will not work.",
+  );
+}
+
+function isValidUrl(url: string): boolean {
   try {
     new URL(url);
     return true;
   } catch {
     return false;
   }
-};
+}
 
-// Fallback for development if credentials are missing
-// This prevents the app from crashing on start, but database features won't work.
-export const supabase =
-  isValidUrl(supabaseUrl) && supabaseAnonKey
-    ? createClient(supabaseUrl, supabaseAnonKey)
-    : createClient(
-        "https://placeholder-project.supabase.co",
-        "placeholder-key",
-      );
+export const supabase = createClient(
+  isValidUrl(supabaseUrl) ? supabaseUrl : "https://placeholder.supabase.co",
+  supabaseAnonKey || "placeholder-key",
+);
