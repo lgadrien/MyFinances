@@ -13,9 +13,24 @@ import {
   ResponsiveContainer,
   Legend,
 } from "recharts";
-import { Wallet, TrendingUp, Banknote, PiggyBank } from "lucide-react";
+import {
+  Wallet,
+  TrendingUp,
+  Banknote,
+  PiggyBank,
+  Target,
+  Coins,
+  CalendarDays,
+  Settings2,
+  Save,
+} from "lucide-react";
 import StatsCard from "@/components/ui/StatsCard";
-import { fetchTransactions, fetchStockPrice } from "@/lib/data";
+import {
+  fetchTransactions,
+  fetchStockPrice,
+  fetchSettings,
+  updateSettings,
+} from "@/lib/data";
 import {
   calculateTotalInvested,
   calculateDividends,
@@ -24,6 +39,7 @@ import {
   type PortfolioPosition,
 } from "@/lib/calculations";
 import { FRENCH_INSTRUMENTS } from "@/lib/french-instruments";
+import toast from "react-hot-toast";
 
 const CHART_COLORS = [
   "#8b5cf6", // Violet
@@ -87,10 +103,26 @@ export default function DashboardPage() {
   const [totalPlusValue, setTotalPlusValue] = useState(0);
   const [totalCapital, setTotalCapital] = useState(0);
   const [loading, setLoading] = useState(true);
+  const [savingSettings, setSavingSettings] = useState(false);
+
+  // Nouvelles features via DB
+  const [cashBalance, setCashBalance] = useState(0);
+  const [targetCapital, setTargetCapital] = useState(10000);
+  const [isSettingsOpen, setIsSettingsOpen] = useState(false);
+  const [projectedDividends, setProjectedDividends] = useState<
+    { month: string; amount: number }[]
+  >([]);
 
   useEffect(() => {
     async function loadData() {
       setLoading(true);
+
+      // Fetch DB Settings
+      const settings = await fetchSettings();
+      if (settings) {
+        setCashBalance(settings.cash_balance);
+        setTargetCapital(settings.target_capital);
+      }
 
       const transactions = await fetchTransactions();
 
@@ -127,6 +159,35 @@ export default function DashboardPage() {
       setTotalCapital(cap);
 
       setDividendHistory(groupDividendsByMonth(transactions));
+
+      // Calcul des projections de dividendes
+      const oneYearAgo = new Date();
+      oneYearAgo.setFullYear(oneYearAgo.getFullYear() - 1);
+      const lastYearDivs = transactions.filter(
+        (t) => t.type === "Dividende" && new Date(t.date) >= oneYearAgo,
+      );
+
+      const projectedMap = new Map<string, number>();
+      for (const d of lastYearDivs) {
+        const position = enriched.find((p) => p.ticker === d.ticker);
+        if (position && position.totalQuantity > 0) {
+          const dDate = new Date(d.date);
+          dDate.setFullYear(dDate.getFullYear() + 1);
+          const projectedMonth = dDate.toISOString().substring(0, 7);
+          projectedMap.set(
+            projectedMonth,
+            (projectedMap.get(projectedMonth) || 0) + d.total_amount,
+          );
+        }
+      }
+
+      const sortedProjections = Array.from(projectedMap.entries())
+        .filter(([month]) => month >= new Date().toISOString().substring(0, 7))
+        .sort(([a], [b]) => a.localeCompare(b))
+        .map(([month, amount]) => ({ month, amount }))
+        .slice(0, 4);
+
+      setProjectedDividends(sortedProjections);
       setLoading(false);
     }
 
@@ -172,15 +233,88 @@ export default function DashboardPage() {
 
   return (
     <div className="animate-fade-in space-y-8">
-      {/* Header */}
-      <div>
-        <h1 className="text-3xl font-extrabold tracking-tight text-white">
-          Dashboard
-        </h1>
-        <p className="mt-1 text-sm text-zinc-400">
-          Vue d&apos;ensemble de votre portefeuille PEA
-        </p>
+      {/* Header & Settings Toggle */}
+      <div className="flex items-center justify-between">
+        <div>
+          <h1 className="text-3xl font-extrabold tracking-tight text-white">
+            Dashboard
+          </h1>
+          <p className="mt-1 text-sm text-zinc-400">
+            Vue d&apos;ensemble de votre portefeuille PEA
+          </p>
+        </div>
+        <button
+          onClick={() => setIsSettingsOpen(!isSettingsOpen)}
+          className="flex items-center gap-2 rounded-xl bg-zinc-800 px-4 py-2 text-sm font-medium text-zinc-300 transition-colors hover:bg-zinc-700 hover:text-white"
+        >
+          <Settings2 className="h-4 w-4" />
+          <span className="hidden sm:inline">Configuration</span>
+        </button>
       </div>
+
+      {/* Settings Panel */}
+      {isSettingsOpen && (
+        <div className="rounded-2xl border border-violet-500/30 bg-violet-500/5 p-6 backdrop-blur-sm animate-in slide-in-from-top-4">
+          <div className="mb-4 flex items-center gap-2">
+            <Target className="h-5 w-5 text-violet-400" />
+            <h2 className="text-lg font-bold text-white">Paramètres</h2>
+          </div>
+          <div className="grid gap-6 sm:grid-cols-2">
+            <div>
+              <label className="mb-2 block text-sm font-medium text-zinc-300">
+                Liquidités non investies (Cash) €
+              </label>
+              <div className="flex items-center gap-2">
+                <input
+                  type="number"
+                  value={cashBalance}
+                  onChange={(e) =>
+                    setCashBalance(parseFloat(e.target.value) || 0)
+                  }
+                  className="w-full rounded-xl border border-zinc-700 bg-zinc-800 px-4 py-2 text-sm text-zinc-200 outline-none focus:border-violet-500"
+                />
+              </div>
+            </div>
+            <div>
+              <label className="mb-2 block text-sm font-medium text-zinc-300">
+                Objectif de Capital Total €
+              </label>
+              <div className="flex items-center gap-2">
+                <input
+                  type="number"
+                  value={targetCapital}
+                  onChange={(e) =>
+                    setTargetCapital(parseFloat(e.target.value) || 0)
+                  }
+                  className="w-full rounded-xl border border-zinc-700 bg-zinc-800 px-4 py-2 text-sm text-zinc-200 outline-none focus:border-violet-500"
+                />
+              </div>
+            </div>
+          </div>
+          <div className="mt-4 flex justify-end">
+            <button
+              disabled={savingSettings}
+              onClick={async () => {
+                setSavingSettings(true);
+                const ok = await updateSettings(cashBalance, targetCapital);
+                if (ok) {
+                  toast.success("Paramètres synchronisés !");
+                  setIsSettingsOpen(false);
+                } else {
+                  toast.error("Erreur de synchronisation.");
+                }
+                setSavingSettings(false);
+              }}
+              className="flex items-center gap-2 rounded-xl bg-violet-600 px-6 py-2 text-sm font-medium text-white transition-colors hover:bg-violet-700 disabled:opacity-50"
+            >
+              <Save
+                className={`h-4 w-4 ${savingSettings ? "animate-pulse" : ""}`}
+              />
+              {savingSettings ? "Chargement..." : "Sauvegarder"}
+            </button>
+          </div>
+        </div>
+      )}
 
       {/* Stats Cards */}
       <div className="grid grid-cols-1 gap-4 sm:grid-cols-2 xl:grid-cols-4">
@@ -209,12 +343,40 @@ export default function DashboardPage() {
           }}
           accentColor={totalPlusValue >= 0 ? "emerald" : "amber"} // Keep semantic colors for P&L
         />
-        <StatsCard
-          label="Capital Total"
-          value={formatEUR(totalCapital)}
-          icon={PiggyBank}
-          accentColor="violet"
-        />
+        <div className="relative overflow-hidden rounded-2xl border border-zinc-800 bg-zinc-900/50 p-6 backdrop-blur">
+          <div className="flex items-center justify-between">
+            <p className="text-sm font-medium text-zinc-400">
+              Capital Total (Inclus Cash)
+            </p>
+            <div className="flex h-10 w-10 items-center justify-center rounded-xl bg-violet-500/10 text-violet-400">
+              <PiggyBank className="h-5 w-5" />
+            </div>
+          </div>
+          <p className="mt-4 text-2xl font-bold text-white">
+            {formatEUR(totalCapital + cashBalance)}
+          </p>
+          {/* Progress Bar for Goal */}
+          <div className="mt-4">
+            <div className="mb-1 flex justify-between text-xs text-zinc-500">
+              <span>Objectif : {formatEUR(targetCapital)}</span>
+              <span className="font-medium text-violet-400">
+                {Math.min(
+                  ((totalCapital + cashBalance) / (targetCapital || 1)) * 100,
+                  100,
+                ).toFixed(1)}
+                %
+              </span>
+            </div>
+            <div className="h-2 w-full overflow-hidden rounded-full bg-zinc-800">
+              <div
+                className="h-full bg-violet-500 transition-all duration-1000 ease-out"
+                style={{
+                  width: `${Math.min(((totalCapital + cashBalance) / (targetCapital || 1)) * 100, 100)}%`,
+                }}
+              />
+            </div>
+          </div>
+        </div>
       </div>
 
       {/* Charts */}
@@ -330,6 +492,77 @@ export default function DashboardPage() {
                 </defs>
               </BarChart>
             </ResponsiveContainer>
+          </div>
+        </div>
+      </div>
+
+      {/* Dividend Projections & Cash Allocation */}
+      <div className="grid grid-cols-1 gap-6 lg:grid-cols-2">
+        <div className="rounded-2xl border border-zinc-800 bg-gradient-to-br from-zinc-900/50 to-black p-6 backdrop-blur-sm">
+          <div className="mb-4 flex items-center justify-between">
+            <div className="flex items-center gap-2">
+              <CalendarDays className="h-5 w-5 text-violet-400" />
+              <h2 className="text-lg font-bold text-white">
+                Prévisions Dividendes
+              </h2>
+            </div>
+            <span className="text-xs text-zinc-500">Basé sur annèe N-1</span>
+          </div>
+          {projectedDividends.length > 0 ? (
+            <div className="space-y-3">
+              {projectedDividends.map((pd) => (
+                <div
+                  key={pd.month}
+                  className="flex justify-between border-b border-zinc-800/50 pb-2"
+                >
+                  <span className="text-sm font-medium text-zinc-300 capitalize">
+                    {new Date(pd.month + "-01").toLocaleDateString("fr-FR", {
+                      month: "long",
+                      year: "numeric",
+                    })}
+                  </span>
+                  <span className="font-bold text-emerald-400">
+                    +{formatEUR(pd.amount)}
+                  </span>
+                </div>
+              ))}
+            </div>
+          ) : (
+            <p className="text-sm text-zinc-500">
+              Aucune projection à venir pour vos actions actuelles.
+            </p>
+          )}
+        </div>
+
+        <div className="rounded-2xl border border-zinc-800 bg-gradient-to-br from-zinc-900/50 to-black p-6 backdrop-blur-sm shadow-[0_0_15px_rgba(139,92,246,0.1)]">
+          <div className="mb-4 flex items-center justify-between">
+            <div className="flex items-center gap-2">
+              <Coins className="h-5 w-5 text-fuchsia-400" />
+              <h2 className="text-lg font-bold text-white">
+                Capital et Liquidités
+              </h2>
+            </div>
+            <span className="text-xs text-zinc-500">PEA</span>
+          </div>
+          <div className="space-y-4">
+            <div className="flex justify-between text-sm">
+              <span className="text-zinc-400">Actions (Investi + PV)</span>
+              <span className="font-semibold text-white">
+                {formatEUR(totalCapital)}
+              </span>
+            </div>
+            <div className="flex justify-between text-sm">
+              <span className="text-zinc-400">Poche Espèces (Cash)</span>
+              <span className="font-semibold text-white">
+                {formatEUR(cashBalance)}
+              </span>
+            </div>
+            <div className="flex justify-between border-t border-zinc-800 pt-3">
+              <span className="font-bold text-zinc-300">TOTAL PEA</span>
+              <span className="font-bold text-violet-400">
+                {formatEUR(totalCapital + cashBalance)}
+              </span>
+            </div>
           </div>
         </div>
       </div>

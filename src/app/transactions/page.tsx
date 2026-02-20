@@ -11,7 +11,10 @@ import {
   ChevronsUpDown,
   ChevronUp,
   ChevronDown,
+  Download,
+  Upload,
 } from "lucide-react";
+import { useRef } from "react";
 import Badge from "@/components/ui/Badge";
 import Modal from "@/components/ui/Modal";
 import {
@@ -22,6 +25,7 @@ import {
   fetchStockPrice,
 } from "@/lib/data";
 import type { Transaction } from "@/lib/calculations";
+import toast from "react-hot-toast";
 
 interface SearchResult {
   symbol: string;
@@ -37,12 +41,16 @@ export default function TransactionsPage() {
   const [loading, setLoading] = useState(true);
   const [submitting, setSubmitting] = useState(false);
   const [deletingId, setDeletingId] = useState<string | null>(null);
+  const [transactionToDelete, setTransactionToDelete] =
+    useState<Transaction | null>(null);
   const [editingTransaction, setEditingTransaction] =
     useState<Transaction | null>(null);
 
   // Sorting state
   const [sortKey, setSortKey] = useState<keyof Transaction | null>("date");
   const [sortDir, setSortDir] = useState<"asc" | "desc">("desc");
+
+  const fileInputRef = useRef<HTMLInputElement>(null);
 
   // Form state
   // ... (keep existing formData)
@@ -129,6 +137,83 @@ export default function TransactionsPage() {
       : (bValue as number) - (aValue as number);
   });
 
+  const handleExportCSV = () => {
+    const headers = [
+      "ID",
+      "Date",
+      "Type",
+      "Ticker",
+      "Quantité",
+      "Prix Unitaire",
+      "Montant Total",
+      "Frais",
+    ];
+    const rows = sortedTransactions.map((tx) =>
+      [
+        tx.id,
+        tx.date,
+        tx.type,
+        tx.ticker,
+        tx.quantity.toString(),
+        tx.unit_price.toString(),
+        tx.total_amount.toString(),
+        tx.fees.toString(),
+      ].join(","),
+    );
+
+    const csvContent = [headers.join(","), ...rows].join("\n");
+    const blob = new Blob([csvContent], { type: "text/csv;charset=utf-8;" });
+    const url = URL.createObjectURL(blob);
+    const link = document.createElement("a");
+    link.href = url;
+    link.setAttribute(
+      "download",
+      `myfinances_transactions_${new Date().toISOString().split("T")[0]}.csv`,
+    );
+    document.body.appendChild(link);
+    link.click();
+    document.body.removeChild(link);
+  };
+
+  const handleImportCSV = async (e: React.ChangeEvent<HTMLInputElement>) => {
+    const file = e.target.files?.[0];
+    if (!file) return;
+
+    setLoading(true);
+    try {
+      const text = await file.text();
+      const lines = text.split("\n");
+
+      // Ignorer la première ligne (headers)
+      for (let i = 1; i < lines.length; i++) {
+        const line = lines[i].trim();
+        if (!line) continue;
+        const cols = line.split(",");
+        if (cols.length < 8) continue;
+
+        // cols[0] = ID original (ignoré pour insérer comme nouvelle entrée)
+        const txData = {
+          date: cols[1],
+          type: cols[2] as "Achat" | "Vente" | "Dividende",
+          ticker: cols[3],
+          quantity: parseFloat(cols[4]) || 0,
+          unit_price: parseFloat(cols[5]) || 0,
+          total_amount: parseFloat(cols[6]) || 0,
+          fees: parseFloat(cols[7]) || 0,
+        };
+        await insertTransaction(txData);
+      }
+      await loadData();
+      toast.success("Import CSV réussi !");
+    } catch (err) {
+      console.error(err);
+      toast.error("Erreur lors de l'import CSV.");
+    } finally {
+      setLoading(false);
+      if (fileInputRef.current) fileInputRef.current.value = "";
+    }
+  };
+
   const handleInputChange = useCallback(
     (e: React.ChangeEvent<HTMLInputElement | HTMLSelectElement>) => {
       const { name, value } = e.target;
@@ -185,6 +270,11 @@ export default function TransactionsPage() {
       });
       setEditingTransaction(null);
       setIsModalOpen(false);
+      toast.success(
+        editingTransaction ? "Opération modifiée" : "Opération ajoutée",
+      );
+    } else {
+      toast.error("Une erreur est survenue.");
     }
 
     setSubmitting(false);
@@ -204,16 +294,23 @@ export default function TransactionsPage() {
     setIsModalOpen(true);
   };
 
-  const handleDelete = async (tx: Transaction) => {
-    const label = `${tx.type} ${tx.ticker} du ${new Date(tx.date).toLocaleDateString("fr-FR")}`;
-    if (!window.confirm(`Supprimer l'opération "${label}" ?`)) return;
+  const confirmDelete = async () => {
+    if (!transactionToDelete) return;
 
-    setDeletingId(tx.id);
-    const ok = await deleteTransaction(tx.id);
+    setDeletingId(transactionToDelete.id);
+    const ok = await deleteTransaction(transactionToDelete.id);
     if (ok) {
       await loadData();
+      toast.success("Opération supprimée");
+    } else {
+      toast.error("Erreur lors de la suppression");
     }
     setDeletingId(null);
+    setTransactionToDelete(null);
+  };
+
+  const handleDeleteClick = (tx: Transaction) => {
+    setTransactionToDelete(tx);
   };
 
   const formatEUR = (n: number) =>
@@ -268,16 +365,39 @@ export default function TransactionsPage() {
         </button>
 
         {/* Desktop button */}
-        <button
-          onClick={() => {
-            setEditingTransaction(null);
-            setIsModalOpen(true);
-          }}
-          className="hidden items-center gap-2 rounded-xl bg-gradient-to-r from-violet-600 to-fuchsia-600 px-5 py-2.5 text-sm font-semibold text-white shadow-lg shadow-violet-500/20 transition-all hover:from-violet-700 hover:to-fuchsia-700 hover:shadow-violet-500/30 md:flex"
-        >
-          <Plus className="h-4 w-4" />
-          Ajouter une opération
-        </button>
+        <div className="hidden items-center gap-3 md:flex">
+          <input
+            type="file"
+            accept=".csv"
+            className="hidden"
+            ref={fileInputRef}
+            onChange={handleImportCSV}
+          />
+          <button
+            onClick={() => fileInputRef.current?.click()}
+            className="flex items-center gap-2 rounded-xl bg-zinc-800 px-4 py-2.5 text-sm font-medium text-zinc-300 transition-colors hover:bg-zinc-700"
+            title="Importer CSV"
+          >
+            <Upload className="h-4 w-4" />
+          </button>
+          <button
+            onClick={handleExportCSV}
+            className="flex items-center gap-2 rounded-xl bg-zinc-800 px-4 py-2.5 text-sm font-medium text-zinc-300 transition-colors hover:bg-zinc-700"
+            title="Exporter CSV"
+          >
+            <Download className="h-4 w-4" />
+          </button>
+          <button
+            onClick={() => {
+              setEditingTransaction(null);
+              setIsModalOpen(true);
+            }}
+            className="flex items-center gap-2 rounded-xl bg-gradient-to-r from-violet-600 to-fuchsia-600 px-5 py-2.5 text-sm font-semibold text-white shadow-lg shadow-violet-500/20 transition-all hover:from-violet-700 hover:to-fuchsia-700 hover:shadow-violet-500/30"
+          >
+            <Plus className="h-4 w-4" />
+            Ajouter une opération
+          </button>
+        </div>
       </div>
 
       {/* Filters */}
@@ -347,7 +467,7 @@ export default function TransactionsPage() {
                       <Pencil className="h-4 w-4" />
                     </button>
                     <button
-                      onClick={() => handleDelete(tx)}
+                      onClick={() => handleDeleteClick(tx)}
                       className="p-1 text-zinc-500 hover:text-rose-400"
                       title="Supprimer"
                     >
@@ -506,7 +626,7 @@ export default function TransactionsPage() {
                       </td>
                       <td className="px-3 py-4 text-center">
                         <button
-                          onClick={() => handleDelete(tx)}
+                          onClick={() => handleDeleteClick(tx)}
                           disabled={deletingId === tx.id}
                           className="rounded-lg p-1.5 text-zinc-500 opacity-0 transition-all hover:bg-rose-500/10 hover:text-rose-400 group-hover:opacity-100 disabled:opacity-50"
                           title="Supprimer"
@@ -749,6 +869,65 @@ export default function TransactionsPage() {
             </button>
           </div>
         </form>
+      </Modal>
+
+      {/* Delete Confirmation Modal */}
+      <Modal
+        isOpen={!!transactionToDelete}
+        onClose={() => setTransactionToDelete(null)}
+        title="Supprimer l'opération"
+      >
+        <div className="space-y-4">
+          <p className="text-zinc-300">
+            Êtes-vous sûr de vouloir supprimer l&apos;opération suivante ? Cette
+            action est irréversible.
+          </p>
+          {transactionToDelete && (
+            <div className="rounded-xl border border-zinc-800 bg-black/50 p-4">
+              <div className="flex items-center gap-2">
+                <Badge
+                  variant={
+                    transactionToDelete.type === "Achat"
+                      ? "info"
+                      : transactionToDelete.type === "Vente"
+                        ? "warning"
+                        : "success"
+                  }
+                >
+                  {transactionToDelete.type}
+                </Badge>
+                <span className="font-semibold text-white">
+                  {transactionToDelete.ticker}
+                </span>
+                <span className="text-zinc-500">•</span>
+                <span className="font-medium text-white">
+                  {formatEUR(transactionToDelete.total_amount)}
+                </span>
+              </div>
+              <p className="mt-2 text-sm text-zinc-500">
+                Le{" "}
+                {new Date(transactionToDelete.date).toLocaleDateString("fr-FR")}
+              </p>
+            </div>
+          )}
+
+          <div className="flex justify-end gap-3 pt-4 border-t border-zinc-800">
+            <button
+              type="button"
+              onClick={() => setTransactionToDelete(null)}
+              className="rounded-xl px-5 py-2.5 text-sm font-medium text-zinc-400 transition-colors hover:bg-zinc-800 hover:text-white"
+            >
+              Annuler
+            </button>
+            <button
+              type="button"
+              onClick={confirmDelete}
+              className="rounded-xl bg-rose-600 px-5 py-2.5 text-sm font-semibold text-white shadow-lg shadow-rose-500/20 transition-all hover:bg-rose-700 hover:shadow-rose-500/30"
+            >
+              Supprimer
+            </button>
+          </div>
+        </div>
       </Modal>
     </div>
   );

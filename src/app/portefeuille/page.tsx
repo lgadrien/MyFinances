@@ -1,7 +1,13 @@
 "use client";
 
 import { useEffect, useState, useMemo } from "react";
-import { ArrowUpRight, ArrowDownRight, RefreshCw } from "lucide-react";
+import {
+  ArrowUpRight,
+  ArrowDownRight,
+  RefreshCw,
+  Calculator,
+  Target,
+} from "lucide-react";
 import {
   PieChart,
   Pie,
@@ -35,17 +41,8 @@ const COLORS = [
   "#3f3f46", // Zinc 700
 ];
 
-import type { TooltipProps } from "recharts";
-import type {
-  NameType,
-  ValueType,
-} from "recharts/types/component/DefaultTooltipContent";
-
-const CustomTooltip = ({
-  active,
-  payload,
-  label,
-}: TooltipProps<ValueType, NameType>) => {
+// eslint-disable-next-line @typescript-eslint/no-explicit-any
+const CustomTooltip = ({ active, payload, label }: any) => {
   if (active && payload && payload.length) {
     return (
       <div className="rounded-lg border border-zinc-700 bg-zinc-900 p-3 shadow-xl">
@@ -54,7 +51,8 @@ const CustomTooltip = ({
             ? format(parseISO(label as string), "d MMMM yyyy", { locale: fr })
             : ""}
         </p>
-        {payload.map((entry, index) => (
+        {/* eslint-disable-next-line @typescript-eslint/no-explicit-any */}
+        {payload.map((entry: any, index: number) => (
           <p
             key={index}
             className="text-sm font-semibold"
@@ -73,10 +71,8 @@ const CustomTooltip = ({
   return null;
 };
 
-const CustomPieTooltip = ({
-  active,
-  payload,
-}: TooltipProps<ValueType, NameType>) => {
+// eslint-disable-next-line @typescript-eslint/no-explicit-any
+const CustomPieTooltip = ({ active, payload }: any) => {
   if (active && payload && payload.length) {
     const data = payload[0].payload;
     return (
@@ -146,6 +142,12 @@ export default function PortfolioPage() {
   const [loading, setLoading] = useState(true);
   const [refreshing, setRefreshing] = useState(false);
 
+  const [isRebalancingOpen, setIsRebalancingOpen] = useState(false);
+  const [rebalanceCash, setRebalanceCash] = useState<number>(0);
+  const [targetAllocations, setTargetAllocations] = useState<
+    Record<string, number>
+  >({});
+
   // Map for instrument lookup
   const instrumentMap = useMemo(() => {
     const map = new Map<string, { name: string; sector: string }>();
@@ -189,6 +191,23 @@ export default function PortfolioPage() {
       );
 
       setPositions(enrichedPositions);
+
+      // Init target allocations if empty
+      if (
+        Object.keys(targetAllocations).length === 0 &&
+        enrichedPositions.length > 0
+      ) {
+        const total = enrichedPositions.reduce(
+          (sum, p) => sum + (p.capitalValue || 0),
+          0,
+        );
+        const targets: Record<string, number> = {};
+        enrichedPositions.forEach((p) => {
+          targets[p.ticker] =
+            total > 0 ? ((p.capitalValue || 0) / total) * 100 : 0;
+        });
+        setTargetAllocations(targets);
+      }
     } catch (error) {
       console.error("Failed to load portfolio:", error);
     } finally {
@@ -499,6 +518,127 @@ export default function PortfolioPage() {
           </div>
         </div>
       )}
+
+      {/* Portfolio Rebalancing Tool */}
+      <div className="rounded-2xl border border-zinc-800 bg-gradient-to-br from-zinc-900/50 to-black p-6 backdrop-blur-sm shadow-[0_0_15px_rgba(139,92,246,0.1)]">
+        <div
+          className="flex cursor-pointer items-center justify-between"
+          onClick={() => setIsRebalancingOpen(!isRebalancingOpen)}
+        >
+          <div className="flex items-center gap-2">
+            <Calculator className="h-5 w-5 text-violet-400" />
+            <h2 className="text-lg font-bold text-white">
+              Outil de Rééquilibrage
+            </h2>
+          </div>
+          <button className="text-sm font-medium text-violet-400">
+            {isRebalancingOpen ? "Fermer" : "Ouvrir"}
+          </button>
+        </div>
+
+        {isRebalancingOpen && (
+          <div className="mt-6 animate-in slide-in-from-top-4 space-y-6 border-t border-zinc-800/50 pt-6">
+            <div className="flex flex-col gap-4 sm:flex-row sm:items-end">
+              <div>
+                <label className="mb-2 block text-sm font-medium text-zinc-300">
+                  Nouveau dépôt à investir (€)
+                </label>
+                <input
+                  type="number"
+                  value={rebalanceCash}
+                  onChange={(e) =>
+                    setRebalanceCash(parseFloat(e.target.value) || 0)
+                  }
+                  className="w-full rounded-xl border border-zinc-700 bg-zinc-800 px-4 py-2 text-sm text-zinc-200 outline-none focus:border-violet-500"
+                />
+              </div>
+              <div className="text-sm text-zinc-400">
+                Capital cible total :{" "}
+                <strong className="text-white">
+                  {formatEUR(totalValue + rebalanceCash)}
+                </strong>
+              </div>
+            </div>
+
+            <div className="overflow-x-auto">
+              <table className="w-full text-sm">
+                <thead>
+                  <tr className="border-b border-zinc-800 text-left text-zinc-400">
+                    <th className="pb-3 font-medium">Actif</th>
+                    <th className="pb-3 text-right font-medium">
+                      Allocation actuelle
+                    </th>
+                    <th className="pb-3 text-center font-medium">
+                      Allocation cible (%)
+                    </th>
+                    <th className="pb-3 text-right font-medium">
+                      À Acheter/Vendre (€)
+                    </th>
+                  </tr>
+                </thead>
+                <tbody className="divide-y divide-zinc-800/20">
+                  {positions.map((pos) => {
+                    const currentPct =
+                      totalValue > 0
+                        ? ((pos.capitalValue || 0) / totalValue) * 100
+                        : 0;
+                    const targetPct = targetAllocations[pos.ticker] || 0;
+                    const targetCap =
+                      (totalValue + rebalanceCash) * (targetPct / 100);
+                    const diff = targetCap - (pos.capitalValue || 0);
+
+                    return (
+                      <tr key={pos.ticker}>
+                        <td className="py-3 text-zinc-200">
+                          {pos.name}{" "}
+                          <span className="text-xs text-zinc-500">
+                            ({pos.ticker})
+                          </span>
+                        </td>
+                        <td className="py-3 text-right text-zinc-400">
+                          {currentPct.toFixed(1)}%
+                        </td>
+                        <td className="py-3 text-center">
+                          <input
+                            type="number"
+                            min="0"
+                            max="100"
+                            value={targetPct.toFixed(1)}
+                            onChange={(e) =>
+                              setTargetAllocations((prev) => ({
+                                ...prev,
+                                [pos.ticker]: parseFloat(e.target.value) || 0,
+                              }))
+                            }
+                            className="w-20 rounded border border-zinc-700 bg-zinc-800 px-2 py-1 text-center text-zinc-200 outline-none focus:border-violet-500"
+                          />
+                        </td>
+                        <td
+                          className={`py-3 text-right font-bold ${diff >= 0 ? "text-emerald-400" : "text-rose-400"}`}
+                        >
+                          {diff >= 0 ? "+" : ""}
+                          {formatEUR(diff)}
+                        </td>
+                      </tr>
+                    );
+                  })}
+                </tbody>
+              </table>
+              <div className="mt-4 flex items-center justify-between text-xs">
+                <span
+                  className={`${Object.values(targetAllocations).reduce((a, b) => a + b, 0) > 100 ? "text-rose-400 font-bold" : "text-zinc-500"}`}
+                >
+                  Total Cible :{" "}
+                  {Object.values(targetAllocations)
+                    .reduce((a, b) => a + b, 0)
+                    .toFixed(1)}
+                  %
+                </span>
+              </div>
+            </div>
+          </div>
+        )}
+      </div>
 
       {/* Positions Table */}
 

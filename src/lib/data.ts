@@ -1,6 +1,53 @@
 import { supabase } from "./supabase";
 import type { Transaction } from "./calculations";
 
+/**
+ * Fetch generic app settings (cash & target capital)
+ */
+export async function fetchSettings(): Promise<{
+  cash_balance: number;
+  target_capital: number;
+} | null> {
+  const { data, error } = await supabase
+    .from("settings")
+    .select("*")
+    .limit(1)
+    .single();
+
+  if (error || !data) return null;
+  return {
+    cash_balance: Number(data.cash_balance),
+    target_capital: Number(data.target_capital),
+  };
+}
+
+/**
+ * Update generic app settings
+ */
+export async function updateSettings(
+  cash_balance: number,
+  target_capital: number,
+): Promise<boolean> {
+  const { data: existingSettings } = await supabase
+    .from("settings")
+    .select("id")
+    .limit(1)
+    .single();
+
+  if (existingSettings) {
+    const { error } = await supabase
+      .from("settings")
+      .update({
+        cash_balance,
+        target_capital,
+        updated_at: new Date().toISOString(),
+      })
+      .eq("id", existingSettings.id);
+    return !error;
+  }
+  return false;
+}
+
 const FAVORITES_KEY = "myfinances_favorites";
 
 /**
