@@ -19,6 +19,7 @@ import {
   insertTransaction,
   updateTransaction,
   deleteTransaction,
+  fetchStockPrice,
 } from "@/lib/data";
 import type { Transaction } from "@/lib/calculations";
 
@@ -47,7 +48,7 @@ export default function TransactionsPage() {
   // ... (keep existing formData)
   const [formData, setFormData] = useState({
     date: new Date().toISOString().split("T")[0],
-    type: "Achat" as "Achat" | "Dividende",
+    type: "Achat" as "Achat" | "Dividende" | "Vente",
     ticker: "",
     quantity: "",
     unitPrice: "",
@@ -134,9 +135,9 @@ export default function TransactionsPage() {
       setFormData((prev) => {
         const next = { ...prev, [name]: value };
 
-        // Auto-calculate total_amount for Achat
+        // Auto-calculate total_amount for Achat/Vente
         if (
-          next.type === "Achat" &&
+          (next.type === "Achat" || next.type === "Vente") &&
           (name === "quantity" || name === "unitPrice")
         ) {
           const qty = parseFloat(next.quantity) || 0;
@@ -282,7 +283,7 @@ export default function TransactionsPage() {
       {/* Filters */}
       <div className="flex flex-wrap items-center gap-3">
         <Filter className="h-4 w-4 text-zinc-500" />
-        {["all", "Achat", "Dividende"].map((type) => (
+        {["all", "Achat", "Vente", "Dividende"].map((type) => (
           <button
             key={type}
             onClick={() => setFilterType(type)}
@@ -318,8 +319,20 @@ export default function TransactionsPage() {
               >
                 <div className="mb-2 flex items-start justify-between">
                   <div className="flex items-center gap-2">
-                    <Badge variant={tx.type === "Achat" ? "info" : "success"}>
-                      {tx.type === "Achat" ? "ACHAT" : "DIV"}
+                    <Badge
+                      variant={
+                        tx.type === "Achat"
+                          ? "info"
+                          : tx.type === "Vente"
+                            ? "warning"
+                            : "success"
+                      }
+                    >
+                      {tx.type === "Achat"
+                        ? "ACHAT"
+                        : tx.type === "Vente"
+                          ? "VENTE"
+                          : "DIV"}
                     </Badge>
                     <span className="text-xs text-zinc-500">
                       {new Date(tx.date).toLocaleDateString("fr-FR")}
@@ -453,7 +466,13 @@ export default function TransactionsPage() {
                       </td>
                       <td className="px-6 py-4 text-center">
                         <Badge
-                          variant={tx.type === "Achat" ? "info" : "success"}
+                          variant={
+                            tx.type === "Achat"
+                              ? "info"
+                              : tx.type === "Vente"
+                                ? "warning"
+                                : "success"
+                          }
                         >
                           <ArrowLeftRight className="h-3 w-3" />
                           {tx.type}
@@ -543,6 +562,7 @@ export default function TransactionsPage() {
                 required
               >
                 <option value="Achat">Achat</option>
+                <option value="Vente">Vente</option>
                 <option value="Dividende">Dividende</option>
               </select>
             </div>
@@ -582,13 +602,29 @@ export default function TransactionsPage() {
                 {searchResults.map((result) => (
                   <li
                     key={result.symbol}
-                    onClick={() => {
+                    onClick={async () => {
                       setFormData((prev) => ({
                         ...prev,
                         ticker: result.symbol,
                       }));
                       setSearchResults([]);
                       setTickerSearch("");
+                      // Auto-fill price
+                      if (
+                        formData.type === "Achat" ||
+                        formData.type === "Vente"
+                      ) {
+                        const priceData = await fetchStockPrice(result.symbol);
+                        if (priceData) {
+                          setFormData((prev) => ({
+                            ...prev,
+                            unitPrice: priceData.price.toString(),
+                            totalAmount: (
+                              parseFloat(prev.quantity || "0") * priceData.price
+                            ).toFixed(2),
+                          }));
+                        }
+                      }
                     }}
                     className="cursor-pointer px-4 py-2.5 transition-colors hover:bg-zinc-700"
                   >
@@ -609,8 +645,8 @@ export default function TransactionsPage() {
             )}
           </div>
 
-          {/* Quantity and Unit Price (for Achat only) */}
-          {formData.type === "Achat" && (
+          {/* Quantity and Unit Price (for Achat/Vente only) */}
+          {(formData.type === "Achat" || formData.type === "Vente") && (
             <div className="grid grid-cols-2 gap-4">
               <div>
                 <label className="mb-2 block text-sm font-medium text-zinc-300">
@@ -629,7 +665,9 @@ export default function TransactionsPage() {
               </div>
               <div>
                 <label className="mb-2 block text-sm font-medium text-zinc-300">
-                  Prix d'achat (€)
+                  {formData.type === "Achat"
+                    ? "Prix d'achat (€)"
+                    : "Prix de vente (€)"}
                 </label>
                 <input
                   type="number"
@@ -659,9 +697,9 @@ export default function TransactionsPage() {
               step="0.01"
               className="w-full rounded-xl border border-zinc-700 bg-zinc-800 px-4 py-2.5 text-sm text-zinc-200 outline-none transition-colors focus:border-violet-500 focus:ring-2 focus:ring-violet-500/20 placeholder:text-zinc-500"
               required
-              readOnly={formData.type === "Achat"}
+              readOnly={formData.type === "Achat" || formData.type === "Vente"}
             />
-            {formData.type === "Achat" && (
+            {(formData.type === "Achat" || formData.type === "Vente") && (
               <p className="mt-1.5 text-xs text-zinc-500">
                 Calculé automatiquement : Quantité × Prix unitaire
               </p>

@@ -81,7 +81,7 @@ export async function fetchTransactions(): Promise<Transaction[]> {
  */
 export async function insertTransaction(tx: {
   ticker: string;
-  type: "Achat" | "Dividende";
+  type: "Achat" | "Dividende" | "Vente";
   date: string;
   quantity: number;
   unit_price: number;
@@ -117,7 +117,7 @@ export async function updateTransaction(
   id: string,
   tx: {
     ticker: string;
-    type: "Achat" | "Dividende";
+    type: "Achat" | "Dividende" | "Vente";
     date: string;
     quantity: number;
     unit_price: number;

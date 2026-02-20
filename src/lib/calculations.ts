@@ -1,7 +1,7 @@
 export interface Transaction {
   id: string;
   ticker: string;
-  type: "Achat" | "Dividende";
+  type: "Achat" | "Dividende" | "Vente";
   date: string;
   quantity: number;
   unit_price: number;
@@ -47,13 +47,18 @@ export function calculatePRU(transactions: Transaction[]): number {
 }
 
 /**
- * Calcule le total investi : Σ(quantité × prix_unitaire) (achats uniquement)
- * Note: Les frais ne sont PAS inclus dans le total investi pour le calcul de la plus-value
+ * Calcule le total investi basé sur le PRU et la quantité actuelle (achats moins ventes).
  */
 export function calculateTotalInvested(transactions: Transaction[]): number {
-  return transactions
+  const pru = calculatePRU(transactions);
+  const boughtQty = transactions
     .filter((t) => t.type === "Achat")
-    .reduce((sum, t) => sum + t.quantity * t.unit_price, 0);
+    .reduce((sum, t) => sum + t.quantity, 0);
+  const soldQty = transactions
+    .filter((t) => t.type === "Vente")
+    .reduce((sum, t) => sum + t.quantity, 0);
+  const totalQuantity = boughtQty - soldQty;
+  return totalQuantity > 0 ? pru * totalQuantity : 0;
 }
 
 /**
@@ -93,16 +98,20 @@ export function calculatePortfolioPositions(
   for (const ticker of tickers) {
     const assetTxs = transactions.filter((t) => t.ticker === ticker);
     const buys = assetTxs.filter((t) => t.type === "Achat");
+    const sells = assetTxs.filter((t) => t.type === "Vente");
 
-    const totalQuantity = buys.reduce((sum, t) => sum + t.quantity, 0);
-    if (totalQuantity === 0 && assetTxs.length === 0) continue;
+    const boughtQty = buys.reduce((sum, t) => sum + t.quantity, 0);
+    const soldQty = sells.reduce((sum, t) => sum + t.quantity, 0);
+    const totalQuantity = boughtQty - soldQty;
+    if (totalQuantity <= 0 && assetTxs.length === 0) continue;
 
-    const totalInvested = buys.reduce(
+    const totalInvestedBuys = buys.reduce(
       (sum, t) => sum + t.quantity * t.unit_price,
       0,
     );
-    const totalFees = buys.reduce((sum, t) => sum + t.fees, 0);
-    const pru = totalQuantity > 0 ? totalInvested / totalQuantity : 0;
+    const pru = boughtQty > 0 ? totalInvestedBuys / boughtQty : 0;
+    const totalInvested = totalQuantity > 0 ? pru * totalQuantity : 0;
+    const totalFees = assetTxs.reduce((sum, t) => sum + t.fees, 0);
     const dividends = calculateDividends(assetTxs);
 
     const info = instrumentLookup?.get(ticker);
