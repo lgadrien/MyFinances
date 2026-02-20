@@ -24,16 +24,24 @@ export async function GET(request: Request) {
 
     const data = await res.json();
 
+    interface YahooSearchQuote {
+      symbol: string;
+      shortname?: string;
+      longname?: string;
+      exchDisp?: string;
+      quoteType?: string;
+    }
+
     // Transform result
     const results = (data.quotes || [])
       .filter(
-        (q: any) =>
+        (q: YahooSearchQuote) =>
           q.quoteType === "EQUITY" ||
           q.quoteType === "ETF" ||
           q.quoteType === "MUTUALFUND" ||
           q.quoteType === "INDEX",
       )
-      .map((q: any) => ({
+      .map((q: YahooSearchQuote) => ({
         symbol: q.symbol,
         name: q.shortname || q.longname || q.symbol,
         exchDisp: q.exchDisp,

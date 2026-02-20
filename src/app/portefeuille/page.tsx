@@ -35,16 +35,26 @@ const COLORS = [
   "#3f3f46", // Zinc 700
 ];
 
-// eslint-disable-next-line @typescript-eslint/no-explicit-any
-const CustomTooltip = ({ active, payload, label }: any) => {
+import type { TooltipProps } from "recharts";
+import type {
+  NameType,
+  ValueType,
+} from "recharts/types/component/DefaultTooltipContent";
+
+const CustomTooltip = ({
+  active,
+  payload,
+  label,
+}: TooltipProps<ValueType, NameType>) => {
   if (active && payload && payload.length) {
     return (
       <div className="rounded-lg border border-zinc-700 bg-zinc-900 p-3 shadow-xl">
         <p className="mb-2 text-sm font-medium text-zinc-400">
-          {label ? format(parseISO(label), "d MMMM yyyy", { locale: fr }) : ""}
+          {label
+            ? format(parseISO(label as string), "d MMMM yyyy", { locale: fr })
+            : ""}
         </p>
-        {/* eslint-disable-next-line @typescript-eslint/no-explicit-any */}
-        {payload.map((entry: any, index: number) => (
+        {payload.map((entry, index) => (
           <p
             key={index}
             className="text-sm font-semibold"
@@ -54,7 +64,7 @@ const CustomTooltip = ({ active, payload, label }: any) => {
             {new Intl.NumberFormat("fr-FR", {
               style: "currency",
               currency: "EUR",
-            }).format(entry.value)}
+            }).format(entry.value as number)}
           </p>
         ))}
       </div>
@@ -63,8 +73,10 @@ const CustomTooltip = ({ active, payload, label }: any) => {
   return null;
 };
 
-// eslint-disable-next-line @typescript-eslint/no-explicit-any
-const CustomPieTooltip = ({ active, payload }: any) => {
+const CustomPieTooltip = ({
+  active,
+  payload,
+}: TooltipProps<ValueType, NameType>) => {
   if (active && payload && payload.length) {
     const data = payload[0].payload;
     return (
@@ -74,7 +86,7 @@ const CustomPieTooltip = ({ active, payload }: any) => {
           {new Intl.NumberFormat("fr-FR", {
             style: "currency",
             currency: "EUR",
-          }).format(payload[0].value)}
+          }).format(payload[0].value as number)}
           {data.percent !== undefined && (
             <span className="ml-2 font-medium text-violet-400">
               ({(data.percent * 100).toFixed(1)}%)
@@ -87,14 +99,23 @@ const CustomPieTooltip = ({ active, payload }: any) => {
   return null;
 };
 
+interface CustomLabelProps {
+  cx?: number;
+  cy?: number;
+  midAngle?: number;
+  innerRadius?: number;
+  outerRadius?: number;
+  percent?: number;
+}
+
 const renderCustomizedLabel = ({
-  cx,
-  cy,
-  midAngle,
-  innerRadius,
-  outerRadius,
-  percent,
-}: any) => {
+  cx = 0,
+  cy = 0,
+  midAngle = 0,
+  innerRadius = 0,
+  outerRadius = 0,
+  percent = 0,
+}: CustomLabelProps) => {
   if (percent < 0.05) return null;
   const radius = innerRadius + (outerRadius - innerRadius) * 0.5;
   const x = cx + radius * Math.cos(-midAngle * (Math.PI / 180));
@@ -240,12 +261,6 @@ export default function PortfolioPage() {
       minimumFractionDigits: 2,
       maximumFractionDigits: 2,
     }).format(n);
-
-  const formatPrice = (n: number) =>
-    new Intl.NumberFormat("fr-FR", {
-      minimumFractionDigits: 2,
-      maximumFractionDigits: 2,
-    }).format(n) + " €";
 
   const formatPercent = (n: number) =>
     new Intl.NumberFormat("fr-FR", {
