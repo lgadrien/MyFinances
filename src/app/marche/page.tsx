@@ -184,15 +184,16 @@ export default function MarchePage() {
     queryFn: async () => {
       const map = new Map();
 
-      // Batch fetches
+      // Batch fetches by 5 — use allSettled so one failure doesn't cancel the whole batch
       for (let i = 0; i < allRows.length; i += 5) {
         const batch = allRows.slice(i, i + 5);
-        const pricePromises = batch.map((r) => fetchStockPrice(r.ticker));
-        const pricesData = await Promise.all(pricePromises);
+        const results = await Promise.allSettled(
+          batch.map((r) => fetchStockPrice(r.ticker)),
+        );
 
-        batch.forEach((r, idx) => {
-          if (pricesData[idx]) {
-            map.set(r.ticker, pricesData[idx]);
+        results.forEach((result, idx) => {
+          if (result.status === "fulfilled" && result.value) {
+            map.set(batch[idx].ticker, result.value);
           }
         });
       }
@@ -410,6 +411,7 @@ export default function MarchePage() {
         <button
           onClick={handleRefresh}
           disabled={refreshing || loading}
+          aria-label="Actualiser les cotations"
           className="flex items-center gap-2 rounded-xl border border-zinc-700/50 bg-zinc-800/50 px-4 py-2.5 text-sm font-medium text-zinc-300 transition-all hover:bg-zinc-700/50 hover:text-white disabled:opacity-50"
         >
           <RefreshCw
@@ -634,6 +636,11 @@ export default function MarchePage() {
                     <span className="text-xs text-zinc-500">{row.sector}</span>
                     <button
                       onClick={(e) => handleToggleFavorite(e, row.ticker)}
+                      aria-label={
+                        favorites.includes(row.ticker)
+                          ? `Retirer ${row.ticker} des favoris`
+                          : `Ajouter ${row.ticker} aux favoris`
+                      }
                       className="p-1"
                     >
                       <Star
@@ -814,6 +821,11 @@ export default function MarchePage() {
                       <td className="px-6 py-4 text-center">
                         <button
                           onClick={(e) => handleToggleFavorite(e, row.ticker)}
+                          aria-label={
+                            favorites.includes(row.ticker)
+                              ? `Retirer ${row.ticker} des favoris`
+                              : `Ajouter ${row.ticker} aux favoris`
+                          }
                           className="group/star mx-auto flex h-8 w-8 items-center justify-center rounded-lg transition-colors hover:bg-amber-500/10"
                           title={
                             favorites.includes(row.ticker)

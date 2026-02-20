@@ -312,6 +312,7 @@ export default function StockChart({ ticker, name, onClose }: StockChartProps) {
         </div>
         <button
           onClick={onClose}
+          aria-label="Fermer le graphique"
           className="rounded-lg p-2 text-zinc-400 transition-colors hover:bg-zinc-800 hover:text-white"
         >
           <X className="h-5 w-5" />

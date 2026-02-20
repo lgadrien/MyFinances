@@ -1,37 +1,17 @@
-export interface Transaction {
-  id: string;
-  ticker: string;
-  type: "Achat" | "Dividende" | "Vente";
-  date: string;
-  quantity: number;
-  unit_price: number;
-  total_amount: number;
-  fees: number;
-  created_at: string;
-}
+/**
+ * Re-export shared types from the central types file.
+ * All app code should import Transaction, Asset, PortfolioPosition from here
+ * OR directly from "@/lib/types" — both work.
+ */
+export type {
+  Transaction,
+  Asset,
+  PortfolioPosition,
+  TransactionType,
+} from "@/lib/types";
 
-export interface Asset {
-  id: string;
-  ticker: string;
-  name: string;
-  sector: string | null;
-  currency: string;
-  created_at: string;
-}
-
-export interface PortfolioPosition {
-  ticker: string;
-  name: string;
-  sector: string | null;
-  totalQuantity: number;
-  totalInvested: number;
-  totalFees: number;
-  pru: number;
-  dividends: number;
-  currentPrice?: number;
-  plusValue?: number;
-  capitalValue?: number;
-}
+// Local import for internal use
+import type { Transaction, PortfolioPosition } from "@/lib/types";
 
 /** Calcule le PRU (Prix de Revient Unitaire) pour un ticker donné.
  *  PRU = Σ(qté × prix_unitaire) / Σ qté (achats seulement, hors frais).

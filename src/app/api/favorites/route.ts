@@ -1,21 +1,19 @@
 import { NextRequest, NextResponse } from "next/server";
 import { supabase } from "@/lib/supabase";
 
-/**
- * Handle Favorites (GET, POST, DELETE)
- *
- * GET: Return all favorite tickers for the authenticated user.
- * POST: Add a ticker to favorites.
- * DELETE: Remove a ticker from favorites.
- */
+// ── Input validation ──────────────────────────────────────────────────────────
 
-// If using Auth, we get user_id from token. For demo without auth, we might use a fixed ID or anon key if RLS allows.
-// Given the context of "Phase 2" and no full auth flow, we'll assume either:
-// 1. Auth is optional and we use anon RLS policy (risky for prod but OK for local demo)
-// 2. We mock a user ID or skip RLS.
-// Let's assume we use standard Supabase client which handles session if present.
+const TICKER_RE = /^[A-Z0-9^.=-]{1,12}$/;
 
-export async function GET(req: NextRequest) {
+function sanitizeTicker(raw: unknown): string | null {
+  if (typeof raw !== "string") return null;
+  const t = raw.trim().toUpperCase();
+  return TICKER_RE.test(t) ? t : null;
+}
+
+// ── GET /api/favorites ────────────────────────────────────────────────────────
+
+export async function GET() {
   try {
     const { data, error } = await supabase
       .from("favorites")
@@ -24,49 +22,59 @@ export async function GET(req: NextRequest) {
 
     if (error) throw error;
 
-    const tickers = data?.map((f) => f.ticker) || [];
+    const tickers = (data ?? []).map((f) => f.ticker as string);
     return NextResponse.json({ favorites: tickers });
   } catch (error) {
-    console.error("Error fetching favorites:", error);
+    console.error("[favorites GET]", error);
     return NextResponse.json({ favorites: [] }, { status: 500 });
   }
 }
 
+// ── POST /api/favorites ───────────────────────────────────────────────────────
+
 export async function POST(req: NextRequest) {
   try {
-    const { ticker } = await req.json();
-    if (!ticker)
-      return NextResponse.json({ error: "Ticker required" }, { status: 400 });
+    const body = await req.json().catch(() => null);
+    const ticker = sanitizeTicker(body?.ticker);
 
-    // Insert
-    const { error } = await supabase
-      .from("favorites")
-      .insert([{ ticker }])
-      .select();
+    if (!ticker) {
+      return NextResponse.json(
+        { error: "Ticker invalide ou manquant" },
+        { status: 400 },
+      );
+    }
+
+    const { error } = await supabase.from("favorites").insert([{ ticker }]);
 
     if (error) {
-      // Ignore duplicate key error (already favorited)
+      // PG unique violation → already favorited, treat as success
       if (error.code === "23505") return NextResponse.json({ success: true });
       throw error;
     }
 
     return NextResponse.json({ success: true });
   } catch (error) {
-    console.error("Error adding favorite:", error);
+    console.error("[favorites POST]", error);
     return NextResponse.json(
-      { error: "Failed to add favorite" },
+      { error: "Impossible d'ajouter le favori" },
       { status: 500 },
     );
   }
 }
 
+// ── DELETE /api/favorites?ticker=XXX ─────────────────────────────────────────
+
 export async function DELETE(req: NextRequest) {
   try {
-    const { searchParams } = new URL(req.url);
-    const ticker = searchParams.get("ticker");
+    const raw = new URL(req.url).searchParams.get("ticker");
+    const ticker = sanitizeTicker(raw);
 
-    if (!ticker)
-      return NextResponse.json({ error: "Ticker required" }, { status: 400 });
+    if (!ticker) {
+      return NextResponse.json(
+        { error: "Ticker invalide ou manquant" },
+        { status: 400 },
+      );
+    }
 
     const { error } = await supabase
       .from("favorites")
@@ -77,9 +85,9 @@ export async function DELETE(req: NextRequest) {
 
     return NextResponse.json({ success: true });
   } catch (error) {
-    console.error("Error removing favorite:", error);
+    console.error("[favorites DELETE]", error);
     return NextResponse.json(
-      { error: "Failed to remove favorite" },
+      { error: "Impossible de supprimer le favori" },
       { status: 500 },
     );
   }

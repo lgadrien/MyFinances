@@ -45,10 +45,10 @@ export async function GET(request: Request) {
       0,
     );
 
-    await Promise.all(
+    await Promise.allSettled(
       activePositions.map(async (pos) => {
         const quote = await getStockQuote(pos.ticker);
-        const currentPrice = quote.price || 0;
+        const currentPrice = quote.price ?? 0;
         totalValue += currentPrice * pos.totalQuantity;
       }),
     );
