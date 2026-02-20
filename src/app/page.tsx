@@ -35,6 +35,34 @@ const CHART_COLORS = [
   "#3f3f46", // Zinc 700
 ];
 
+// eslint-disable-next-line @typescript-eslint/no-explicit-any
+const renderCustomizedLabel = ({
+  cx,
+  cy,
+  midAngle,
+  innerRadius,
+  outerRadius,
+  percent,
+}: any) => {
+  if (percent < 0.05) return null;
+  const radius = innerRadius + (outerRadius - innerRadius) * 0.5;
+  const x = cx + radius * Math.cos(-midAngle * (Math.PI / 180));
+  const y = cy + radius * Math.sin(-midAngle * (Math.PI / 180));
+  return (
+    <text
+      x={x}
+      y={y}
+      fill="white"
+      textAnchor="middle"
+      dominantBaseline="central"
+      fontSize="11"
+      fontWeight="bold"
+    >
+      {`${(percent * 100).toFixed(0)}%`}
+    </text>
+  );
+};
+
 export default function DashboardPage() {
   const [positions, setPositions] = useState<
     (PortfolioPosition & {
@@ -97,11 +125,19 @@ export default function DashboardPage() {
     loadData();
   }, []);
 
+  const totalDonutValue = positions.reduce(
+    (sum, p) => sum + Math.round(p.capitalValue || 0),
+    0,
+  );
   const donutData = positions
     .filter((p) => p.capitalValue && p.capitalValue > 0)
     .map((p) => ({
       name: p.name,
       value: Math.round(p.capitalValue || 0),
+      percent:
+        totalDonutValue > 0
+          ? Math.round(p.capitalValue || 0) / totalDonutValue
+          : 0,
     }));
 
   const formatEUR = (n: number) =>
@@ -192,6 +228,8 @@ export default function DashboardPage() {
                   dataKey="value"
                   stroke="none"
                   paddingAngle={3}
+                  labelLine={false}
+                  label={renderCustomizedLabel}
                 >
                   {donutData.map((_, index) => (
                     <Cell
@@ -202,7 +240,16 @@ export default function DashboardPage() {
                   ))}
                 </Pie>
                 <Tooltip
-                  formatter={(value) => formatEUR(Number(value ?? 0))}
+                  formatter={(value, name, props) => {
+                    const percent = props?.payload?.percent;
+                    if (percent !== undefined) {
+                      return [
+                        `${formatEUR(Number(value ?? 0))} (${(percent * 100).toFixed(1)}%)`,
+                        name,
+                      ];
+                    }
+                    return [formatEUR(Number(value ?? 0)), name];
+                  }}
                   contentStyle={{
                     backgroundColor: "#09090b",
                     border: "1px solid #27272a",

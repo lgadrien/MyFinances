@@ -66,6 +66,7 @@ const CustomTooltip = ({ active, payload, label }: any) => {
 // eslint-disable-next-line @typescript-eslint/no-explicit-any
 const CustomPieTooltip = ({ active, payload }: any) => {
   if (active && payload && payload.length) {
+    const data = payload[0].payload;
     return (
       <div className="rounded-lg border border-zinc-700 bg-zinc-900 p-2 shadow-xl">
         <p className="font-medium text-white">{payload[0].name}</p>
@@ -74,11 +75,43 @@ const CustomPieTooltip = ({ active, payload }: any) => {
             style: "currency",
             currency: "EUR",
           }).format(payload[0].value)}
+          {data.percent !== undefined && (
+            <span className="ml-2 font-medium text-violet-400">
+              ({(data.percent * 100).toFixed(1)}%)
+            </span>
+          )}
         </p>
       </div>
     );
   }
   return null;
+};
+
+const renderCustomizedLabel = ({
+  cx,
+  cy,
+  midAngle,
+  innerRadius,
+  outerRadius,
+  percent,
+}: any) => {
+  if (percent < 0.05) return null;
+  const radius = innerRadius + (outerRadius - innerRadius) * 0.5;
+  const x = cx + radius * Math.cos(-midAngle * (Math.PI / 180));
+  const y = cy + radius * Math.sin(-midAngle * (Math.PI / 180));
+  return (
+    <text
+      x={x}
+      y={y}
+      fill="white"
+      textAnchor="middle"
+      dominantBaseline="central"
+      fontSize="11"
+      fontWeight="bold"
+    >
+      {`${(percent * 100).toFixed(0)}%`}
+    </text>
+  );
 };
 
 export default function PortfolioPage() {
@@ -179,14 +212,24 @@ export default function PortfolioPage() {
       const sector = p.sector || "Autre";
       sectors[sector] = (sectors[sector] || 0) + (p.capitalValue || 0);
     });
+    const total = Object.values(sectors).reduce((acc, val) => acc + val, 0);
     return Object.entries(sectors)
-      .map(([name, value]) => ({ name, value }))
+      .map(([name, value]) => ({
+        name,
+        value,
+        percent: total > 0 ? value / total : 0,
+      }))
       .sort((a, b) => b.value - a.value);
   }, [positions]);
 
   const assetData = useMemo(() => {
+    const total = positions.reduce((sum, p) => sum + (p.capitalValue || 0), 0);
     return positions
-      .map((p) => ({ name: p.name, value: p.capitalValue || 0 }))
+      .map((p) => ({
+        name: p.name,
+        value: p.capitalValue || 0,
+        percent: total > 0 ? (p.capitalValue || 0) / total : 0,
+      }))
       .sort((a, b) => b.value - a.value);
   }, [positions]);
 
@@ -329,8 +372,15 @@ export default function PortfolioPage() {
                 <YAxis
                   stroke="#52525b"
                   tick={{ fontSize: 12 }}
-                  tickFormatter={(val) => `${(val / 1000).toFixed(1)}k`}
+                  tickFormatter={(val) =>
+                    new Intl.NumberFormat("fr-FR", {
+                      style: "currency",
+                      currency: "EUR",
+                      maximumFractionDigits: 0,
+                    }).format(val)
+                  }
                   domain={["auto", "auto"]}
+                  width={80}
                 />
                 <Tooltip content={<CustomTooltip />} />
                 <Area
@@ -381,6 +431,8 @@ export default function PortfolioPage() {
                     outerRadius={100}
                     paddingAngle={2}
                     dataKey="value"
+                    labelLine={false}
+                    label={renderCustomizedLabel}
                   >
                     {sectorData.map((entry, index) => (
                       <Cell
@@ -413,6 +465,8 @@ export default function PortfolioPage() {
                     outerRadius={100}
                     paddingAngle={2}
                     dataKey="value"
+                    labelLine={false}
+                    label={renderCustomizedLabel}
                   >
                     {assetData.map((entry, index) => (
                       <Cell
