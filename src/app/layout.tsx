@@ -1,6 +1,7 @@
 import type { Metadata } from "next";
 import "./globals.css";
 import ResponsiveLayout from "@/components/layout/ResponsiveLayout";
+import QueryProvider from "@/components/QueryProvider";
 
 export const metadata: Metadata = {
   title: "MyFinances — PEA Portfolio Tracker",
@@ -22,7 +23,9 @@ export default function RootLayout({
         />
       </head>
       <body className="min-h-screen bg-black text-zinc-50 antialiased selection:bg-violet-500/30 selection:text-violet-200">
-        <ResponsiveLayout>{children}</ResponsiveLayout>
+        <QueryProvider>
+          <ResponsiveLayout>{children}</ResponsiveLayout>
+        </QueryProvider>
       </body>
     </html>
   );

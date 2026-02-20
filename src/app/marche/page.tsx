@@ -26,6 +26,7 @@ import {
   FRENCH_INSTRUMENTS,
   type MarketCategory,
 } from "@/lib/french-instruments";
+import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 
 interface MarketRow {
   ticker: string;
@@ -70,9 +71,7 @@ const formatPrice = (n: number) =>
   }).format(n) + " €";
 
 export default function MarchePage() {
-  const [rows, setRows] = useState<MarketRow[]>([]);
-  const [loading, setLoading] = useState(true);
-  const [refreshing, setRefreshing] = useState(false);
+  const queryClient = useQueryClient();
   const [search, setSearch] = useState("");
   const [categoryFilter, setCategoryFilter] = useState<"Tous" | MarketCategory>(
     "Tous",
@@ -82,6 +81,147 @@ export default function MarchePage() {
   const [selectedTicker, setSelectedTicker] = useState<string | null>(null);
   const [favorites, setFavorites] = useState<string[]>([]);
   const [showFavorites, setShowFavorites] = useState(false);
+
+  // Tanstack Query - Load Favorites
+  const { data: serverFavorites = [] } = useQuery({
+    queryKey: ["favorites"],
+    queryFn: fetchFavorites,
+  });
+
+  // Sync favorites state
+  useEffect(() => {
+    setFavorites(serverFavorites);
+  }, [serverFavorites]);
+
+  // Tanstack Query - Load Transactions (to know owned status)
+  const { data: transactions = [] } = useQuery({
+    queryKey: ["transactions"],
+    queryFn: fetchTransactions,
+  });
+
+  const ownedTickers = useMemo(() => {
+    return new Set(
+      transactions
+        .filter((t: { type: string; ticker: string }) => t.type === "Achat")
+        .map((t: { type: string; ticker: string }) => t.ticker),
+    );
+  }, [transactions]);
+
+  // Initialize all base rows from static list + favs + owned
+  const baseRows = useMemo(() => {
+    const list = [...FRENCH_INSTRUMENTS];
+    const rowsMap = new Map();
+
+    list.forEach((inst) => {
+      rowsMap.set(inst.ticker, {
+        ticker: inst.ticker,
+        name: inst.name,
+        sector: inst.sector,
+        category: inst.category,
+        price: 0,
+        change: 0,
+        changePercent: 0,
+        owned: ownedTickers.has(inst.ticker),
+        loaded: false,
+      });
+    });
+
+    // Inject favorites
+    serverFavorites.forEach((ticker) => {
+      if (!rowsMap.has(ticker)) {
+        rowsMap.set(ticker, {
+          ticker,
+          name: ticker, // We don't have the real name yet, fallback to ticker
+          sector: "Autre",
+          category: "Action",
+          price: 0,
+          change: 0,
+          changePercent: 0,
+          owned: ownedTickers.has(ticker),
+          loaded: false,
+        });
+      }
+    });
+
+    // Inject owned tickers
+    ownedTickers.forEach((ticker) => {
+      if (!rowsMap.has(ticker)) {
+        rowsMap.set(ticker, {
+          ticker,
+          name: ticker,
+          sector: "Autre",
+          category: "Action",
+          price: 0,
+          change: 0,
+          changePercent: 0,
+          owned: true,
+          loaded: false,
+        });
+      }
+    });
+
+    return Array.from(rowsMap.values());
+  }, [ownedTickers, serverFavorites]);
+
+  // Dynamic Row State because search can add items
+  const [dynamicRows, setDynamicRows] = useState<MarketRow[]>([]);
+  const allRows = useMemo(() => {
+    // Merge dynamicRows (added from search) with baseRows
+    const baseMap = new Map(baseRows.map((r) => [r.ticker, r]));
+    dynamicRows.forEach((r) => {
+      if (!baseMap.has(r.ticker)) {
+        r.owned = ownedTickers.has(r.ticker);
+        baseMap.set(r.ticker, r);
+      }
+    });
+    return Array.from(baseMap.values());
+  }, [baseRows, dynamicRows, ownedTickers]);
+
+  // Tanstack Query - Prices
+  const {
+    data: pricesMap = new Map(),
+    isLoading: loading,
+    isRefetching: refreshing,
+  } = useQuery({
+    queryKey: ["market-prices", allRows.map((r) => r.ticker).join(",")],
+    queryFn: async () => {
+      const map = new Map();
+
+      // Batch fetches
+      for (let i = 0; i < allRows.length; i += 5) {
+        const batch = allRows.slice(i, i + 5);
+        const pricePromises = batch.map((r) => fetchStockPrice(r.ticker));
+        const pricesData = await Promise.all(pricePromises);
+
+        batch.forEach((r, idx) => {
+          if (pricesData[idx]) {
+            map.set(r.ticker, pricesData[idx]);
+          }
+        });
+      }
+      return map;
+    },
+    // Rafraîchissement en arrière-plan toutes les 60s
+    refetchInterval: 60000,
+    staleTime: 30000,
+  });
+
+  // Calculate merged rows with prices
+  const rows = useMemo(() => {
+    return allRows.map((r) => {
+      const p = pricesMap.get(r.ticker);
+      if (p) {
+        return {
+          ...r,
+          price: p.price,
+          change: p.change,
+          changePercent: p.changePercent,
+          loaded: true,
+        };
+      }
+      return r;
+    });
+  }, [allRows, pricesMap]);
 
   // New search state
   interface TickerResult {
@@ -95,39 +235,36 @@ export default function MarchePage() {
   const [isSearching, setIsSearching] = useState(false);
   const [searchFocused, setSearchFocused] = useState(false);
 
-  useEffect(() => {
-    loadFavorites();
-  }, []);
-
-  async function loadFavorites() {
-    const favs = await fetchFavorites();
-    setFavorites(favs);
-  }
+  const toggleFavMutation = useMutation({
+    mutationFn: async ({
+      ticker,
+      isFav,
+    }: {
+      ticker: string;
+      isFav: boolean;
+    }) => {
+      if (isFav) return removeFavorite(ticker);
+      return addFavorite(ticker);
+    },
+    onMutate: async ({ ticker, isFav }) => {
+      await queryClient.cancelQueries({ queryKey: ["favorites"] });
+      const previous = queryClient.getQueryData<string[]>(["favorites"]);
+      queryClient.setQueryData<string[]>(["favorites"], (old = []) =>
+        isFav ? old.filter((f) => f !== ticker) : [...old, ticker],
+      );
+      return { previous };
+    },
+    onError: (err, variables, context) => {
+      if (context?.previous) {
+        queryClient.setQueryData(["favorites"], context.previous);
+      }
+    },
+  });
 
   async function handleToggleFavorite(e: React.MouseEvent, ticker: string) {
     e.stopPropagation();
-
-    // Check if currently favorite
     const isFav = favorites.includes(ticker);
-
-    // Optimistic update
-    const newFavorites = isFav
-      ? favorites.filter((f) => f !== ticker)
-      : [...favorites, ticker];
-    setFavorites(newFavorites);
-
-    // Async DB update
-    try {
-      if (isFav) {
-        await removeFavorite(ticker);
-      } else {
-        await addFavorite(ticker);
-      }
-    } catch (e) {
-      console.error("Failed to update favorite", e);
-      // Revert if failed
-      setFavorites(favorites);
-    }
+    toggleFavMutation.mutate({ ticker, isFav });
   }
 
   function handleSort(key: SortKey) {
@@ -190,94 +327,14 @@ export default function MarchePage() {
       loaded: false,
     };
 
-    setRows((prev) => [newRow, ...prev]);
+    setDynamicRows((prev) => [newRow, ...prev]);
     setSearch("");
     setSearchResults([]);
     setSelectedTicker(item.ticker);
-
-    // Fetch price immediately
-    try {
-      const priceData = await fetchStockPrice(item.ticker);
-      setRows((prev) =>
-        prev.map((r) =>
-          r.ticker === item.ticker
-            ? {
-                ...r,
-                price: priceData?.price || 0,
-                change: priceData?.change || 0,
-                changePercent: priceData?.changePercent || 0,
-                loaded: true,
-              }
-            : r,
-        ),
-      );
-    } catch (e) {
-      console.error("Failed to fetch price for new ticker", e);
-    }
-  }
-
-  useEffect(() => {
-    loadMarketData();
-  }, []);
-
-  async function loadMarketData() {
-    setLoading(true);
-
-    // Get owned tickers from Supabase transactions
-    const transactions = await fetchTransactions();
-    const ownedTickers = new Set(
-      transactions.filter((t) => t.type === "Achat").map((t) => t.ticker),
-    );
-
-    // Initialize all rows from static list
-    const initialRows: MarketRow[] = FRENCH_INSTRUMENTS.map((inst) => ({
-      ticker: inst.ticker,
-      name: inst.name,
-      sector: inst.sector,
-      category: inst.category,
-      price: 0,
-      change: 0,
-      changePercent: 0,
-      owned: ownedTickers.has(inst.ticker),
-      loaded: false,
-    }));
-
-    setRows(initialRows);
-    setLoading(false);
-
-    // Fetch prices in batches of 5 (Alpha Vantage rate limit) - kept for existing logic, now using Yahoo so limit is less of an issue but good for batching
-    for (let i = 0; i < initialRows.length; i += 5) {
-      const batch = initialRows.slice(i, i + 5);
-      const pricePromises = batch.map((r) => fetchStockPrice(r.ticker));
-      const prices = await Promise.all(pricePromises);
-
-      setRows((prev) =>
-        prev.map((row) => {
-          const batchIdx = batch.findIndex((b) => b.ticker === row.ticker);
-          if (batchIdx === -1) return row;
-          const priceData = prices[batchIdx];
-          if (!priceData) return { ...row, loaded: true };
-          return {
-            ...row,
-            price: priceData.price,
-            change: priceData.change,
-            changePercent: priceData.changePercent,
-            loaded: true,
-          };
-        }),
-      );
-
-      // Small delay between batches to respect rate limits
-      if (i + 5 < initialRows.length) {
-        await new Promise((r) => setTimeout(r, 100)); // Reduced delay since Yahoo is faster
-      }
-    }
   }
 
   async function handleRefresh() {
-    setRefreshing(true);
-    await loadMarketData();
-    setRefreshing(false);
+    await queryClient.invalidateQueries({ queryKey: ["market-prices"] });
   }
 
   const filteredAndSorted = useMemo(() => {
