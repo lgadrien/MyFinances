@@ -27,6 +27,7 @@ import {
   type MarketCategory,
 } from "@/lib/french-instruments";
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
+import { SIGNAL_CONFIG, type TrendSignal } from "@/lib/technical-analysis";
 
 interface MarketRow {
   ticker: string;
@@ -40,17 +41,13 @@ interface MarketRow {
   loaded: boolean;
 }
 
-function getTrendLabel(changePercent: number): {
-  label: string;
-  variant: "success" | "danger" | "warning";
-} {
-  if (changePercent < -2) {
-    return { label: "KRACH / SOLDES 🔥", variant: "danger" };
-  }
-  if (changePercent < 0) {
-    return { label: "Correction 🔻", variant: "warning" };
-  }
-  return { label: "Vert 🟢", variant: "success" };
+/** Tendance rapide basée sur la variation du jour (fallback sans historique). */
+function getTrendSignalFromChange(changePercent: number): TrendSignal {
+  if (changePercent <= -3) return "STRONG_SELL";
+  if (changePercent < -0.5) return "SELL";
+  if (changePercent >= 3) return "STRONG_BUY";
+  if (changePercent > 0.5) return "BUY";
+  return "NEUTRAL";
 }
 
 type SortKey = "name" | "sector" | "price" | "changePercent";
@@ -712,7 +709,10 @@ export default function MarchePage() {
                   </tr>
                 ))
               : filteredAndSorted.map((row) => {
-                  const trend = getTrendLabel(row.changePercent);
+                  const trendSignal = getTrendSignalFromChange(
+                    row.changePercent,
+                  );
+                  const trendCfg = SIGNAL_CONFIG[trendSignal];
                   const isIndex = row.category === "Indice";
                   return (
                     <tr
@@ -832,7 +832,11 @@ export default function MarchePage() {
                       </td>
                       <td className="px-6 py-4 text-center">
                         {row.loaded && row.price > 0 ? (
-                          <Badge variant={trend.variant}>{trend.label}</Badge>
+                          <span
+                            className={`inline-flex items-center gap-1 rounded-md px-2 py-0.5 text-xs font-semibold ${trendCfg.bgColor} ${trendCfg.color}`}
+                          >
+                            {trendCfg.emoji} {trendCfg.label}
+                          </span>
                         ) : row.loaded ? (
                           <span className="text-xs text-zinc-600">—</span>
                         ) : (
