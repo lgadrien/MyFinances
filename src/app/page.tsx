@@ -1,17 +1,12 @@
 "use client";
 
-import { useEffect, useState } from "react";
 import {
-  PieChart,
-  Pie,
-  Cell,
   BarChart,
   Bar,
   XAxis,
   YAxis,
   Tooltip,
   ResponsiveContainer,
-  Legend,
 } from "recharts";
 import {
   Wallet,
@@ -23,176 +18,45 @@ import {
   CalendarDays,
   Settings2,
   Save,
+  Sparkles,
 } from "lucide-react";
 import StatsCard from "@/components/ui/StatsCard";
-import {
-  fetchTransactions,
-  fetchStockPrice,
-  fetchSettings,
-  updateSettings,
-} from "@/lib/data";
-import {
-  calculateTotalInvested,
-  calculateDividends,
-  calculatePortfolioPositions,
-  groupDividendsByMonth,
-  type PortfolioPosition,
-} from "@/lib/calculations";
-import { FRENCH_INSTRUMENTS } from "@/lib/french-instruments";
-import toast from "react-hot-toast";
-
-const CHART_COLORS = [
-  "#8b5cf6", // Violet
-  "#d946ef", // Fuchsia
-  "#6366f1", // Indigo
-  "#a855f7", // Purple
-  "#fafafa", // White
-  "#71717a", // Zinc 500
-  "#3f3f46", // Zinc 700
-];
-
-interface CustomLabelProps {
-  cx?: number;
-  cy?: number;
-  midAngle?: number;
-  innerRadius?: number;
-  outerRadius?: number;
-  percent?: number;
-}
-
-const renderCustomizedLabel = ({
-  cx = 0,
-  cy = 0,
-  midAngle = 0,
-  innerRadius = 0,
-  outerRadius = 0,
-  percent = 0,
-}: CustomLabelProps) => {
-  if (percent < 0.05) return null;
-  const radius = innerRadius + (outerRadius - innerRadius) * 0.5;
-  const x = cx + radius * Math.cos(-midAngle * (Math.PI / 180));
-  const y = cy + radius * Math.sin(-midAngle * (Math.PI / 180));
-  return (
-    <text
-      x={x}
-      y={y}
-      fill="white"
-      textAnchor="middle"
-      dominantBaseline="central"
-      fontSize="11"
-      fontWeight="bold"
-    >
-      {`${(percent * 100).toFixed(0)}%`}
-    </text>
-  );
-};
+import { StatsCardSkeleton, ChartSkeleton } from "@/components/ui/Skeleton";
+import AnimatedDonut from "@/components/ui/AnimatedDonut";
+import PositionSparklineCell from "@/components/ui/PositionSparklineCell";
+import { useDashboard } from "@/hooks/useDashboard";
+import { useCountUp } from "@/hooks/useCountUp";
+import { formatEUR, formatPrice, CHART_TOOLTIP_STYLE } from "@/lib/utils";
 
 export default function DashboardPage() {
-  const [positions, setPositions] = useState<
-    (PortfolioPosition & {
-      currentPrice?: number;
-      plusValue?: number;
-      capitalValue?: number;
-    })[]
-  >([]);
-  const [dividendHistory, setDividendHistory] = useState<
-    { month: string; amount: number }[]
-  >([]);
-  const [totalInvested, setTotalInvested] = useState(0);
-  const [totalDividends, setTotalDividends] = useState(0);
-  const [totalPlusValue, setTotalPlusValue] = useState(0);
-  const [totalCapital, setTotalCapital] = useState(0);
-  const [loading, setLoading] = useState(true);
-  const [savingSettings, setSavingSettings] = useState(false);
+  const {
+    positions,
+    dividendHistory,
+    projectedDividends,
+    totalInvested,
+    totalDividends,
+    totalPlusValue,
+    totalCapital,
+    cashBalance,
+    targetCapital,
+    loading,
+    savingSettings,
+    isSettingsOpen,
+    setIsSettingsOpen,
+    setCashBalance,
+    setTargetCapital,
+    handleSaveSettings,
+  } = useDashboard();
 
-  // Nouvelles features via DB
-  const [cashBalance, setCashBalance] = useState(0);
-  const [targetCapital, setTargetCapital] = useState(10000);
-  const [isSettingsOpen, setIsSettingsOpen] = useState(false);
-  const [projectedDividends, setProjectedDividends] = useState<
-    { month: string; amount: number }[]
-  >([]);
-
-  useEffect(() => {
-    async function loadData() {
-      setLoading(true);
-
-      // Fetch DB Settings
-      const settings = await fetchSettings();
-      if (settings) {
-        setCashBalance(settings.cash_balance);
-        setTargetCapital(settings.target_capital);
-      }
-
-      const transactions = await fetchTransactions();
-
-      // Build lookup map from FRENCH_INSTRUMENTS
-      const instrumentLookup = new Map(
-        FRENCH_INSTRUMENTS.map((i) => [
-          i.ticker,
-          { name: i.name, sector: i.sector },
-        ]),
-      );
-
-      const pos = calculatePortfolioPositions(transactions, instrumentLookup);
-
-      // Fetch live prices for each position
-      const pricePromises = pos.map((p) => fetchStockPrice(p.ticker));
-      const prices = await Promise.all(pricePromises);
-
-      const enriched = pos.map((p, i) => {
-        const priceData = prices[i];
-        const currentPrice = priceData?.price || p.pru;
-        const plusValue = (currentPrice - p.pru) * p.totalQuantity;
-        const capitalValue = currentPrice * p.totalQuantity;
-        return { ...p, currentPrice, plusValue, capitalValue };
-      });
-
-      setPositions(enriched);
-      setTotalInvested(calculateTotalInvested(transactions));
-      setTotalDividends(calculateDividends(transactions));
-
-      const pv = enriched.reduce((sum, p) => sum + (p.plusValue || 0), 0);
-      setTotalPlusValue(pv);
-
-      const cap = enriched.reduce((sum, p) => sum + (p.capitalValue || 0), 0);
-      setTotalCapital(cap);
-
-      setDividendHistory(groupDividendsByMonth(transactions));
-
-      // Calcul des projections de dividendes
-      const oneYearAgo = new Date();
-      oneYearAgo.setFullYear(oneYearAgo.getFullYear() - 1);
-      const lastYearDivs = transactions.filter(
-        (t) => t.type === "Dividende" && new Date(t.date) >= oneYearAgo,
-      );
-
-      const projectedMap = new Map<string, number>();
-      for (const d of lastYearDivs) {
-        const position = enriched.find((p) => p.ticker === d.ticker);
-        if (position && position.totalQuantity > 0) {
-          const dDate = new Date(d.date);
-          dDate.setFullYear(dDate.getFullYear() + 1);
-          const projectedMonth = dDate.toISOString().substring(0, 7);
-          projectedMap.set(
-            projectedMonth,
-            (projectedMap.get(projectedMonth) || 0) + d.total_amount,
-          );
-        }
-      }
-
-      const sortedProjections = Array.from(projectedMap.entries())
-        .filter(([month]) => month >= new Date().toISOString().substring(0, 7))
-        .sort(([a], [b]) => a.localeCompare(b))
-        .map(([month, amount]) => ({ month, amount }))
-        .slice(0, 4);
-
-      setProjectedDividends(sortedProjections);
-      setLoading(false);
-    }
-
-    loadData();
-  }, []);
+  // CountUp pour la progress bar du capital total
+  const animatedCapital = useCountUp(loading ? 0 : totalCapital + cashBalance, {
+    duration: 1200,
+    delay: 360,
+  });
+  const progressPct = Math.min(
+    (animatedCapital / (targetCapital || 1)) * 100,
+    100,
+  );
 
   const totalDonutValue = positions.reduce(
     (sum, p) => sum + Math.round(p.capitalValue || 0),
@@ -209,31 +73,53 @@ export default function DashboardPage() {
           : 0,
     }));
 
-  const formatEUR = (n: number) =>
-    new Intl.NumberFormat("fr-FR", {
-      style: "currency",
-      currency: "EUR",
-      minimumFractionDigits: 2,
-      maximumFractionDigits: 2,
-    }).format(n);
-
-  const formatPrice = (n: number) =>
-    new Intl.NumberFormat("fr-FR", {
-      minimumFractionDigits: 2,
-      maximumFractionDigits: 2,
-    }).format(n) + " €";
-
+  // ── Loading state avec skeletons premium ────────────────────────
   if (loading) {
     return (
-      <div className="flex h-96 items-center justify-center">
-        <div className="h-8 w-8 animate-spin rounded-full border-2 border-violet-500 border-t-transparent" />
+      <div className="animate-fade-in space-y-8">
+        {/* Header skeleton */}
+        <div className="flex items-center justify-between">
+          <div className="space-y-2">
+            <div className="stats-card-skeleton h-8 w-32 rounded-lg" />
+            <div className="stats-card-skeleton h-4 w-56 rounded-md" />
+          </div>
+          <div className="stats-card-skeleton h-9 w-32 rounded-xl" />
+        </div>
+
+        {/* StatsCards skeleton */}
+        <div className="grid grid-cols-1 gap-4 sm:grid-cols-2 xl:grid-cols-4">
+          {Array.from({ length: 4 }).map((_, i) => (
+            <StatsCardSkeleton key={i} index={i} />
+          ))}
+        </div>
+
+        {/* Charts skeleton */}
+        <div className="grid grid-cols-1 gap-6 xl:grid-cols-2">
+          <ChartSkeleton height={320} />
+          <ChartSkeleton height={320} />
+        </div>
+
+        {/* Table skeleton */}
+        <div className="rounded-2xl border border-zinc-800/60 bg-zinc-900/50 p-6">
+          <div className="stats-card-skeleton mb-4 h-6 w-44 rounded-lg" />
+          <div className="space-y-3">
+            {Array.from({ length: 4 }).map((_, i) => (
+              <div key={i} className="flex justify-between gap-4">
+                <div className="stats-card-skeleton h-4 w-32 rounded-md" />
+                <div className="stats-card-skeleton h-4 w-16 rounded-md" />
+                <div className="stats-card-skeleton h-4 w-20 rounded-md" />
+                <div className="stats-card-skeleton h-4 w-20 rounded-md" />
+              </div>
+            ))}
+          </div>
+        </div>
       </div>
     );
   }
 
   return (
     <div className="animate-fade-in space-y-8">
-      {/* Header & Settings Toggle */}
+      {/* ── Header & Settings Toggle ─────────────────────────────── */}
       <div className="flex items-center justify-between">
         <div>
           <h1 className="text-3xl font-extrabold tracking-tight text-white">
@@ -245,16 +131,16 @@ export default function DashboardPage() {
         </div>
         <button
           onClick={() => setIsSettingsOpen(!isSettingsOpen)}
-          className="flex items-center gap-2 rounded-xl bg-zinc-800 px-4 py-2 text-sm font-medium text-zinc-300 transition-colors hover:bg-zinc-700 hover:text-white"
+          className="flex items-center gap-2 rounded-xl border border-zinc-800/60 bg-zinc-900/70 px-4 py-2 text-sm font-medium text-zinc-300 transition-all hover:border-zinc-700 hover:bg-zinc-800 hover:text-white"
         >
           <Settings2 className="h-4 w-4" />
           <span className="hidden sm:inline">Configuration</span>
         </button>
       </div>
 
-      {/* Settings Panel */}
+      {/* ── Settings Panel ───────────────────────────────────────── */}
       {isSettingsOpen && (
-        <div className="rounded-2xl border border-violet-500/30 bg-violet-500/5 p-6 backdrop-blur-sm animate-in slide-in-from-top-4">
+        <div className="animate-in slide-in-from-top-4 rounded-2xl border border-violet-500/30 bg-violet-500/5 p-6 backdrop-blur-sm">
           <div className="mb-4 flex items-center gap-2">
             <Target className="h-5 w-5 text-violet-400" />
             <h2 className="text-lg font-bold text-white">Paramètres</h2>
@@ -264,48 +150,34 @@ export default function DashboardPage() {
               <label className="mb-2 block text-sm font-medium text-zinc-300">
                 Liquidités non investies (Cash) €
               </label>
-              <div className="flex items-center gap-2">
-                <input
-                  type="number"
-                  value={cashBalance}
-                  onChange={(e) =>
-                    setCashBalance(parseFloat(e.target.value) || 0)
-                  }
-                  className="w-full rounded-xl border border-zinc-700 bg-zinc-800 px-4 py-2 text-sm text-zinc-200 outline-none focus:border-violet-500"
-                />
-              </div>
+              <input
+                type="number"
+                value={cashBalance}
+                onChange={(e) =>
+                  setCashBalance(parseFloat(e.target.value) || 0)
+                }
+                className="w-full rounded-xl border border-zinc-700 bg-zinc-800 px-4 py-2 text-sm text-zinc-200 outline-none transition-colors focus:border-violet-500 focus:ring-2 focus:ring-violet-500/20"
+              />
             </div>
             <div>
               <label className="mb-2 block text-sm font-medium text-zinc-300">
                 Objectif de Capital Total €
               </label>
-              <div className="flex items-center gap-2">
-                <input
-                  type="number"
-                  value={targetCapital}
-                  onChange={(e) =>
-                    setTargetCapital(parseFloat(e.target.value) || 0)
-                  }
-                  className="w-full rounded-xl border border-zinc-700 bg-zinc-800 px-4 py-2 text-sm text-zinc-200 outline-none focus:border-violet-500"
-                />
-              </div>
+              <input
+                type="number"
+                value={targetCapital}
+                onChange={(e) =>
+                  setTargetCapital(parseFloat(e.target.value) || 0)
+                }
+                className="w-full rounded-xl border border-zinc-700 bg-zinc-800 px-4 py-2 text-sm text-zinc-200 outline-none transition-colors focus:border-violet-500 focus:ring-2 focus:ring-violet-500/20"
+              />
             </div>
           </div>
           <div className="mt-4 flex justify-end">
             <button
               disabled={savingSettings}
-              onClick={async () => {
-                setSavingSettings(true);
-                const ok = await updateSettings(cashBalance, targetCapital);
-                if (ok) {
-                  toast.success("Paramètres synchronisés !");
-                  setIsSettingsOpen(false);
-                } else {
-                  toast.error("Erreur de synchronisation.");
-                }
-                setSavingSettings(false);
-              }}
-              className="flex items-center gap-2 rounded-xl bg-violet-600 px-6 py-2 text-sm font-medium text-white transition-colors hover:bg-violet-700 disabled:opacity-50"
+              onClick={handleSaveSettings}
+              className="flex items-center gap-2 rounded-xl bg-violet-600 px-6 py-2 text-sm font-medium text-white transition-all hover:bg-violet-700 hover:shadow-lg hover:shadow-violet-500/20 disabled:opacity-50"
             >
               <Save
                 className={`h-4 w-4 ${savingSettings ? "animate-pulse" : ""}`}
@@ -316,23 +188,31 @@ export default function DashboardPage() {
         </div>
       )}
 
-      {/* Stats Cards */}
+      {/* ── Stats Cards (avec countUp + stagger) ─────────────────── */}
       <div className="grid grid-cols-1 gap-4 sm:grid-cols-2 xl:grid-cols-4">
         <StatsCard
           label="Total Investi"
+          rawValue={totalInvested}
           value={formatEUR(totalInvested)}
+          formatValue={formatEUR}
           icon={Wallet}
           accentColor="violet"
+          index={0}
         />
         <StatsCard
           label="Dividendes Cumulés"
+          rawValue={totalDividends}
           value={formatEUR(totalDividends)}
+          formatValue={formatEUR}
           icon={Banknote}
           accentColor="fuchsia"
+          index={1}
         />
         <StatsCard
           label="Plus-Value"
+          rawValue={totalPlusValue}
           value={formatEUR(totalPlusValue)}
+          formatValue={formatEUR}
           icon={TrendingUp}
           trend={{
             value:
@@ -341,113 +221,76 @@ export default function DashboardPage() {
                 : "0%",
             positive: totalPlusValue >= 0,
           }}
-          accentColor={totalPlusValue >= 0 ? "emerald" : "amber"} // Keep semantic colors for P&L
+          accentColor={totalPlusValue >= 0 ? "emerald" : "amber"}
+          index={2}
         />
-        <div className="relative overflow-hidden rounded-2xl border border-zinc-800 bg-zinc-900/50 p-6 backdrop-blur">
-          <div className="flex items-center justify-between">
-            <p className="text-sm font-medium text-zinc-400">
-              Capital Total (Inclus Cash)
-            </p>
-            <div className="flex h-10 w-10 items-center justify-center rounded-xl bg-violet-500/10 text-violet-400">
-              <PiggyBank className="h-5 w-5" />
+
+        {/* Capital Total — carte custom avec progress bar animée */}
+        <div
+          className="group relative overflow-hidden rounded-2xl border border-zinc-800/80 bg-gradient-to-br from-violet-500/10 to-violet-600/5 p-5 backdrop-blur-sm transition-all duration-300 hover:-translate-y-0.5 hover:border-zinc-700/60 hover:shadow-xl hover:shadow-violet-500/10"
+          style={{
+            animationDelay: "240ms",
+            animation: "statsCardIn 0.5s cubic-bezier(0.16, 1, 0.3, 1) both",
+          }}
+        >
+          <div className="absolute -right-6 -top-6 h-28 w-28 rounded-full bg-gradient-to-br from-violet-500/20 to-violet-600/5 opacity-50 blur-2xl transition-opacity group-hover:opacity-80" />
+
+          <div className="relative flex items-start justify-between">
+            <div className="flex-1 pr-3">
+              <p className="text-[10px] font-semibold uppercase tracking-widest text-zinc-500">
+                Capital Total (incl. Cash)
+              </p>
+              <p className="mt-1.5 text-2xl font-bold tracking-tight text-white tabular-nums">
+                {formatEUR(animatedCapital)}
+              </p>
+            </div>
+            <div className="flex h-11 w-11 shrink-0 items-center justify-center rounded-xl bg-violet-500/10 ring-1 ring-white/5 transition-transform group-hover:scale-110">
+              <PiggyBank className="h-5 w-5 text-violet-400" />
             </div>
           </div>
-          <p className="mt-4 text-2xl font-bold text-white">
-            {formatEUR(totalCapital + cashBalance)}
-          </p>
-          {/* Progress Bar for Goal */}
-          <div className="mt-4">
-            <div className="mb-1 flex justify-between text-xs text-zinc-500">
+
+          {/* Progress bar animée */}
+          <div className="relative mt-4">
+            <div className="mb-1.5 flex justify-between text-xs text-zinc-500">
               <span>Objectif : {formatEUR(targetCapital)}</span>
-              <span className="font-medium text-violet-400">
-                {Math.min(
-                  ((totalCapital + cashBalance) / (targetCapital || 1)) * 100,
-                  100,
-                ).toFixed(1)}
-                %
+              <span className="font-semibold text-violet-400">
+                {progressPct.toFixed(1)}%
               </span>
             </div>
-            <div className="h-2 w-full overflow-hidden rounded-full bg-zinc-800">
+            <div className="h-1.5 w-full overflow-hidden rounded-full bg-zinc-800">
               <div
-                className="h-full bg-violet-500 transition-all duration-1000 ease-out"
-                style={{
-                  width: `${Math.min(((totalCapital + cashBalance) / (targetCapital || 1)) * 100, 100)}%`,
-                }}
+                className="h-full rounded-full bg-gradient-to-r from-violet-600 to-fuchsia-500 transition-all duration-1000 ease-out"
+                style={{ width: `${progressPct}%` }}
               />
             </div>
           </div>
         </div>
       </div>
 
-      {/* Charts */}
+      {/* ── Charts ───────────────────────────────────────────────── */}
       <div className="grid grid-cols-1 gap-6 xl:grid-cols-2">
-        {/* Donut Chart — Capital Repartition */}
-        <div className="rounded-2xl border border-zinc-800 bg-gradient-to-br from-zinc-900/50 to-black p-6 backdrop-blur-sm">
-          <h2 className="mb-4 text-lg font-bold text-white">
-            Répartition du Capital
-          </h2>
-          <div className="h-80">
-            <ResponsiveContainer width="100%" height="100%">
-              <PieChart>
-                <Pie
-                  data={donutData}
-                  cx="50%"
-                  cy="50%"
-                  innerRadius={70}
-                  outerRadius={120}
-                  dataKey="value"
-                  stroke="none"
-                  paddingAngle={3}
-                  labelLine={false}
-                  label={renderCustomizedLabel}
-                >
-                  {donutData.map((_, index) => (
-                    <Cell
-                      key={`cell-${index}`}
-                      fill={CHART_COLORS[index % CHART_COLORS.length]}
-                      className="transition-opacity hover:opacity-80"
-                    />
-                  ))}
-                </Pie>
-                <Tooltip
-                  formatter={(value, name, props) => {
-                    const percent = props?.payload?.percent;
-                    if (percent !== undefined) {
-                      return [
-                        `${formatEUR(Number(value ?? 0))} (${(percent * 100).toFixed(1)}%)`,
-                        name,
-                      ];
-                    }
-                    return [formatEUR(Number(value ?? 0)), name];
-                  }}
-                  contentStyle={{
-                    backgroundColor: "#09090b",
-                    border: "1px solid #27272a",
-                    borderRadius: "12px",
-                    fontSize: "13px",
-                    boxShadow: "0 10px 25px rgba(0,0,0,0.5)",
-                  }}
-                  itemStyle={{ color: "#fafafa" }}
-                  labelStyle={{ color: "#a1a1aa" }}
-                />
-                <Legend
-                  verticalAlign="bottom"
-                  height={36}
-                  formatter={(value: string) => (
-                    <span className="text-xs text-zinc-300">{value}</span>
-                  )}
-                />
-              </PieChart>
-            </ResponsiveContainer>
+        {/* AnimatedDonut — Répartition Capital */}
+        <div className="rounded-2xl border border-zinc-800 bg-gradient-to-br from-zinc-900/60 to-black p-6 backdrop-blur-sm">
+          <div className="mb-2 flex items-center gap-2">
+            <Sparkles className="h-4 w-4 text-violet-400" />
+            <h2 className="text-lg font-bold text-white">
+              Répartition du Capital
+            </h2>
           </div>
+          <AnimatedDonut
+            data={donutData}
+            height={320}
+            totalValue={totalDonutValue}
+            totalLabel="Portefeuille"
+          />
         </div>
 
-        {/* Bar Chart — Dividend History */}
-        <div className="rounded-2xl border border-zinc-800 bg-gradient-to-br from-zinc-900/50 to-black p-6 backdrop-blur-sm">
+        {/* Bar Chart — Historique Dividendes */}
+        <div className="rounded-2xl border border-zinc-800 bg-gradient-to-br from-zinc-900/60 to-black p-6 backdrop-blur-sm">
           <h2 className="mb-4 text-lg font-bold text-white">
             Historique des Dividendes
           </h2>
-          <div className="h-80">
+          <div className="h-[288px]">
             <ResponsiveContainer width="100%" height="100%">
               <BarChart data={dividendHistory}>
                 <XAxis
@@ -467,27 +310,29 @@ export default function DashboardPage() {
                     `${Number(value ?? 0).toFixed(2)} €`,
                     "Dividendes",
                   ]}
-                  contentStyle={{
-                    backgroundColor: "#09090b",
-                    border: "1px solid #27272a",
-                    borderRadius: "12px",
-                    fontSize: "13px",
-                    boxShadow: "0 10px 25px rgba(0,0,0,0.5)",
-                  }}
-                  itemStyle={{ color: "#fafafa" }}
-                  labelStyle={{ color: "#a1a1aa" }}
-                  cursor={{ fill: "rgba(139, 92, 246, 0.1)" }}
+                  {...CHART_TOOLTIP_STYLE}
+                  cursor={{ fill: "rgba(139, 92, 246, 0.08)" }}
                 />
                 <Bar
                   dataKey="amount"
-                  fill="url(#barGradient)"
+                  fill="url(#barGradientDash)"
                   radius={[6, 6, 0, 0]}
                   maxBarSize={40}
                 />
                 <defs>
-                  <linearGradient id="barGradient" x1="0" y1="0" x2="0" y2="1">
-                    <stop offset="0%" stopColor="#8b5cf6" stopOpacity={0.9} />
-                    <stop offset="100%" stopColor="#8b5cf6" stopOpacity={0.3} />
+                  <linearGradient
+                    id="barGradientDash"
+                    x1="0"
+                    y1="0"
+                    x2="0"
+                    y2="1"
+                  >
+                    <stop offset="0%" stopColor="#8b5cf6" stopOpacity={0.95} />
+                    <stop
+                      offset="100%"
+                      stopColor="#8b5cf6"
+                      stopOpacity={0.25}
+                    />
                   </linearGradient>
                 </defs>
               </BarChart>
@@ -496,9 +341,10 @@ export default function DashboardPage() {
         </div>
       </div>
 
-      {/* Dividend Projections & Cash Allocation */}
+      {/* ── Projections & Liquidités ─────────────────────────────── */}
       <div className="grid grid-cols-1 gap-6 lg:grid-cols-2">
-        <div className="rounded-2xl border border-zinc-800 bg-gradient-to-br from-zinc-900/50 to-black p-6 backdrop-blur-sm">
+        {/* Prévisions Dividendes */}
+        <div className="rounded-2xl border border-zinc-800 bg-gradient-to-br from-zinc-900/60 to-black p-6 backdrop-blur-sm">
           <div className="mb-4 flex items-center justify-between">
             <div className="flex items-center gap-2">
               <CalendarDays className="h-5 w-5 text-violet-400" />
@@ -506,21 +352,27 @@ export default function DashboardPage() {
                 Prévisions Dividendes
               </h2>
             </div>
-            <span className="text-xs text-zinc-500">Basé sur annèe N-1</span>
+            <span className="rounded-full bg-zinc-800/60 px-2.5 py-0.5 text-[10px] font-medium text-zinc-500">
+              Basé sur N-1
+            </span>
           </div>
           {projectedDividends.length > 0 ? (
             <div className="space-y-3">
-              {projectedDividends.map((pd) => (
+              {projectedDividends.map((pd, i) => (
                 <div
                   key={pd.month}
-                  className="flex justify-between border-b border-zinc-800/50 pb-2"
+                  className="flex items-center justify-between rounded-xl border border-zinc-800/40 bg-zinc-900/30 px-4 py-3 transition-colors hover:bg-zinc-800/30"
+                  style={{ animationDelay: `${i * 60}ms` }}
                 >
-                  <span className="text-sm font-medium text-zinc-300 capitalize">
-                    {new Date(pd.month + "-01").toLocaleDateString("fr-FR", {
-                      month: "long",
-                      year: "numeric",
-                    })}
-                  </span>
+                  <div className="flex items-center gap-3">
+                    <div className="h-2 w-2 rounded-full bg-emerald-400 animate-glow-pulse" />
+                    <span className="text-sm font-medium text-zinc-300 capitalize">
+                      {new Date(pd.month + "-01").toLocaleDateString("fr-FR", {
+                        month: "long",
+                        year: "numeric",
+                      })}
+                    </span>
+                  </div>
                   <span className="font-bold text-emerald-400">
                     +{formatEUR(pd.amount)}
                   </span>
@@ -534,7 +386,8 @@ export default function DashboardPage() {
           )}
         </div>
 
-        <div className="rounded-2xl border border-zinc-800 bg-gradient-to-br from-zinc-900/50 to-black p-6 backdrop-blur-sm shadow-[0_0_15px_rgba(139,92,246,0.1)]">
+        {/* Capital et Liquidités */}
+        <div className="animate-glow-pulse rounded-2xl border border-zinc-800 bg-gradient-to-br from-zinc-900/60 to-black p-6 backdrop-blur-sm shadow-[0_0_20px_rgba(139,92,246,0.08)]">
           <div className="mb-4 flex items-center justify-between">
             <div className="flex items-center gap-2">
               <Coins className="h-5 w-5 text-fuchsia-400" />
@@ -542,23 +395,25 @@ export default function DashboardPage() {
                 Capital et Liquidités
               </h2>
             </div>
-            <span className="text-xs text-zinc-500">PEA</span>
+            <span className="rounded-full bg-fuchsia-500/10 px-2.5 py-0.5 text-[10px] font-semibold text-fuchsia-400 ring-1 ring-fuchsia-500/20">
+              PEA
+            </span>
           </div>
-          <div className="space-y-4">
-            <div className="flex justify-between text-sm">
+          <div className="space-y-3">
+            <div className="flex justify-between rounded-xl bg-zinc-900/30 px-4 py-3 text-sm">
               <span className="text-zinc-400">Actions (Investi + PV)</span>
               <span className="font-semibold text-white">
                 {formatEUR(totalCapital)}
               </span>
             </div>
-            <div className="flex justify-between text-sm">
+            <div className="flex justify-between rounded-xl bg-zinc-900/30 px-4 py-3 text-sm">
               <span className="text-zinc-400">Poche Espèces (Cash)</span>
               <span className="font-semibold text-white">
                 {formatEUR(cashBalance)}
               </span>
             </div>
-            <div className="flex justify-between border-t border-zinc-800 pt-3">
-              <span className="font-bold text-zinc-300">TOTAL PEA</span>
+            <div className="flex justify-between rounded-xl border border-violet-500/20 bg-violet-500/5 px-4 py-3">
+              <span className="font-bold text-zinc-200">TOTAL PEA</span>
               <span className="font-bold text-violet-400">
                 {formatEUR(totalCapital + cashBalance)}
               </span>
@@ -567,8 +422,8 @@ export default function DashboardPage() {
         </div>
       </div>
 
-      {/* Portfolio Positions Table */}
-      <div className="rounded-2xl border border-zinc-800 bg-gradient-to-br from-zinc-900/50 to-black p-6 backdrop-blur-sm">
+      {/* ── Tableau Positions avec Sparklines ─────────────────────── */}
+      <div className="rounded-2xl border border-zinc-800 bg-gradient-to-br from-zinc-900/60 to-black p-6 backdrop-blur-sm">
         <h2 className="mb-4 text-lg font-bold text-white">
           Positions du Portefeuille
         </h2>
@@ -597,47 +452,60 @@ export default function DashboardPage() {
                 <th className="px-4 py-3 text-right font-semibold text-zinc-400">
                   +/- Value
                 </th>
+                <th className="px-4 py-3 text-right font-semibold text-zinc-400">
+                  Tendance
+                </th>
               </tr>
             </thead>
             <tbody className="divide-y divide-zinc-800/50">
-              {positions.map((pos) => (
-                <tr
-                  key={pos.ticker}
-                  className="transition-colors hover:bg-zinc-900/50"
-                >
-                  <td className="px-4 py-3">
-                    <div>
-                      <p className="font-semibold text-white">{pos.name}</p>
-                      <p className="text-xs text-zinc-500">{pos.ticker}</p>
-                    </div>
-                  </td>
-                  <td className="px-4 py-3 text-right font-medium text-zinc-200">
-                    {pos.totalQuantity}
-                  </td>
-                  <td className="px-4 py-3 text-right font-medium text-zinc-200">
-                    {formatPrice(pos.pru)}
-                  </td>
-                  <td className="px-4 py-3 text-right font-medium text-zinc-200">
-                    {pos.currentPrice ? formatPrice(pos.currentPrice) : "—"}
-                  </td>
-                  <td className="px-4 py-3 text-right font-medium text-zinc-200">
-                    {formatEUR(pos.totalInvested)}
-                  </td>
-                  <td className="px-4 py-3 text-right font-medium text-zinc-200">
-                    {formatEUR(pos.capitalValue || 0)}
-                  </td>
-                  <td
-                    className={`px-4 py-3 text-right font-bold ${
-                      (pos.plusValue || 0) >= 0
-                        ? "text-emerald-400"
-                        : "text-rose-400"
-                    }`}
+              {positions.map((pos) => {
+                const isPositive = (pos.plusValue || 0) >= 0;
+                return (
+                  <tr
+                    key={pos.ticker}
+                    className="group transition-colors hover:bg-zinc-800/30"
                   >
-                    {(pos.plusValue || 0) >= 0 ? "+" : ""}
-                    {formatEUR(pos.plusValue || 0)}
-                  </td>
-                </tr>
-              ))}
+                    <td className="px-4 py-3">
+                      <div>
+                        <p className="font-semibold text-white">{pos.name}</p>
+                        <p className="text-xs text-zinc-500">{pos.ticker}</p>
+                      </div>
+                    </td>
+                    <td className="px-4 py-3 text-right font-medium tabular-nums text-zinc-200">
+                      {pos.totalQuantity}
+                    </td>
+                    <td className="px-4 py-3 text-right font-medium tabular-nums text-zinc-200">
+                      {formatPrice(pos.pru)}
+                    </td>
+                    <td className="px-4 py-3 text-right font-medium tabular-nums text-zinc-200">
+                      {pos.currentPrice ? formatPrice(pos.currentPrice) : "—"}
+                    </td>
+                    <td className="px-4 py-3 text-right font-medium tabular-nums text-zinc-200">
+                      {formatEUR(pos.totalInvested)}
+                    </td>
+                    <td className="px-4 py-3 text-right font-medium tabular-nums text-zinc-200">
+                      {formatEUR(pos.capitalValue || 0)}
+                    </td>
+                    <td
+                      className={`px-4 py-3 text-right font-bold tabular-nums ${
+                        isPositive ? "text-emerald-400" : "text-rose-400"
+                      }`}
+                    >
+                      {isPositive ? "+" : ""}
+                      {formatEUR(pos.plusValue || 0)}
+                    </td>
+                    {/* Sparkline */}
+                    <td className="px-4 py-3 text-right">
+                      <div className="flex justify-end">
+                        <PositionSparklineCell
+                          ticker={pos.ticker}
+                          isPositive={isPositive}
+                        />
+                      </div>
+                    </td>
+                  </tr>
+                );
+              })}
             </tbody>
           </table>
         </div>

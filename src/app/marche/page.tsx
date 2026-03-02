@@ -28,6 +28,7 @@ import {
 } from "@/lib/french-instruments";
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 import { SIGNAL_CONFIG, type TrendSignal } from "@/lib/technical-analysis";
+import { formatEUR, formatPrice } from "@/lib/utils";
 
 interface MarketRow {
   ticker: string;
@@ -52,20 +53,6 @@ function getTrendSignalFromChange(changePercent: number): TrendSignal {
 
 type SortKey = "name" | "sector" | "price" | "changePercent";
 type SortDir = "asc" | "desc" | null;
-
-const formatEUR = (n: number) =>
-  new Intl.NumberFormat("fr-FR", {
-    style: "currency",
-    currency: "EUR",
-    minimumFractionDigits: 2,
-    maximumFractionDigits: 2,
-  }).format(n);
-
-const formatPrice = (n: number) =>
-  new Intl.NumberFormat("fr-FR", {
-    minimumFractionDigits: 2,
-    maximumFractionDigits: 2,
-  }).format(n) + " €";
 
 export default function MarchePage() {
   const queryClient = useQueryClient();

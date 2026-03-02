@@ -1,52 +1,36 @@
 "use client";
 
-import { useEffect, useState, useMemo, useCallback } from "react";
 import {
   ArrowUpRight,
   ArrowDownRight,
   RefreshCw,
   Calculator,
-  Target,
 } from "lucide-react";
 import {
-  PieChart,
-  Pie,
-  Cell,
-  Tooltip,
-  ResponsiveContainer,
-  Legend,
   AreaChart,
   Area,
   XAxis,
   YAxis,
   CartesianGrid,
+  Tooltip,
+  ResponsiveContainer,
 } from "recharts";
-import { format, subDays, subMonths, subYears, parseISO } from "date-fns";
+import { format, parseISO } from "date-fns";
 import { fr } from "date-fns/locale";
-import { fetchTransactions, fetchStockPrice } from "@/lib/data";
-import {
-  calculatePortfolioPositions,
-  type PortfolioPosition,
-} from "@/lib/calculations";
-import { FRENCH_INSTRUMENTS } from "@/lib/french-instruments";
 import Badge from "@/components/ui/Badge";
+import AnimatedDonut from "@/components/ui/AnimatedDonut";
+import PositionSparklineCell from "@/components/ui/PositionSparklineCell";
+import { StatsCardSkeleton, ChartSkeleton } from "@/components/ui/Skeleton";
+import { usePortfolio } from "@/hooks/usePortfolio";
+import { formatEUR, formatPercent } from "@/lib/utils";
 
-const COLORS = [
-  "#8b5cf6", // Violet
-  "#d946ef", // Fuchsia
-  "#6366f1", // Indigo
-  "#a855f7", // Purple
-  "#fafafa", // White
-  "#71717a", // Zinc 500
-  "#3f3f46", // Zinc 700
-];
-
+// Tooltip pour l'AreaChart
 // eslint-disable-next-line @typescript-eslint/no-explicit-any
-const CustomTooltip = ({ active, payload, label }: any) => {
+const CustomAreaTooltip = ({ active, payload, label }: any) => {
   if (active && payload && payload.length) {
     return (
-      <div className="rounded-lg border border-zinc-700 bg-zinc-900 p-3 shadow-xl">
-        <p className="mb-2 text-sm font-medium text-zinc-400">
+      <div className="rounded-xl border border-zinc-700 bg-zinc-900/95 px-3 py-2 shadow-2xl backdrop-blur-sm">
+        <p className="mb-1 text-xs font-medium text-zinc-400">
           {label
             ? format(parseISO(label as string), "d MMMM yyyy", { locale: fr })
             : ""}
@@ -58,11 +42,7 @@ const CustomTooltip = ({ active, payload, label }: any) => {
             className="text-sm font-semibold"
             style={{ color: entry.color }}
           >
-            {entry.name}:{" "}
-            {new Intl.NumberFormat("fr-FR", {
-              style: "currency",
-              currency: "EUR",
-            }).format(entry.value as number)}
+            {entry.name}: {formatEUR(entry.value as number)}
           </p>
         ))}
       </div>
@@ -71,224 +51,53 @@ const CustomTooltip = ({ active, payload, label }: any) => {
   return null;
 };
 
-// eslint-disable-next-line @typescript-eslint/no-explicit-any
-const CustomPieTooltip = ({ active, payload }: any) => {
-  if (active && payload && payload.length) {
-    const data = payload[0].payload;
+export default function PortfolioPage() {
+  const {
+    positions,
+    filteredHistory,
+    timeRange,
+    setTimeRange,
+    loading,
+    refreshing,
+    refresh: loadData,
+    isRebalancingOpen,
+    setIsRebalancingOpen,
+    rebalanceCash,
+    setRebalanceCash,
+    targetAllocations,
+    setTargetAllocations,
+    totalInvested,
+    totalValue,
+    totalPV,
+    totalPerformance,
+    sectorData,
+    assetData,
+  } = usePortfolio();
+
+  // ── Loading state premium ────────────────────────────────────
+  if (loading) {
     return (
-      <div className="rounded-lg border border-zinc-700 bg-zinc-900 p-2 shadow-xl">
-        <p className="font-medium text-white">{payload[0].name}</p>
-        <p className="text-sm text-zinc-300">
-          {new Intl.NumberFormat("fr-FR", {
-            style: "currency",
-            currency: "EUR",
-          }).format(payload[0].value as number)}
-          {data.percent !== undefined && (
-            <span className="ml-2 font-medium text-violet-400">
-              ({(data.percent * 100).toFixed(1)}%)
-            </span>
-          )}
-        </p>
+      <div className="animate-fade-in space-y-8">
+        <div className="flex items-center justify-between">
+          <div className="space-y-2">
+            <div className="stats-card-skeleton h-8 w-48 rounded-lg" />
+            <div className="stats-card-skeleton h-4 w-64 rounded-md" />
+          </div>
+          <div className="stats-card-skeleton h-9 w-28 rounded-xl" />
+        </div>
+        <div className="grid gap-6 sm:grid-cols-3">
+          {[0, 1, 2].map((i) => (
+            <StatsCardSkeleton key={i} index={i} />
+          ))}
+        </div>
+        <ChartSkeleton height={300} />
+        <div className="grid gap-6 md:grid-cols-2">
+          <ChartSkeleton height={300} />
+          <ChartSkeleton height={300} />
+        </div>
       </div>
     );
   }
-  return null;
-};
-
-interface CustomLabelProps {
-  cx?: number;
-  cy?: number;
-  midAngle?: number;
-  innerRadius?: number;
-  outerRadius?: number;
-  percent?: number;
-}
-
-const renderCustomizedLabel = ({
-  cx = 0,
-  cy = 0,
-  midAngle = 0,
-  innerRadius = 0,
-  outerRadius = 0,
-  percent = 0,
-}: CustomLabelProps) => {
-  if (percent < 0.05) return null;
-  const radius = innerRadius + (outerRadius - innerRadius) * 0.5;
-  const x = cx + radius * Math.cos(-midAngle * (Math.PI / 180));
-  const y = cy + radius * Math.sin(-midAngle * (Math.PI / 180));
-  return (
-    <text
-      x={x}
-      y={y}
-      fill="white"
-      textAnchor="middle"
-      dominantBaseline="central"
-      fontSize="11"
-      fontWeight="bold"
-    >
-      {`${(percent * 100).toFixed(0)}%`}
-    </text>
-  );
-};
-
-export default function PortfolioPage() {
-  const [positions, setPositions] = useState<PortfolioPosition[]>([]);
-  // eslint-disable-next-line @typescript-eslint/no-explicit-any
-  const [history, setHistory] = useState<any[]>([]);
-  // eslint-disable-next-line @typescript-eslint/no-explicit-any
-  const [filteredHistory, setFilteredHistory] = useState<any[]>([]);
-  const [timeRange, setTimeRange] = useState<"1W" | "1M" | "1Y" | "Max">("1M");
-
-  const [loading, setLoading] = useState(true);
-  const [refreshing, setRefreshing] = useState(false);
-
-  const [isRebalancingOpen, setIsRebalancingOpen] = useState(false);
-  const [rebalanceCash, setRebalanceCash] = useState<number>(0);
-  const [targetAllocations, setTargetAllocations] = useState<
-    Record<string, number>
-  >({});
-
-  // Map for instrument lookup
-  const instrumentMap = useMemo(() => {
-    const map = new Map<string, { name: string; sector: string }>();
-    FRENCH_INSTRUMENTS.forEach((i) => {
-      map.set(i.ticker, { name: i.name, sector: i.sector });
-    });
-    return map;
-  }, []);
-
-  const loadData = useCallback(async () => {
-    try {
-      setRefreshing(true);
-      const txs = await fetchTransactions();
-      const initialPositions = calculatePortfolioPositions(txs, instrumentMap);
-
-      // Fetch history
-      const historyRes = await fetch("/api/portfolio/history");
-      const historyData = await historyRes.json();
-      setHistory(Array.isArray(historyData) ? historyData : []);
-
-      // Filter only active positions (tolerance for floating-point residuals)
-      const activePositions = initialPositions.filter(
-        (p) => p.totalQuantity > 0.0001,
-      );
-
-      // Fetch live prices in parallel; individual failures return null (safe)
-      const enrichedPositions = await Promise.all(
-        activePositions.map(async (pos) => {
-          const priceData = await fetchStockPrice(pos.ticker);
-          const currentPrice = priceData?.price ?? 0;
-          const capitalValue = currentPrice * pos.totalQuantity;
-          const plusValue = capitalValue - pos.totalInvested;
-          return { ...pos, currentPrice, capitalValue, plusValue };
-        }),
-      );
-
-      setPositions(enrichedPositions);
-
-      // Init target allocations once (first load only)
-      setTargetAllocations((prev) => {
-        if (Object.keys(prev).length > 0 || enrichedPositions.length === 0)
-          return prev;
-        const total = enrichedPositions.reduce(
-          (sum, p) => sum + (p.capitalValue ?? 0),
-          0,
-        );
-        const targets: Record<string, number> = {};
-        for (const p of enrichedPositions) {
-          targets[p.ticker] =
-            total > 0 ? ((p.capitalValue ?? 0) / total) * 100 : 0;
-        }
-        return targets;
-      });
-    } catch (error) {
-      console.error("Failed to load portfolio:", error);
-    } finally {
-      setLoading(false);
-      setRefreshing(false);
-    }
-  }, [instrumentMap]);
-
-  useEffect(() => {
-    loadData();
-  }, [loadData]);
-
-  useEffect(() => {
-    if (!history.length) {
-      setFilteredHistory([]);
-      return;
-    }
-
-    const now = new Date();
-    // eslint-disable-next-line @typescript-eslint/no-explicit-any
-    let filtered: any[] = [...history];
-
-    if (timeRange === "1W") {
-      const limit = subDays(now, 7);
-      filtered = history.filter((d) => parseISO(d.date) >= limit);
-    } else if (timeRange === "1M") {
-      const limit = subMonths(now, 1);
-      filtered = history.filter((d) => parseISO(d.date) >= limit);
-    } else if (timeRange === "1Y") {
-      const limit = subYears(now, 1);
-      filtered = history.filter((d) => parseISO(d.date) >= limit);
-    }
-
-    setFilteredHistory(filtered);
-  }, [history, timeRange]);
-
-  // Calculate Chart Data
-  const sectorData = useMemo(() => {
-    const sectors: Record<string, number> = {};
-    positions.forEach((p) => {
-      const sector = p.sector || "Autre";
-      sectors[sector] = (sectors[sector] || 0) + (p.capitalValue || 0);
-    });
-    const total = Object.values(sectors).reduce((acc, val) => acc + val, 0);
-    return Object.entries(sectors)
-      .map(([name, value]) => ({
-        name,
-        value,
-        percent: total > 0 ? value / total : 0,
-      }))
-      .sort((a, b) => b.value - a.value);
-  }, [positions]);
-
-  const assetData = useMemo(() => {
-    const total = positions.reduce((sum, p) => sum + (p.capitalValue || 0), 0);
-    return positions
-      .map((p) => ({
-        name: p.name,
-        value: p.capitalValue || 0,
-        percent: total > 0 ? (p.capitalValue || 0) / total : 0,
-      }))
-      .sort((a, b) => b.value - a.value);
-  }, [positions]);
-
-  const formatEUR = (n: number) =>
-    new Intl.NumberFormat("fr-FR", {
-      style: "currency",
-      currency: "EUR",
-      minimumFractionDigits: 2,
-      maximumFractionDigits: 2,
-    }).format(n);
-
-  const formatPercent = (n: number) =>
-    new Intl.NumberFormat("fr-FR", {
-      style: "percent",
-      minimumFractionDigits: 2,
-      maximumFractionDigits: 2,
-    }).format(n);
-
-  // Totals
-  const totalInvested = positions.reduce((sum, p) => sum + p.totalInvested, 0);
-  const totalValue = positions.reduce(
-    (sum, p) => sum + (p.capitalValue || 0),
-    0,
-  );
-  const totalPV = totalValue - totalInvested;
-  const totalPerformance = totalInvested > 0 ? totalPV / totalInvested : 0;
-
   return (
     <div className="animate-fade-in space-y-8">
       {/* Header */}
@@ -408,7 +217,7 @@ export default function PortfolioPage() {
                   domain={["auto", "auto"]}
                   width={80}
                 />
-                <Tooltip content={<CustomTooltip />} />
+                <Tooltip content={<CustomAreaTooltip />} />
                 <Area
                   type="monotone"
                   dataKey="total_value"
@@ -441,72 +250,30 @@ export default function PortfolioPage() {
       {/* Allocation Charts */}
       {!loading && positions.length > 0 && (
         <div className="grid gap-6 md:grid-cols-2">
-          {/* Sector Allocation */}
+          {/* Sector Allocation — AnimatedDonut interactif */}
           <div className="rounded-2xl border border-zinc-800 bg-zinc-900/50 p-6 backdrop-blur">
             <h3 className="mb-4 text-lg font-semibold text-white">
               Répartition Sectorielle
             </h3>
-            <div className="h-[300px] w-full">
-              <ResponsiveContainer width="100%" height="100%">
-                <PieChart>
-                  <Pie
-                    data={sectorData}
-                    cx="50%"
-                    cy="50%"
-                    innerRadius={60}
-                    outerRadius={100}
-                    paddingAngle={2}
-                    dataKey="value"
-                    labelLine={false}
-                    label={renderCustomizedLabel}
-                  >
-                    {sectorData.map((entry, index) => (
-                      <Cell
-                        key={`cell-${index}`}
-                        fill={COLORS[index % COLORS.length]}
-                        stroke="rgba(0,0,0,0.1)"
-                      />
-                    ))}
-                  </Pie>
-                  <Tooltip content={<CustomPieTooltip />} />
-                  <Legend />
-                </PieChart>
-              </ResponsiveContainer>
-            </div>
+            <AnimatedDonut
+              data={sectorData}
+              height={300}
+              totalValue={sectorData.reduce((s, d) => s + d.value, 0)}
+              totalLabel="Secteurs"
+            />
           </div>
 
-          {/* Asset Allocation */}
+          {/* Asset Allocation — AnimatedDonut interactif */}
           <div className="rounded-2xl border border-zinc-800 bg-zinc-900/50 p-6 backdrop-blur">
             <h3 className="mb-4 text-lg font-semibold text-white">
               Répartition par Actif
             </h3>
-            <div className="h-[300px] w-full">
-              <ResponsiveContainer width="100%" height="100%">
-                <PieChart>
-                  <Pie
-                    data={assetData}
-                    cx="50%"
-                    cy="50%"
-                    innerRadius={60}
-                    outerRadius={100}
-                    paddingAngle={2}
-                    dataKey="value"
-                    labelLine={false}
-                    label={renderCustomizedLabel}
-                  >
-                    {assetData.map((entry, index) => (
-                      <Cell
-                        key={`cell-${index}`}
-                        fill={COLORS[index % COLORS.length]}
-                        stroke="rgba(0,0,0,0.1)"
-                      />
-                    ))}
-                  </Pie>
-                  <Tooltip content={<CustomPieTooltip />} />
-                  <Legend />
-                </PieChart>
-              </ResponsiveContainer>
-            </div>
+            <AnimatedDonut
+              data={assetData}
+              height={300}
+              totalValue={assetData.reduce((s, d) => s + d.value, 0)}
+              totalLabel="Actifs"
+            />
           </div>
         </div>
       )}
@@ -653,23 +420,31 @@ export default function PortfolioPage() {
               return (
                 <div
                   key={pos.ticker}
-                  className="rounded-2xl border border-zinc-800 bg-zinc-900/50 p-4 shadow-sm backdrop-blur-sm"
+                  className="rounded-2xl border border-zinc-800 bg-zinc-900/50 p-4 shadow-sm backdrop-blur-sm transition-colors hover:bg-zinc-800/30"
                 >
                   <div className="mb-3 flex items-start justify-between">
-                    <div>
-                      <p className="max-w-[150px] truncate font-bold text-white">
-                        {pos.name}
-                      </p>
-                      <p className="text-xs text-zinc-500">{pos.ticker}</p>
+                    <div className="flex items-center gap-3">
+                      <div>
+                        <p className="max-w-[150px] truncate font-bold text-white">
+                          {pos.name}
+                        </p>
+                        <p className="text-xs text-zinc-500">{pos.ticker}</p>
+                      </div>
                     </div>
-                    <Badge variant={isPositive ? "success" : "danger"}>
-                      {isPositive ? (
-                        <ArrowUpRight className="h-3 w-3" />
-                      ) : (
-                        <ArrowDownRight className="h-3 w-3" />
-                      )}
-                      {formatPercent(perf)}
-                    </Badge>
+                    <div className="flex items-center gap-2">
+                      <PositionSparklineCell
+                        ticker={pos.ticker}
+                        isPositive={isPositive}
+                      />
+                      <Badge variant={isPositive ? "success" : "danger"}>
+                        {isPositive ? (
+                          <ArrowUpRight className="h-3 w-3" />
+                        ) : (
+                          <ArrowDownRight className="h-3 w-3" />
+                        )}
+                        {formatPercent(perf)}
+                      </Badge>
+                    </div>
                   </div>
 
                   <div className="grid grid-cols-2 gap-4 border-t border-zinc-800/50 pt-3">
@@ -686,9 +461,7 @@ export default function PortfolioPage() {
                         +/- Value
                       </p>
                       <p
-                        className={`font-semibold ${
-                          isPositive ? "text-emerald-400" : "text-rose-400"
-                        }`}
+                        className={`font-semibold ${isPositive ? "text-emerald-400" : "text-rose-400"}`}
                       >
                         {pos.plusValue
                           ? (isPositive ? "+" : "") + formatEUR(pos.plusValue)
@@ -743,6 +516,9 @@ export default function PortfolioPage() {
                 <th className="px-6 py-4 text-right font-semibold text-zinc-400">
                   Perf.
                 </th>
+                <th className="px-6 py-4 text-right font-semibold text-zinc-400">
+                  Tendance
+                </th>
               </tr>
             </thead>
             <tbody className="divide-y divide-zinc-800/50">
@@ -775,7 +551,7 @@ export default function PortfolioPage() {
                   return (
                     <tr
                       key={pos.ticker}
-                      className="group transition-colors hover:bg-zinc-900/50"
+                      className="group transition-colors hover:bg-zinc-800/30"
                     >
                       <td className="px-6 py-4">
                         <div
@@ -788,39 +564,43 @@ export default function PortfolioPage() {
                           {pos.ticker}
                         </div>
                       </td>
-                      <td className="px-6 py-4 text-right font-medium text-zinc-200">
+                      <td className="px-6 py-4 text-right font-medium tabular-nums text-zinc-200">
                         {pos.totalQuantity.toFixed(4).replace(/\.?0+$/, "")}
                       </td>
-                      <td className="px-6 py-4 text-right text-zinc-400">
+                      <td className="px-6 py-4 text-right tabular-nums text-zinc-400">
                         {formatEUR(pos.pru)}
                       </td>
-                      <td className="px-6 py-4 text-right font-medium text-white">
+                      <td className="px-6 py-4 text-right font-medium tabular-nums text-white">
                         {pos.currentPrice ? formatEUR(pos.currentPrice) : "—"}
                       </td>
-                      <td className="px-6 py-4 text-right text-zinc-400">
+                      <td className="px-6 py-4 text-right tabular-nums text-zinc-400">
                         {formatEUR(pos.totalInvested)}
                       </td>
-                      <td className="px-6 py-4 text-right font-bold text-white">
+                      <td className="px-6 py-4 text-right font-bold tabular-nums text-white">
                         {pos.capitalValue ? formatEUR(pos.capitalValue) : "—"}
                       </td>
                       <td
-                        className={`px-6 py-4 text-right font-medium ${
-                          isPositive ? "text-emerald-400" : "text-rose-400"
-                        }`}
+                        className={`px-6 py-4 text-right font-medium tabular-nums ${isPositive ? "text-emerald-400" : "text-rose-400"}`}
                       >
                         {pos.plusValue
                           ? `${isPositive ? "+" : ""}${formatEUR(pos.plusValue)}`
                           : "—"}
                       </td>
                       <td className="px-6 py-4 text-right">
-                        <Badge variant={isPositive ? "success" : "danger"}>
-                          {isPositive ? (
-                            <ArrowUpRight className="h-3 w-3" />
-                          ) : (
-                            <ArrowDownRight className="h-3 w-3" />
-                          )}
-                          {formatPercent(perf)}
-                        </Badge>
+                        <div className="flex items-center justify-end gap-2">
+                          <PositionSparklineCell
+                            ticker={pos.ticker}
+                            isPositive={isPositive}
+                          />
+                          <Badge variant={isPositive ? "success" : "danger"}>
+                            {isPositive ? (
+                              <ArrowUpRight className="h-3 w-3" />
+                            ) : (
+                              <ArrowDownRight className="h-3 w-3" />
+                            )}
+                            {formatPercent(perf)}
+                          </Badge>
+                        </div>
                       </td>
                     </tr>
                   );

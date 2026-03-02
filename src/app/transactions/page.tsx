@@ -15,7 +15,6 @@ import {
   Upload,
 } from "lucide-react";
 import Badge from "@/components/ui/Badge";
-
 import Modal from "@/components/ui/Modal";
 import {
   fetchTransactions,
@@ -25,6 +24,7 @@ import {
   fetchStockPrice,
 } from "@/lib/data";
 import type { Transaction } from "@/lib/calculations";
+import { formatEUR, formatPrice } from "@/lib/utils";
 import toast from "react-hot-toast";
 
 interface SearchResult {
@@ -352,20 +352,6 @@ export default function TransactionsPage() {
   const handleDeleteClick = (tx: Transaction) => {
     setTransactionToDelete(tx);
   };
-
-  const formatEUR = (n: number) =>
-    new Intl.NumberFormat("fr-FR", {
-      style: "currency",
-      currency: "EUR",
-      minimumFractionDigits: 2,
-      maximumFractionDigits: 2,
-    }).format(n);
-
-  const formatPrice = (n: number) =>
-    new Intl.NumberFormat("fr-FR", {
-      minimumFractionDigits: 2,
-      maximumFractionDigits: 2,
-    }).format(n) + " €";
 
   const inputClasses =
     "w-full rounded-xl border border-slate-700/50 bg-slate-800/50 px-4 py-2.5 text-sm text-slate-200 outline-none transition-colors focus:border-emerald-500/50 focus:ring-1 focus:ring-emerald-500/20 placeholder:text-slate-500";

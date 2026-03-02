@@ -27,23 +27,31 @@ Application de suivi de portefeuille boursier PEA, construite avec Next.js 16, S
 
 ---
 
-## 🚀 Installation
-
-### 1. Cloner & installer
+## 🚀 Installation rapide
 
 ```bash
+# 1. Cloner & installer les dépendances
 git clone https://github.com/lgadrien/MyFinances.git
 cd MyFinances
 npm install
-```
 
-### 2. Variables d'environnement
-
-```bash
+# 2. Configurer les variables d'environnement
 cp .env.example .env.local
+# → Éditez .env.local (voir section Variables d'environnement)
+
+# 3. Initialiser Supabase
+# → Ouvrez Supabase SQL Editor et exécutez database/supabase-setup.sql
+
+# 4. Démarrer en développement
+npm run dev
+# → http://localhost:3000
 ```
 
-Remplissez `.env.local` :
+---
+
+## 🔑 Variables d'environnement
+
+Fichier : `.env.local` (copié depuis `.env.example`)
 
 ```env
 # Supabase (obligatoire)
@@ -59,89 +67,115 @@ CRON_SECRET=un-secret-aleatoire-long
 
 > **Yahoo Finance** est utilisé pour les prix en temps réel — gratuit, sans clé API.
 
-### 3. Initialiser la base de données Supabase
+---
+
+## 🗄️ Base de données
 
 1. Ouvrez votre projet Supabase → **SQL Editor** → **New query**
-2. Copiez-collez le contenu de **`supabase-setup.sql`** (fichier à la racine du projet)
+2. Copiez-collez le contenu de **`database/supabase-setup.sql`**
 3. Cliquez **Run**
 
-Ce fichier unique crée toutes les tables, les index, les politiques RLS, et insère la ligne de settings initiale.
+Ce fichier unique crée toutes les tables, index, politiques RLS, et insère la ligne de settings initiale.
 
-> 💡 Pour tester l'app avec des données de démonstration, décommentez la section `OPTIONAL: sample data` en bas du fichier SQL avant de l'exécuter.
-
-### 4. Lancer en développement
-
-```bash
-npm run dev
-```
-
-Ouvrez [http://localhost:3000](http://localhost:3000) → connectez-vous avec le mot de passe défini dans `ACCESS_PASSWORD`.
+> 💡 Pour tester avec des données de démonstration, décommentez la section `OPTIONAL: sample data` en bas du fichier SQL.
 
 ---
 
-## 🏗️ Structure du projet
+## 🏗️ Architecture du projet
 
 ```
-src/
-├── app/
-│   ├── page.tsx               # Dashboard principal
-│   ├── transactions/          # Page transactions
-│   ├── portefeuille/          # Page portefeuille
-│   ├── marche/                # Page marché & watchlist
-│   ├── login/                 # Page d'authentification
-│   ├── error.tsx              # Page d'erreur globale
-│   ├── not-found.tsx          # Page 404
-│   └── api/
-│       ├── auth/login/        # Authentification + rate limiting
-│       ├── stock/             # Prix live Yahoo Finance
-│       ├── stock/history/     # Historique OHLCV pour les graphiques
-│       ├── stock/search/      # Recherche de tickers
-│       ├── favorites/         # CRUD favoris
-│       ├── search/            # Recherche globale
-│       ├── portfolio/history/ # Lecture historique portefeuille
-│       └── cron/snapshot/     # Snapshot quotidien (Vercel Cron)
-├── components/
-│   ├── StockChart.tsx         # Graphique interactif + analyse technique
-│   ├── layout/                # Sidebar, BottomNav, ResponsiveLayout
-│   └── ui/                    # Badge, Modal, StatsCard
-└── lib/
-    ├── types.ts               # Types TypeScript centralisés
-    ├── calculations.ts        # Calculs PRU, dividendes, positions
-    ├── data.ts                # Fonctions d'accès Supabase
-    ├── stocks.ts              # Fetch Yahoo Finance + cache
-    ├── supabase.ts            # Client Supabase
-    ├── technical-analysis.ts  # RSI, MACD, Bollinger, SMA, ATR
-    └── french-instruments.ts  # Liste des 150+ instruments PEA
+MyFinances/
+├── database/
+│   └── supabase-setup.sql      # Schéma complet (tables, RLS, index)
+│
+├── src/
+│   ├── app/                    # Pages (Next.js App Router)
+│   │   ├── page.tsx            # Dashboard principal
+│   │   ├── transactions/       # Page transactions (CRUD + import/export CSV)
+│   │   ├── portefeuille/       # Page portefeuille (positions + rééquilibrage)
+│   │   ├── marche/             # Page marché & watchlist
+│   │   ├── login/              # Authentification
+│   │   ├── error.tsx           # Page d'erreur globale
+│   │   ├── not-found.tsx       # Page 404
+│   │   └── api/
+│   │       ├── auth/login/     # Authentification + rate limiting
+│   │       ├── stock/          # Prix live Yahoo Finance
+│   │       ├── stock/history/  # Historique OHLCV (graphiques)
+│   │       ├── stock/search/   # Recherche de tickers
+│   │       ├── favorites/      # CRUD favoris (Supabase)
+│   │       ├── search/         # Recherche globale
+│   │       ├── portfolio/      # Historique valeur portefeuille
+│   │       └── cron/snapshot/  # Snapshot quotidien (Vercel Cron)
+│   │
+│   ├── components/
+│   │   ├── StockChart.tsx      # Graphique interactif + analyse technique
+│   │   ├── QueryProvider.tsx   # TanStack Query provider
+│   │   ├── ThemeProvider.tsx   # Thème dark/light
+│   │   ├── layout/             # Sidebar, BottomNav (mobile), ResponsiveLayout
+│   │   ├── ui/                 # Badge, Modal, Skeleton, StatsCard, ThemeToggle
+│   │   └── widgets/            # BenchmarkChart, TaxSimulator
+│   │
+│   ├── hooks/                  # Custom React hooks (logique extraite des pages)
+│   │   ├── useDashboard.ts     # Logique de chargement du Dashboard
+│   │   └── usePortfolio.ts     # Logique de chargement du Portefeuille
+│   │
+│   ├── lib/                    # Utilitaires & services
+│   │   ├── types.ts            # ⭐ Types TypeScript centralisés (importer ici)
+│   │   ├── utils.ts            # ⭐ Formatters (formatEUR, formatPrice, %) + couleurs graphiques
+│   │   ├── calculations.ts     # Calculs PRU, dividendes, positions
+│   │   ├── data.ts             # Fonctions d'accès Supabase (CRUD)
+│   │   ├── stocks.ts           # Fetch Yahoo Finance + cache
+│   │   ├── supabase.ts         # Client Supabase (singleton)
+│   │   ├── technical-analysis.ts # RSI, MACD, Bollinger, SMA, ATR
+│   │   └── french-instruments.ts # Liste statique des 150+ instruments PEA
+│   │
+│   └── proxy.ts                # Auth proxy (remplace middleware Next.js 16)
+│
+├── public/                     # Assets statiques
+├── .env.example                # Template des variables d'environnement
+├── .env.local                  # Variables locales (ignoré par git)
+├── next.config.ts              # Configuration Next.js
+├── vercel.json                 # Config Vercel (cron quotidien 00:00 UTC)
+└── package.json
 ```
+
+### 🧭 Où trouver quoi ?
+
+| Besoin                               | Fichier                                    |
+| ------------------------------------ | ------------------------------------------ |
+| Ajouter un type TypeScript           | `src/lib/types.ts`                         |
+| Ajouter un formateur de nombre       | `src/lib/utils.ts`                         |
+| Modifier les couleurs des graphiques | `src/lib/utils.ts` → `CHART_COLORS`        |
+| Modifier les calculs financiers      | `src/lib/calculations.ts`                  |
+| Appels base de données               | `src/lib/data.ts`                          |
+| Liste des actions PEA                | `src/lib/french-instruments.ts`            |
+| Logique du Dashboard                 | `src/hooks/useDashboard.ts`                |
+| Logique du Portefeuille              | `src/hooks/usePortfolio.ts`                |
+| Schéma base de données               | `database/supabase-setup.sql`              |
+| Authentification                     | `src/proxy.ts` + `src/app/api/auth/login/` |
+| Navigation (sidebar/mobile)          | `src/components/layout/`                   |
 
 ---
 
 ## ☁️ Déploiement sur Vercel
 
-### 1. Push sur GitHub, puis importer sur Vercel
+```bash
+# 1. Push sur GitHub
+git push origin main
 
-### 2. Variables d'environnement Vercel
-
-Dans `Settings → Environment Variables` de votre projet Vercel, ajoutez :
-
-```
-NEXT_PUBLIC_SUPABASE_URL
-NEXT_PUBLIC_SUPABASE_ANON_KEY
-ACCESS_PASSWORD
-CRON_SECRET
+# 2. Importez le repo sur vercel.com
+# 3. Ajoutez les variables d'env dans Settings → Environment Variables
+# 4. Deploy !
 ```
 
-### 3. Cron job (snapshot quotidien)
+Variables à ajouter sur Vercel :
 
-Le fichier `vercel.json` configure automatiquement un cron à **minuit UTC** :
+- `NEXT_PUBLIC_SUPABASE_URL`
+- `NEXT_PUBLIC_SUPABASE_ANON_KEY`
+- `ACCESS_PASSWORD`
+- `CRON_SECRET`
 
-```json
-{
-  "crons": [{ "path": "/api/cron/snapshot", "schedule": "0 0 * * *" }]
-}
-```
-
-> Requiert le **plan Hobby** Vercel ou supérieur pour les crons.
+> Le cron snapshot quotidien est configuré dans `vercel.json` — requiert le plan Hobby ou supérieur.
 
 ---
 
@@ -149,9 +183,9 @@ Le fichier `vercel.json` configure automatiquement un cron à **minuit UTC** :
 
 - Authentification par **cookie HTTP-only** + mot de passe (env var)
 - **Rate limiting** sur le login : 5 tentatives / 15 min / IP
-- **En-têtes de sécurité HTTP** : CSP, X-Frame-Options, X-Content-Type-Options, Referrer-Policy, Permissions-Policy
-- **Validation serveur** sur toutes les routes API (ticker regex, types)
-- **Middleware Next.js** protège toutes les routes (sauf `/login` et `/api/auth/login`)
+- **En-têtes de sécurité HTTP** : CSP, X-Frame-Options, X-Content-Type-Options
+- **Validation serveur** sur toutes les routes API
+- **Proxy Next.js 16** protège toutes les routes (sauf `/login` et `/api/auth/login`)
 
 ---
 
@@ -159,7 +193,7 @@ Le fichier `vercel.json` configure automatiquement un cron à **minuit UTC** :
 
 | Catégorie             | Technologie                                  |
 | --------------------- | -------------------------------------------- |
-| Framework             | Next.js 16 (App Router)                      |
+| Framework             | Next.js 16 (App Router, Turbopack)           |
 | Langage               | TypeScript 5 (strict mode)                   |
 | Style                 | Tailwind CSS v4                              |
 | Base de données       | Supabase (PostgreSQL)                        |

@@ -7,7 +7,7 @@ const PUBLIC_PATHS = ["/login", "/api/auth/login", "/api/cron/snapshot"];
 // Static asset prefixes — always bypassed
 const STATIC_PREFIXES = ["/_next/static", "/_next/image", "/favicon.ico"];
 
-export function middleware(request: NextRequest) {
+export default function proxy(request: NextRequest) {
   const { pathname } = request.nextUrl;
 
   // Always allow static assets
