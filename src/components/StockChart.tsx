@@ -511,49 +511,7 @@ export default function StockChart({ ticker, name, onClose }: StockChartProps) {
                     position: "right",
                   }}
                 />
-                {/* SMA 20 */}
-                <Area
-                  type="monotone"
-                  dataKey="sma20"
-                  stroke="#8b5cf6"
-                  strokeWidth={1.5}
-                  fill="none"
-                  dot={false}
-                  name="SMA 20"
-                  strokeDasharray="4 2"
-                />
-                {/* SMA 50 */}
-                <Area
-                  type="monotone"
-                  dataKey="sma50"
-                  stroke="#f59e0b"
-                  strokeWidth={1.5}
-                  fill="none"
-                  dot={false}
-                  name="SMA 50"
-                  strokeDasharray="6 3"
-                />
-                {/* Bollinger bands */}
-                <Area
-                  type="monotone"
-                  dataKey="bbUpper"
-                  stroke="#6366f1"
-                  strokeWidth={1}
-                  fill="none"
-                  dot={false}
-                  strokeDasharray="2 2"
-                  strokeOpacity={0.5}
-                />
-                <Area
-                  type="monotone"
-                  dataKey="bbLower"
-                  stroke="#6366f1"
-                  strokeWidth={1}
-                  fill="none"
-                  dot={false}
-                  strokeDasharray="2 2"
-                  strokeOpacity={0.5}
-                />
+
                 {/* Price */}
                 <Area
                   type="monotone"
@@ -573,21 +531,7 @@ export default function StockChart({ ticker, name, onClose }: StockChartProps) {
             </ResponsiveContainer>
           </div>
 
-          {/* Légende */}
-          <div className="flex flex-wrap items-center gap-4 border-t border-zinc-800/30 px-6 py-2 text-[10px] text-zinc-500">
-            <span className="flex items-center gap-1.5">
-              <span className="inline-block h-px w-5 border-b border-dashed border-violet-500" />{" "}
-              SMA 20
-            </span>
-            <span className="flex items-center gap-1.5">
-              <span className="inline-block h-px w-5 border-b border-dashed border-amber-500" />{" "}
-              SMA 50
-            </span>
-            <span className="flex items-center gap-1.5">
-              <span className="inline-block h-px w-5 border-b border-dashed border-indigo-400 opacity-60" />{" "}
-              Bollinger
-            </span>
-          </div>
+
 
           {/* Stats row */}
           <div className="border-t border-zinc-800/30 px-6 py-3">

@@ -171,7 +171,7 @@ export default function MarchePage() {
     queryKey: ["market-prices", allRows.map((r) => r.ticker).join(",")],
     queryFn: async () => {
       const map = new Map();
-      const concurrencyLimit = 15;
+      const concurrencyLimit = 4; // Keep under 6 to allow Next.js Router (Link) to fetch RSC payloads without freezing!
       
       // Process in larger parallel batches to avoid extreme sequential latency
       for (let i = 0; i < allRows.length; i += concurrencyLimit) {
