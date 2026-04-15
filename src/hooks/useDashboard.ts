@@ -106,8 +106,8 @@ export function useDashboard(): DashboardData {
       setPositions(enriched);
       setTotalInvested(calculateTotalInvested(transactions));
       setTotalDividends(calculateDividends(transactions));
-      setTotalPlusValue(enriched.reduce((s, p) => s + p.plusValue, 0));
-      setTotalCapital(enriched.reduce((s, p) => s + p.capitalValue, 0));
+      setTotalPlusValue(enriched.reduce((s, p) => s + (p.plusValue || 0), 0));
+      setTotalCapital(enriched.reduce((s, p) => s + (p.capitalValue || 0), 0));
       setDividendHistory(groupDividendsByMonth(transactions));
 
       // Projections dividendes (basées sur N-1)
@@ -121,10 +121,17 @@ export function useDashboard(): DashboardData {
       for (const d of lastYearDivs) {
         const position = enriched.find((p) => p.ticker === d.ticker);
         if (position && position.totalQuantity > 0) {
-          const dDate = new Date(d.date);
-          dDate.setFullYear(dDate.getFullYear() + 1);
-          const key = dDate.toISOString().substring(0, 7);
-          projectedMap.set(key, (projectedMap.get(key) ?? 0) + d.total_amount);
+          try {
+            const dDate = new Date(d.date);
+            if (isNaN(dDate.getTime())) continue; // Skip invalid dates
+            
+            dDate.setFullYear(dDate.getFullYear() + 1);
+            const key = dDate.toISOString().substring(0, 7);
+            projectedMap.set(key, (projectedMap.get(key) ?? 0) + (d.total_amount || 0));
+          } catch (e) {
+            console.warn("Invalid date in transaction", d.date, e);
+            continue;
+          }
         }
       }
 

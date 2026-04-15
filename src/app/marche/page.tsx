@@ -13,8 +13,9 @@ import {
   ChevronsUpDown,
   Star,
 } from "lucide-react";
+import dynamic from "next/dynamic";
 import Badge from "@/components/ui/Badge";
-import StockChart from "@/components/StockChart";
+const StockChart = dynamic(() => import("@/components/StockChart"), { ssr: false });
 import {
   fetchTransactions,
   fetchStockPrice,
@@ -170,10 +171,11 @@ export default function MarchePage() {
     queryKey: ["market-prices", allRows.map((r) => r.ticker).join(",")],
     queryFn: async () => {
       const map = new Map();
-
-      // Batch fetches by 5 — use allSettled so one failure doesn't cancel the whole batch
-      for (let i = 0; i < allRows.length; i += 5) {
-        const batch = allRows.slice(i, i + 5);
+      const concurrencyLimit = 15;
+      
+      // Process in larger parallel batches to avoid extreme sequential latency
+      for (let i = 0; i < allRows.length; i += concurrencyLimit) {
+        const batch = allRows.slice(i, i + concurrencyLimit);
         const results = await Promise.allSettled(
           batch.map((r) => fetchStockPrice(r.ticker)),
         );
@@ -548,7 +550,7 @@ export default function MarchePage() {
 
       {/* Mobile Feed */}
       <div className="space-y-3 md:hidden">
-        {loading
+        {allRows.length === 0 && (loading || refreshing)
           ? Array.from({ length: 5 }).map((_, i) => (
               <div
                 key={i}
@@ -694,7 +696,7 @@ export default function MarchePage() {
             </tr>
           </thead>
           <tbody className="divide-y divide-zinc-800/50">
-            {loading
+            {allRows.length === 0 && (loading || refreshing)
               ? Array.from({ length: 8 }).map((_, i) => (
                   <tr key={i}>
                     <td colSpan={6} className="px-6 py-5">

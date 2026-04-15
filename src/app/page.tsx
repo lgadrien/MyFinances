@@ -1,13 +1,7 @@
 "use client";
 
-import {
-  BarChart,
-  Bar,
-  XAxis,
-  YAxis,
-  Tooltip,
-  ResponsiveContainer,
-} from "recharts";
+import React, { useMemo } from "react";
+import dynamic from "next/dynamic";
 import {
   Wallet,
   TrendingUp,
@@ -26,7 +20,12 @@ import AnimatedDonut from "@/components/ui/AnimatedDonut";
 import PositionSparklineCell from "@/components/ui/PositionSparklineCell";
 import { useDashboard } from "@/hooks/useDashboard";
 import { useCountUp } from "@/hooks/useCountUp";
-import { formatEUR, formatPrice, CHART_TOOLTIP_STYLE } from "@/lib/utils";
+import { formatEUR, formatPrice } from "@/lib/utils";
+
+const DashboardDividendChart = dynamic(
+  () => import("@/components/DashboardDividendChart"),
+  { ssr: false, loading: () => <ChartSkeleton height={288} /> },
+);
 
 export default function DashboardPage() {
   const {
@@ -58,20 +57,27 @@ export default function DashboardPage() {
     100,
   );
 
-  const totalDonutValue = positions.reduce(
-    (sum, p) => sum + Math.round(p.capitalValue || 0),
-    0,
-  );
-  const donutData = positions
-    .filter((p) => p.capitalValue && p.capitalValue > 0)
-    .map((p) => ({
-      name: p.name,
-      value: Math.round(p.capitalValue || 0),
-      percent:
-        totalDonutValue > 0
-          ? Math.round(p.capitalValue || 0) / totalDonutValue
-          : 0,
-    }));
+  // Memoize these calculations so they do NOT re-run 60 times a second
+  // when `animatedCapital` updates!
+  const totalDonutValue = React.useMemo(() => {
+    return positions.reduce(
+      (sum, p) => sum + Math.round(p.capitalValue || 0),
+      0,
+    );
+  }, [positions]);
+
+  const donutData = React.useMemo(() => {
+    return positions
+      .filter((p) => p.capitalValue && p.capitalValue > 0)
+      .map((p) => ({
+        name: p.name,
+        value: Math.round(p.capitalValue || 0),
+        percent:
+          totalDonutValue > 0
+            ? Math.round(p.capitalValue || 0) / totalDonutValue
+            : 0,
+      }));
+  }, [positions, totalDonutValue]);
 
   // ── Loading state avec skeletons premium ────────────────────────
   if (loading) {
@@ -291,52 +297,7 @@ export default function DashboardPage() {
             Historique des Dividendes
           </h2>
           <div className="h-[288px]">
-            <ResponsiveContainer width="100%" height="100%">
-              <BarChart data={dividendHistory}>
-                <XAxis
-                  dataKey="month"
-                  tick={{ fill: "#a1a1aa", fontSize: 12 }}
-                  axisLine={{ stroke: "#27272a" }}
-                  tickLine={false}
-                />
-                <YAxis
-                  tick={{ fill: "#a1a1aa", fontSize: 12 }}
-                  axisLine={{ stroke: "#27272a" }}
-                  tickLine={false}
-                  tickFormatter={(v) => `${v}€`}
-                />
-                <Tooltip
-                  formatter={(value) => [
-                    `${Number(value ?? 0).toFixed(2)} €`,
-                    "Dividendes",
-                  ]}
-                  {...CHART_TOOLTIP_STYLE}
-                  cursor={{ fill: "rgba(139, 92, 246, 0.08)" }}
-                />
-                <Bar
-                  dataKey="amount"
-                  fill="url(#barGradientDash)"
-                  radius={[6, 6, 0, 0]}
-                  maxBarSize={40}
-                />
-                <defs>
-                  <linearGradient
-                    id="barGradientDash"
-                    x1="0"
-                    y1="0"
-                    x2="0"
-                    y2="1"
-                  >
-                    <stop offset="0%" stopColor="#8b5cf6" stopOpacity={0.95} />
-                    <stop
-                      offset="100%"
-                      stopColor="#8b5cf6"
-                      stopOpacity={0.25}
-                    />
-                  </linearGradient>
-                </defs>
-              </BarChart>
-            </ResponsiveContainer>
+            <DashboardDividendChart dividendHistory={dividendHistory} />
           </div>
         </div>
       </div>

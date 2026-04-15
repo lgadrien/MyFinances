@@ -20,7 +20,7 @@ export function calculatePRU(transactions: Transaction[]): number {
   let totalQty = 0;
   let totalCost = 0;
   for (const t of transactions) {
-    if (t.type === "Achat") {
+    if (t.type === "Achat" && typeof t.quantity === "number" && typeof t.unit_price === "number") {
       totalQty += t.quantity;
       totalCost += t.quantity * t.unit_price;
     }
@@ -35,10 +35,10 @@ export function calculateTotalInvested(transactions: Transaction[]): number {
   let soldQty = 0;
 
   for (const t of transactions) {
-    if (t.type === "Achat") {
+    if (t.type === "Achat" && typeof t.quantity === "number" && typeof t.unit_price === "number") {
       boughtQty += t.quantity;
       totalCost += t.quantity * t.unit_price;
-    } else if (t.type === "Vente") {
+    } else if (t.type === "Vente" && typeof t.quantity === "number") {
       soldQty += t.quantity;
     }
   }
@@ -100,15 +100,15 @@ export function calculatePortfolioPositions(
     const acc = map.get(t.ticker)!;
 
     if (t.type === "Achat") {
-      acc.boughtQty += t.quantity;
-      acc.totalCost += t.quantity * t.unit_price;
-      acc.totalFees += t.fees;
+      acc.boughtQty += (t.quantity || 0);
+      acc.totalCost += (t.quantity || 0) * (t.unit_price || 0);
+      acc.totalFees += (t.fees || 0);
     } else if (t.type === "Vente") {
-      acc.soldQty += t.quantity;
-      acc.totalFees += t.fees;
+      acc.soldQty += (t.quantity || 0);
+      acc.totalFees += (t.fees || 0);
     } else if (t.type === "Dividende") {
-      acc.dividends += t.total_amount - t.fees;
-      acc.totalFees += t.fees;
+      acc.dividends += (t.total_amount || 0) - (t.fees || 0);
+      acc.totalFees += (t.fees || 0);
     }
   }
 

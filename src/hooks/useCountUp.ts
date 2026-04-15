@@ -29,6 +29,12 @@ export function useCountUp(
   const timeoutRef = useRef<ReturnType<typeof setTimeout> | null>(null);
 
   useEffect(() => {
+    // Safety check: if target is NaN, don't trigger animation
+    if (Number.isNaN(target)) {
+      setCurrent(0);
+      return;
+    }
+
     // Ignore les changements inférieurs à 1% si skipSmallChanges
     if (
       skipSmallChanges &&
