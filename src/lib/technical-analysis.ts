@@ -215,29 +215,32 @@ export type TrendSignal =
 
 export interface TrendScore {
   signal: TrendSignal;
-  score: number; // -4 à +4 (somme des votes)
-  confidence: number; // 0-100 % (proportion d'indicateurs disponibles)
+  score: number; // -4 à +4
+  confidence: number;
   details: {
     rsiSignal: TrendSignal | null;
     macdSignal: TrendSignal | null;
     bollingerSignal: TrendSignal | null;
-    maSignal: TrendSignal | null; // Prix vs SMA20 & SMA50
-    momentumSignal: TrendSignal | null; // Var(1j)
+    emaSignal: TrendSignal | null;
+    momentumSignal: TrendSignal | null;
+    volumeSignal: TrendSignal | null;
   };
   indicators: {
     rsi: number | null;
     macd: number | null;
     macdHistogram: number | null;
-    sma20: number | null;
-    sma50: number | null;
+    ema20: number | null;
+    ema50: number | null;
     bollingerPercentB: number | null;
-    atrPercent: number | null; // ATR/prix en %
+    atrPercent: number | null;
+    volumeSurgeMultiplier: number | null;
   };
 }
 
 /** Calcule le signal composite à partir des données OHLCV */
 export function computeTrendScore(data: OHLCV[]): TrendScore {
   const closes = data.map((d) => d.close);
+  const volumes = data.map((d) => d.volume);
   const n = closes.length;
 
   // ── RSI ──
@@ -246,10 +249,10 @@ export function computeTrendScore(data: OHLCV[]): TrendScore {
 
   let rsiSignal: TrendSignal | null = null;
   if (lastRsi !== null) {
-    if (lastRsi < 30) rsiSignal = "STRONG_BUY";
-    else if (lastRsi < 45) rsiSignal = "BUY";
-    else if (lastRsi > 70) rsiSignal = "STRONG_SELL";
-    else if (lastRsi > 55) rsiSignal = "SELL";
+    if (lastRsi < 20) rsiSignal = "STRONG_BUY"; // Oversold extrème
+    else if (lastRsi < 40) rsiSignal = "BUY";
+    else if (lastRsi > 80) rsiSignal = "STRONG_SELL"; // Overbought extrème
+    else if (lastRsi > 60) rsiSignal = "SELL";
     else rsiSignal = "NEUTRAL";
   }
 
@@ -263,7 +266,6 @@ export function computeTrendScore(data: OHLCV[]): TrendScore {
     const prevHist = prev?.histogram ?? 0;
     const currHist = lastMacd.histogram;
 
-    // Crossover bullish: histogram crosses 0 upward
     if (currHist > 0 && prevHist <= 0) macdSignal = "STRONG_BUY";
     else if (currHist > 0) macdSignal = "BUY";
     else if (currHist < 0 && prevHist >= 0) macdSignal = "STRONG_SELL";
@@ -278,39 +280,34 @@ export function computeTrendScore(data: OHLCV[]): TrendScore {
   let bollingerSignal: TrendSignal | null = null;
   if (lastBB.percentB !== null) {
     const pB = lastBB.percentB;
-    if (pB < 0)
-      bollingerSignal = "STRONG_BUY"; // prix sous la bande basse
-    else if (pB < 0.25) bollingerSignal = "BUY";
-    else if (pB > 1)
-      bollingerSignal = "STRONG_SELL"; // prix sur la bande haute
-    else if (pB > 0.75) bollingerSignal = "SELL";
+    if (pB < -0.1) bollingerSignal = "STRONG_BUY";
+    else if (pB < 0.2) bollingerSignal = "BUY";
+    else if (pB > 1.1) bollingerSignal = "STRONG_SELL";
+    else if (pB > 0.8) bollingerSignal = "SELL";
     else bollingerSignal = "NEUTRAL";
   }
 
-  // ── SMA 20 & 50 ──
-  const sma20Series = sma(closes, 20);
-  const sma50Series = sma(closes, 50);
-  const lastSma20 = sma20Series[n - 1];
-  const lastSma50 = sma50Series[n - 1];
+  // ── EMA 20 & 50 ──
+  const ema20Series = ema(closes, 20);
+  const ema50Series = ema(closes, 50);
+  const lastEma20 = ema20Series[n - 1];
+  const lastEma50 = ema50Series[n - 1];
   const lastClose = closes[n - 1];
 
-  let maSignal: TrendSignal | null = null;
-  if (lastSma20 !== null && lastSma50 !== null) {
-    const aboveSma20 = lastClose > lastSma20;
-    const aboveSma50 = lastClose > lastSma50;
-    const goldenCross = lastSma20 > lastSma50;
+  let emaSignal: TrendSignal | null = null;
+  if (lastEma20 !== null && lastEma50 !== null) {
+    const aboveEma20 = lastClose > lastEma20;
+    const aboveEma50 = lastClose > lastEma50;
+    const goldenCross = lastEma20 > lastEma50;
 
-    if (aboveSma20 && aboveSma50 && goldenCross) maSignal = "STRONG_BUY";
-    else if (aboveSma20 && aboveSma50) maSignal = "BUY";
-    else if (!aboveSma20 && !aboveSma50 && !goldenCross)
-      maSignal = "STRONG_SELL";
-    else if (!aboveSma20 && !aboveSma50) maSignal = "SELL";
-    else maSignal = "NEUTRAL";
-  } else if (lastSma20 !== null) {
-    maSignal = lastClose > lastSma20 ? "BUY" : "SELL";
+    if (aboveEma20 && aboveEma50 && goldenCross) emaSignal = "STRONG_BUY";
+    else if (aboveEma20 && goldenCross) emaSignal = "BUY";
+    else if (!aboveEma20 && !aboveEma50 && !goldenCross) emaSignal = "STRONG_SELL";
+    else if (!aboveEma20 && !goldenCross) emaSignal = "SELL";
+    else emaSignal = "NEUTRAL";
   }
 
-  // ── Momentum (variation sur 1 point) ──
+  // ── Momentum ──
   const prev1 = closes[n - 2];
   const momentumPct = prev1 > 0 ? ((lastClose - prev1) / prev1) * 100 : 0;
   let momentumSignal: TrendSignal | null = null;
@@ -322,14 +319,32 @@ export function computeTrendScore(data: OHLCV[]): TrendScore {
     else momentumSignal = "NEUTRAL";
   }
 
-  // ── ATR ──
+  // ── Volume Surge ──
+  // Compare last volume to 20-period volume SMA
+  const volSma20Series = sma(volumes, 20);
+  const lastVolSma20 = volSma20Series[n - 2] ?? volSma20Series[n - 1]; 
+  const lastVol = volumes[n - 1];
+  
+  let volumeSignal: TrendSignal | null = null;
+  let volumeSurgeMultiplier = 1.0;
+  
+  if (lastVol !== null && lastVolSma20 !== null && lastVolSma20 > 0) {
+    volumeSurgeMultiplier = lastVol / lastVolSma20;
+    if (volumeSurgeMultiplier > 2.0) volumeSignal = momentumPct >= 0 ? "STRONG_BUY" : "STRONG_SELL";
+    else if (volumeSurgeMultiplier > 1.5) volumeSignal = momentumPct >= 0 ? "BUY" : "SELL";
+    else volumeSignal = "NEUTRAL";
+  }
+
+  // ── ATR (Volatility Filter) ──
   const atrSeries = atr(data);
   const lastAtr = atrSeries[n - 1];
-  const atrPercent =
-    lastAtr !== null && lastClose > 0 ? (lastAtr / lastClose) * 100 : null;
+  const atrPercent = lastAtr !== null && lastClose > 0 ? (lastAtr / lastClose) * 100 : null;
+  
+  // Si haute volatilité (ATR > 3%), on réduit le score Bollinger
+  const isHighlyVolatile = atrPercent !== null && atrPercent > 3.0;
 
-  // ── Score composite ──
-  const signalWeight: Record<TrendSignal, number> = {
+  // ── Score composite (Weighted) ──
+  const signalValue: Record<TrendSignal, number> = {
     STRONG_BUY: 2,
     BUY: 1,
     NEUTRAL: 0,
@@ -337,52 +352,85 @@ export function computeTrendScore(data: OHLCV[]): TrendScore {
     STRONG_SELL: -2,
   };
 
-  const signals = [
-    rsiSignal,
-    macdSignal,
-    bollingerSignal,
-    maSignal,
-    momentumSignal,
-  ];
-  const available = signals.filter((s) => s !== null) as TrendSignal[];
-  const score = available.reduce((sum, s) => sum + signalWeight[s], 0);
-  const confidence = Math.round((available.length / signals.length) * 100);
+  // Base Weights
+  const macdWeight = 3;
+  const emaWeight = 3;
+  const rsiWeight = 2; // Peut monter à 3 si extreme
+  const bbWeight = isHighlyVolatile ? 0.5 : 2; 
+  const momentumWeight = 1;
+  const volumeWeight = 1.5;
+
+  let score = 0;
+  let maxPossibleScore = 0;
+  let availableIndicators = 0;
+
+  if (macdSignal) {
+    score += signalValue[macdSignal] * macdWeight;
+    maxPossibleScore += 2 * macdWeight;
+    availableIndicators++;
+  }
+  if (emaSignal) {
+    score += signalValue[emaSignal] * emaWeight;
+    maxPossibleScore += 2 * emaWeight;
+    availableIndicators++;
+  }
+  if (rsiSignal) {
+    const currentRsiWeight = (rsiSignal === "STRONG_BUY" || rsiSignal === "STRONG_SELL") ? 3 : rsiWeight;
+    score += signalValue[rsiSignal] * currentRsiWeight;
+    maxPossibleScore += 2 * currentRsiWeight;
+    availableIndicators++;
+  }
+  if (bollingerSignal) {
+    score += signalValue[bollingerSignal] * bbWeight;
+    maxPossibleScore += 2 * bbWeight;
+    availableIndicators++;
+  }
+  if (momentumSignal) {
+    score += signalValue[momentumSignal] * momentumWeight;
+    maxPossibleScore += 2 * momentumWeight;
+    availableIndicators++;
+  }
+  if (volumeSignal) {
+    score += signalValue[volumeSignal] * volumeWeight;
+    maxPossibleScore += 2 * volumeWeight;
+    availableIndicators++;
+  }
+
+  // Normalisation -4 / +4 range pour l'UI existante
+  let normalizedScore = maxPossibleScore > 0 ? (score / maxPossibleScore) * 4 : 0;
+  normalizedScore = Math.round(normalizedScore * 10) / 10;
+  
+  const confidence = Math.round((availableIndicators / 6) * 100);
 
   // ── Signal final ──
   let signal: TrendSignal;
-  if (score >= 3) signal = "STRONG_BUY";
-  else if (score >= 1) signal = "BUY";
-  else if (score <= -3) signal = "STRONG_SELL";
-  else if (score <= -1) signal = "SELL";
+  if (normalizedScore >= 2.5) signal = "STRONG_BUY";
+  else if (normalizedScore >= 0.8) signal = "BUY";
+  else if (normalizedScore <= -2.5) signal = "STRONG_SELL";
+  else if (normalizedScore <= -0.8) signal = "SELL";
   else signal = "NEUTRAL";
 
   return {
     signal,
-    score,
+    score: normalizedScore,
     confidence,
     details: {
       rsiSignal,
       macdSignal,
       bollingerSignal,
-      maSignal,
+      emaSignal,
       momentumSignal,
+      volumeSignal
     },
     indicators: {
       rsi: lastRsi !== null ? Math.round(lastRsi * 10) / 10 : null,
-      macd:
-        lastMacd.macd !== null ? Math.round(lastMacd.macd * 1000) / 1000 : null,
-      macdHistogram:
-        lastMacd.histogram !== null
-          ? Math.round(lastMacd.histogram * 1000) / 1000
-          : null,
-      sma20: lastSma20 !== null ? Math.round(lastSma20 * 100) / 100 : null,
-      sma50: lastSma50 !== null ? Math.round(lastSma50 * 100) / 100 : null,
-      bollingerPercentB:
-        lastBB.percentB !== null
-          ? Math.round(lastBB.percentB * 100) / 100
-          : null,
-      atrPercent:
-        atrPercent !== null ? Math.round(atrPercent * 100) / 100 : null,
+      macd: lastMacd.macd !== null ? Math.round(lastMacd.macd * 1000) / 1000 : null,
+      macdHistogram: lastMacd.histogram !== null ? Math.round(lastMacd.histogram * 1000) / 1000 : null,
+      ema20: lastEma20 !== null ? Math.round(lastEma20 * 100) / 100 : null,
+      ema50: lastEma50 !== null ? Math.round(lastEma50 * 100) / 100 : null,
+      bollingerPercentB: lastBB.percentB !== null ? Math.round(lastBB.percentB * 100) / 100 : null,
+      atrPercent: atrPercent !== null ? Math.round(atrPercent * 100) / 100 : null,
+      volumeSurgeMultiplier: volumeSurgeMultiplier !== 1.0 ? Math.round(volumeSurgeMultiplier * 10) / 10 : null
     },
   };
 }

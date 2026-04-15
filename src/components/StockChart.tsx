@@ -590,19 +590,14 @@ export default function StockChart({ ticker, name, onClose }: StockChartProps) {
               </div>
 
               {/* Indicateurs individuels */}
-              <div className="grid grid-cols-2 gap-px bg-zinc-800/30 sm:grid-cols-5">
+              <div className="grid grid-cols-3 gap-px bg-zinc-800/30 sm:grid-cols-6">
                 {[
                   { label: "RSI", signal: trendScore.details.rsiSignal },
                   { label: "MACD", signal: trendScore.details.macdSignal },
-                  {
-                    label: "Bollinger",
-                    signal: trendScore.details.bollingerSignal,
-                  },
-                  { label: "Moyennes", signal: trendScore.details.maSignal },
-                  {
-                    label: "Momentum",
-                    signal: trendScore.details.momentumSignal,
-                  },
+                  { label: "Bollinger", signal: trendScore.details.bollingerSignal },
+                  { label: "Moyenn. EMA", signal: trendScore.details.emaSignal },
+                  { label: "Momentum", signal: trendScore.details.momentumSignal },
+                  { label: "Volume", signal: trendScore.details.volumeSignal },
                 ].map(({ label, signal }) => (
                   <div
                     key={label}
@@ -653,13 +648,13 @@ export default function StockChart({ ticker, name, onClose }: StockChartProps) {
                       suffix: "",
                     },
                     {
-                      label: "SMA 20",
-                      value: trendScore.indicators.sma20,
+                      label: "EMA 20",
+                      value: trendScore.indicators.ema20,
                       suffix: " €",
                     },
                     {
-                      label: "SMA 50",
-                      value: trendScore.indicators.sma50,
+                      label: "EMA 50",
+                      value: trendScore.indicators.ema50,
                       suffix: " €",
                     },
                     {
@@ -676,6 +671,11 @@ export default function StockChart({ ticker, name, onClose }: StockChartProps) {
                       label: "ATR (volatilité)",
                       value: trendScore.indicators.atrPercent,
                       suffix: "%",
+                    },
+                    {
+                      label: "Surtension Volume",
+                      value: trendScore.indicators.volumeSurgeMultiplier,
+                      suffix: "x",
                     },
                   ].map(({ label, value, suffix }) => (
                     <div
