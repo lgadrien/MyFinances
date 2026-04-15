@@ -3,6 +3,7 @@ import "./globals.css";
 import ResponsiveLayout from "@/components/layout/ResponsiveLayout";
 import QueryProvider from "@/components/QueryProvider";
 import { Toaster } from "react-hot-toast";
+import { SpeedInsights } from "@vercel/speed-insights/next";
 
 export const metadata: Metadata = {
   title: "MyFinances — PEA Portfolio Tracker",
