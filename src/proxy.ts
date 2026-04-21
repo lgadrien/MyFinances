@@ -4,8 +4,12 @@ import type { NextRequest } from "next/server";
 // Paths accessible without authentication
 const PUBLIC_PATHS = ["/login", "/api/auth/login", "/api/cron/snapshot"];
 
-// Static asset prefixes — always bypassed
-const STATIC_PREFIXES = ["/_next/static", "/_next/image", "/favicon.ico"];
+// Static / internal prefixes — always bypassed
+const STATIC_PREFIXES = [
+  "/_next",          // All Next.js internals (static, image, HMR, data, etc.)
+  "/__nextjs",       // Dev-overlay routes (__nextjs_original-stack-frame, etc.)
+  "/favicon.ico",
+];
 
 export default function proxy(request: NextRequest) {
   const { pathname } = request.nextUrl;
@@ -40,6 +44,6 @@ export default function proxy(request: NextRequest) {
 export const config = {
   matcher: [
     // Match everything except Next.js internals and static files
-    "/((?!_next/static|_next/image|favicon.ico).*)",
+    "/((?!_next|__nextjs|favicon.ico).*)",
   ],
 };

@@ -45,11 +45,11 @@ interface StockChartProps {
 }
 
 const TIME_PERIODS = [
-  { label: "5M", interval: "5min", description: "5 minutes" },
-  { label: "15M", interval: "15min", description: "15 minutes" },
-  { label: "1H", interval: "60min", description: "1 heure" },
-  { label: "1J", interval: "daily", description: "1 jour" },
-  { label: "1S", interval: "weekly", description: "1 semaine" },
+  { label: "1J", interval: "5min", description: "1 jour" },
+  { label: "1S", interval: "15min", description: "1 semaine" },
+  { label: "1M", interval: "60min", description: "1 mois" },
+  { label: "3M", interval: "daily", description: "3 mois" },
+  { label: "1A", interval: "weekly", description: "1 an" },
 ] as const;
 
 type ActiveTab = "chart" | "indicators";
@@ -257,11 +257,28 @@ export default function StockChart({ ticker, name, onClose }: StockChartProps) {
   const gradientId = `chart-gradient-${ticker.replace(/[^a-zA-Z]/g, "")}`;
 
   function formatDateLabel(dateStr: string) {
-    if (dateStr.includes(" ")) {
-      return dateStr.split(" ")[1] || dateStr;
+    if (activeInterval === "5min") {
+      // 1 Jour: affiche uniquement l'heure
+      return dateStr.includes(" ") ? dateStr.split(" ")[1] : dateStr;
     }
-    const d = new Date(dateStr);
-    return d.toLocaleDateString("fr-FR", { day: "2-digit", month: "short" });
+    
+    // Remplacer l'espace par un "T" pour éviter les bugs Safari sur new Date()
+    const d = new Date(dateStr.replace(" ", "T"));
+    
+    if (activeInterval === "15min") {
+      // 1 Semaine: affiche jour et heure
+      const day = d.toLocaleDateString("fr-FR", { weekday: "short" });
+      const time = dateStr.includes(" ") ? dateStr.split(" ")[1] : "";
+      return `${day}. ${time}`;
+    } else if (activeInterval === "60min") {
+      // 1 Mois: affiche date limiteure et heure
+      const dm = d.toLocaleDateString("fr-FR", { day: "2-digit", month: "short" });
+      const time = dateStr.includes(" ") ? dateStr.split(" ")[1] : "";
+      return `${dm} ${time}`;
+    } else {
+      // 3 Mois / 1 An: affiche uniquement la date
+      return d.toLocaleDateString("fr-FR", { day: "2-digit", month: "short" });
+    }
   }
 
   const signalCfg = trendScore ? SIGNAL_CONFIG[trendScore.signal] : null;
@@ -486,13 +503,23 @@ export default function StockChart({ ticker, name, onClose }: StockChartProps) {
                   // eslint-disable-next-line @typescript-eslint/no-explicit-any
                   labelFormatter={(label: any) => {
                     const s = String(label);
-                    if (s.includes(" ")) return s;
-                    return new Date(s).toLocaleDateString("fr-FR", {
+                    const d = new Date(s.replace(" ", "T"));
+                    
+                    // Si la date est invalide (rare, mais sécurité)
+                    if (isNaN(d.getTime())) return s;
+
+                    const datePart = d.toLocaleDateString("fr-FR", {
                       weekday: "short",
                       day: "2-digit",
                       month: "long",
                       year: "numeric",
                     });
+
+                    if (s.includes(" ")) {
+                      const timePart = s.split(" ")[1];
+                      return `${datePart} à ${timePart}`;
+                    }
+                    return datePart;
                   }}
                   cursor={{
                     stroke: "#475569",
