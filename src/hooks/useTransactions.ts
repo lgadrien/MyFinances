@@ -1,4 +1,5 @@
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
+import { useMemo } from "react";
 import {
   fetchTransactions,
   insertTransaction,
@@ -9,14 +10,14 @@ import {
 export function useTransactions() {
   const queryClient = useQueryClient();
 
-  // Fetch transactions with caching
   const query = useQuery({
     queryKey: ["transactions"],
     queryFn: fetchTransactions,
-    staleTime: 5 * 60 * 1000, // Consider data fresh for 5 minutes
+    staleTime: 5 * 60 * 1000,
   });
 
-  // Mutations
+  const transactions = useMemo(() => query.data || [], [query.data]);
+
   const addTx = useMutation({
     mutationFn: insertTransaction,
     onSuccess: () => {
@@ -39,7 +40,7 @@ export function useTransactions() {
   });
 
   return {
-    transactions: query.data || [],
+    transactions,
     isLoading: query.isLoading,
     isError: query.isError,
     addTransaction: addTx.mutateAsync,
