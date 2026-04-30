@@ -6,7 +6,8 @@
 
 import { useEffect, useState, useMemo, useCallback } from "react";
 import { subDays, subMonths, subYears, parseISO } from "date-fns";
-import { fetchTransactions, fetchStockPrice } from "@/lib/data";
+import { fetchStockPrice } from "@/lib/data";
+import { useTransactions } from "@/hooks/useTransactions";
 import {
   calculatePortfolioPositions,
   type PortfolioPosition,
@@ -69,11 +70,15 @@ export function usePortfolio(): UsePortfolioReturn {
     return map;
   }, []);
 
+  const { transactions, isLoading: isTxLoading } = useTransactions();
+
   const loadData = useCallback(async () => {
+    if (isTxLoading) return;
+    
     try {
       setRefreshing(true);
-      const txs = await fetchTransactions();
-      const initialPositions = calculatePortfolioPositions(txs, instrumentMap);
+      setLoading(true);
+      const initialPositions = calculatePortfolioPositions(transactions, instrumentMap);
 
       const historyRes = await fetch("/api/portfolio/history");
       const historyData = await historyRes.json();
@@ -117,7 +122,7 @@ export function usePortfolio(): UsePortfolioReturn {
       setLoading(false);
       setRefreshing(false);
     }
-  }, [instrumentMap]);
+  }, [instrumentMap, transactions, isTxLoading]);
 
   useEffect(() => {
     loadData();

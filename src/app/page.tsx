@@ -214,7 +214,7 @@ export default function DashboardPage() {
           accentColor="fuchsia"
           index={1}
         />
-        <div className="col-span-2 sm:col-span-1">
+        <div className="h-full col-span-2 sm:col-span-1">
           <StatsCard
             label="Plus-Value"
             rawValue={totalPlusValue}

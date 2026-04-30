@@ -16,13 +16,8 @@ import {
 } from "lucide-react";
 import Badge from "@/components/ui/Badge";
 import Modal from "@/components/ui/Modal";
-import {
-  fetchTransactions,
-  insertTransaction,
-  updateTransaction,
-  deleteTransaction,
-  fetchStockPrice,
-} from "@/lib/data";
+import { fetchStockPrice } from "@/lib/data";
+import { useTransactions } from "@/hooks/useTransactions";
 import type { Transaction } from "@/lib/calculations";
 import { formatEUR, formatPrice } from "@/lib/utils";
 import toast from "react-hot-toast";
@@ -38,10 +33,10 @@ interface SearchResult {
 const VALID_TYPES = new Set(["Achat", "Vente", "Dividende"]);
 
 export default function TransactionsPage() {
-  const [transactions, setTransactions] = useState<Transaction[]>([]);
+  const { transactions, isLoading: loading, addTransaction, updateTransaction, deleteTransaction } = useTransactions();
   const [isModalOpen, setIsModalOpen] = useState(false);
   const [filterType, setFilterType] = useState<string>("all");
-  const [loading, setLoading] = useState(true);
+  const [isImporting, setIsImporting] = useState(false);
   const [submitting, setSubmitting] = useState(false);
   const [deletingId, setDeletingId] = useState<string | null>(null);
   const [transactionToDelete, setTransactionToDelete] =
@@ -96,16 +91,7 @@ export default function TransactionsPage() {
     return () => clearTimeout(delayDebounceFn);
   }, [tickerSearch]);
 
-  const loadData = useCallback(async () => {
-    setLoading(true);
-    const txData = await fetchTransactions();
-    setTransactions(txData);
-    setLoading(false);
-  }, []);
-
-  useEffect(() => {
-    loadData();
-  }, [loadData]);
+  // Remove loadData function completely
 
   const handleSort = (key: keyof Transaction) => {
     if (sortKey === key) {
@@ -182,7 +168,7 @@ export default function TransactionsPage() {
     const file = e.target.files?.[0];
     if (!file) return;
 
-    setLoading(true);
+    setIsImporting(true);
     let imported = 0;
     let skipped = 0;
 
@@ -224,7 +210,7 @@ export default function TransactionsPage() {
           continue;
         }
 
-        const result = await insertTransaction({
+        const result = await addTransaction({
           date: cols[1]?.trim(),
           type,
           ticker,
@@ -237,7 +223,8 @@ export default function TransactionsPage() {
         else skipped++;
       }
 
-      await loadData();
+      // Use the new addTransaction from useTransactions
+      // React Query invalidation is handled in the hook
       if (imported > 0) {
         toast.success(
           `Import réussi : ${imported} opération(s) ajoutée(s)${skipped > 0 ? `, ${skipped} ignorée(s)` : ""}.`,
@@ -249,7 +236,7 @@ export default function TransactionsPage() {
       console.error(err);
       toast.error("Erreur lors de l'import CSV.");
     } finally {
-      setLoading(false);
+      setIsImporting(false);
       if (fileInputRef.current) fileInputRef.current.value = "";
     }
   };
@@ -291,12 +278,11 @@ export default function TransactionsPage() {
     };
 
     const result = editingTransaction
-      ? await updateTransaction(editingTransaction.id, txData)
-      : await insertTransaction(txData);
+      ? await updateTransaction({ id: editingTransaction.id, tx: txData })
+      : await addTransaction(txData);
 
     if (result) {
-      // Refresh data from Supabase
-      await loadData();
+      // React Query invalidates and refetches automatically
 
       // Reset form
       setFormData({
@@ -340,7 +326,7 @@ export default function TransactionsPage() {
     setDeletingId(transactionToDelete.id);
     const ok = await deleteTransaction(transactionToDelete.id);
     if (ok) {
-      await loadData();
+      // React Query invalidates automatically
       toast.success("Opération supprimée");
     } else {
       toast.error("Erreur lors de la suppression");

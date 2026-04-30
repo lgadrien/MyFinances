@@ -11,7 +11,7 @@ const STATIC_PREFIXES = [
   "/favicon.ico",
 ];
 
-export default function proxy(request: NextRequest) {
+export default function middleware(request: NextRequest) {
   const { pathname } = request.nextUrl;
 
   // Always allow static assets

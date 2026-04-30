@@ -7,11 +7,11 @@
 
 import { useEffect, useState } from "react";
 import {
-  fetchTransactions,
   fetchStockPrice,
   fetchSettings,
   updateSettings,
 } from "@/lib/data";
+import { useTransactions } from "@/hooks/useTransactions";
 import {
   calculateTotalInvested,
   calculateDividends,
@@ -65,8 +65,13 @@ export function useDashboard(): DashboardData {
   const [savingSettings, setSavingSettings] = useState(false);
   const [isSettingsOpen, setIsSettingsOpen] = useState(false);
 
+  const { transactions, isLoading: isTxLoading } = useTransactions();
+
   useEffect(() => {
     async function load() {
+      // Si les transactions chargent, on attend
+      if (isTxLoading) return;
+      
       setLoading(true);
       try {
         // Paramètres utilisateur
@@ -75,8 +80,6 @@ export function useDashboard(): DashboardData {
           setCashBalance(settings.cash_balance);
           setTargetCapital(settings.target_capital);
         }
-
-        const transactions = await fetchTransactions();
 
         // Lookup table pour enrichir les positions avec nom/secteur
         const instrumentLookup = new Map(
@@ -150,7 +153,7 @@ export function useDashboard(): DashboardData {
     }
 
     load();
-  }, []);
+  }, [transactions, isTxLoading]);
 
   const handleSaveSettings = async () => {
     setSavingSettings(true);

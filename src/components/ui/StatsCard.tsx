@@ -98,7 +98,7 @@ export default function StatsCard({
   return (
     <div
       className={`
-        group relative overflow-hidden rounded-2xl border border-zinc-800/80
+        h-full group relative overflow-hidden rounded-2xl border border-zinc-800/80
         bg-gradient-to-br ${colors.bg}
         p-5 backdrop-blur-sm
         transition-all duration-300 ease-out

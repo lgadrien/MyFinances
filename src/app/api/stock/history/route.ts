@@ -1,8 +1,6 @@
 import { NextRequest, NextResponse } from "next/server";
 
-// Cache historical data for 10 minutes
-const cache = new Map<string, { data: unknown; timestamp: number }>();
-const CACHE_TTL = 10 * 60 * 1000;
+import { unstable_cache } from "next/cache";
 
 /**
  * Maps our interval labels to Yahoo Finance range/interval params.
@@ -39,83 +37,73 @@ export async function GET(req: NextRequest) {
     return NextResponse.json({ error: "Missing ticker" }, { status: 400 });
   }
 
-  const cacheKey = `${ticker}:${interval}`;
-  const cached = cache.get(cacheKey);
-  if (cached && Date.now() - cached.timestamp < CACHE_TTL) {
-    return NextResponse.json(cached.data);
-  }
+  const getHistory = unstable_cache(
+    async (t: string, i: string) => {
+      try {
+        const { range, yahooInterval } = getYahooParams(i);
+        const url = `https://query1.finance.yahoo.com/v8/finance/chart/${encodeURIComponent(t)}?range=${range}&interval=${yahooInterval}&includePrePost=false`;
 
-  try {
-    const { range, yahooInterval } = getYahooParams(interval);
-    const url = `https://query1.finance.yahoo.com/v8/finance/chart/${encodeURIComponent(ticker)}?range=${range}&interval=${yahooInterval}&includePrePost=false`;
+        const response = await fetch(url, {
+          headers: { "User-Agent": "Mozilla/5.0" },
+        });
 
-    const response = await fetch(url, {
-      headers: { "User-Agent": "Mozilla/5.0" },
-    });
+        if (!response.ok) {
+          console.error(`Yahoo Finance history error: ${response.status}`);
+          return { ticker: t, interval: i, data: generateMockHistory(i), mock: true };
+        }
 
-    if (!response.ok) {
-      console.error(`Yahoo Finance history error: ${response.status}`);
-      const mockData = generateMockHistory(interval);
-      return NextResponse.json({
-        ticker,
-        interval,
-        data: mockData,
-        mock: true,
-      });
+        const json = await response.json();
+        const chartResult = json?.chart?.result?.[0];
+
+        if (!chartResult?.timestamp || !chartResult?.indicators?.quote?.[0]) {
+          return { ticker: t, interval: i, data: generateMockHistory(i), mock: true };
+        }
+
+        const timestamps = chartResult.timestamp;
+        const quote = chartResult.indicators.quote[0];
+
+        const data = timestamps
+          .map((ts: number, idx: number) => {
+            const open = quote.open?.[idx];
+            const high = quote.high?.[idx];
+            const low = quote.low?.[idx];
+            const close = quote.close?.[idx];
+            const volume = quote.volume?.[idx];
+
+            if (close === null || close === undefined) return null;
+
+            const date = new Date(ts * 1000);
+            const dateStr =
+              yahooInterval.includes("m") || yahooInterval === "60m"
+                ? date.toISOString().slice(0, 16).replace("T", " ")
+                : date.toISOString().slice(0, 10);
+
+            return {
+              date: dateStr,
+              open: parseFloat((open ?? close).toFixed(2)),
+              high: parseFloat((high ?? close).toFixed(2)),
+              low: parseFloat((low ?? close).toFixed(2)),
+              close: parseFloat(close.toFixed(2)),
+              volume: volume || 0,
+            };
+          })
+          .filter(Boolean);
+
+        return { ticker: t, interval: i, data, mock: false };
+      } catch (error) {
+        console.error("Error fetching history:", error);
+        return { ticker: t, interval: i, data: generateMockHistory(i), mock: true };
+      }
+    },
+    [`stock-history-${ticker}-${interval}`],
+    {
+      revalidate: 600, // 10 minutes cache
+      tags: [`stock-history-${ticker}-${interval}`]
     }
+  );
 
-    const json = await response.json();
-    const chartResult = json?.chart?.result?.[0];
-
-    if (!chartResult?.timestamp || !chartResult?.indicators?.quote?.[0]) {
-      const mockData = generateMockHistory(interval);
-      return NextResponse.json({
-        ticker,
-        interval,
-        data: mockData,
-        mock: true,
-      });
-    }
-
-    const timestamps = chartResult.timestamp;
-    const quote = chartResult.indicators.quote[0];
-
-    const data = timestamps
-      .map((ts: number, i: number) => {
-        const open = quote.open?.[i];
-        const high = quote.high?.[i];
-        const low = quote.low?.[i];
-        const close = quote.close?.[i];
-        const volume = quote.volume?.[i];
-
-        // Skip null entries (market closed, etc.)
-        if (close === null || close === undefined) return null;
-
-        const date = new Date(ts * 1000);
-        const dateStr =
-          yahooInterval.includes("m") || yahooInterval === "60m"
-            ? date.toISOString().slice(0, 16).replace("T", " ")
-            : date.toISOString().slice(0, 10);
-
-        return {
-          date: dateStr,
-          open: parseFloat((open ?? close).toFixed(2)),
-          high: parseFloat((high ?? close).toFixed(2)),
-          low: parseFloat((low ?? close).toFixed(2)),
-          close: parseFloat(close.toFixed(2)),
-          volume: volume || 0,
-        };
-      })
-      .filter(Boolean);
-
-    const result = { ticker, interval, data, mock: false };
-    cache.set(cacheKey, { data: result, timestamp: Date.now() });
-    return NextResponse.json(result);
-  } catch (error) {
-    console.error("Error fetching history:", error);
-    const mockData = generateMockHistory(interval);
-    return NextResponse.json({ ticker, interval, data: mockData, mock: true });
-  }
+  const result = await getHistory(ticker, interval);
+  return NextResponse.json(result);
 }
 
 function generateMockHistory(interval: string) {

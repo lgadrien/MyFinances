@@ -13,18 +13,24 @@ import { format, parseISO } from "date-fns";
 import { fr } from "date-fns/locale";
 import { formatEUR } from "@/lib/utils";
 
-// eslint-disable-next-line @typescript-eslint/no-explicit-any
-const CustomAreaTooltip = ({ active, payload, label }: any) => {
-  if (active && payload && payload.length) {
+const CustomAreaTooltip = ({
+  active,
+  payload,
+  label,
+}: {
+  active?: boolean;
+  payload?: { value: number; name: string; color: string }[];
+  label?: string;
+}) => {
+  if (active && payload && payload.length > 0) {
     return (
       <div className="rounded-xl border border-zinc-700 bg-zinc-900/95 px-3 py-2 shadow-2xl backdrop-blur-sm">
         <p className="mb-1 text-xs font-medium text-zinc-400">
           {label
-            ? format(parseISO(label as string), "d MMMM yyyy", { locale: fr })
+            ? format(parseISO(label), "d MMMM yyyy", { locale: fr })
             : ""}
         </p>
-        {/* eslint-disable-next-line @typescript-eslint/no-explicit-any */}
-        {payload.map((entry: any, index: number) => (
+        {payload.map((entry, index) => (
           <p
             key={index}
             className="text-sm font-semibold"
@@ -40,8 +46,7 @@ const CustomAreaTooltip = ({ active, payload, label }: any) => {
 };
 
 interface PortfolioHistoryChartProps {
-  // eslint-disable-next-line @typescript-eslint/no-explicit-any
-  filteredHistory: Record<string, any>[];
+  filteredHistory: Record<string, string | number>[];
 }
 
 export default function PortfolioHistoryChart({
