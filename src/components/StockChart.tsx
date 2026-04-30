@@ -425,7 +425,7 @@ export default function StockChart({ ticker, name, onClose }: StockChartProps) {
         <>
           {/* ── Area chart ── */}
           <div className="px-4 py-4" style={{ height: 280 }}>
-            <ResponsiveContainer width="100%" height="100%">
+            <ResponsiveContainer width="99%" height="99%" debounce={50}>
               <AreaChart
                 data={enrichedData}
                 margin={{ top: 10, right: 10, left: 0, bottom: 0 }}
@@ -725,7 +725,7 @@ export default function StockChart({ ticker, name, onClose }: StockChartProps) {
                     RSI (14)
                   </p>
                   <div style={{ height: 120 }}>
-                    <ResponsiveContainer width="100%" height="100%">
+                    <ResponsiveContainer width="99%" height="99%" debounce={50}>
                       <LineChart
                         data={enrichedData}
                         margin={{ top: 5, right: 10, left: 0, bottom: 0 }}
@@ -790,7 +790,7 @@ export default function StockChart({ ticker, name, onClose }: StockChartProps) {
                     MACD (12/26/9)
                   </p>
                   <div style={{ height: 120 }}>
-                    <ResponsiveContainer width="100%" height="100%">
+                    <ResponsiveContainer width="99%" height="99%" debounce={50}>
                       <BarChart
                         data={enrichedData}
                         margin={{ top: 5, right: 10, left: 0, bottom: 0 }}

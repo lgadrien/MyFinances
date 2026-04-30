@@ -93,31 +93,31 @@ export default function PortfolioPage() {
       </div>
 
       {/* Summary Cards */}
-      <div className="grid gap-6 sm:grid-cols-3">
-        <div className="rounded-2xl border border-zinc-800 bg-zinc-900/50 p-6 backdrop-blur">
-          <p className="text-sm font-medium text-zinc-400">Valeur Totale</p>
-          <p className="mt-2 text-3xl font-bold text-white">
+      <div className="grid grid-cols-2 gap-3 sm:gap-6 sm:grid-cols-3">
+        <div className="rounded-2xl border border-zinc-800 bg-zinc-900/50 p-4 sm:p-6 backdrop-blur">
+          <p className="text-xs sm:text-sm font-medium text-zinc-400">Valeur Totale</p>
+          <p className="mt-1 sm:mt-2 text-xl sm:text-3xl font-bold text-white">
             {loading ? "..." : formatEUR(totalValue)}
           </p>
         </div>
-        <div className="rounded-2xl border border-zinc-800 bg-zinc-900/50 p-6 backdrop-blur">
-          <p className="text-sm font-medium text-zinc-400">Investissement</p>
-          <p className="mt-2 text-3xl font-bold text-zinc-200">
+        <div className="rounded-2xl border border-zinc-800 bg-zinc-900/50 p-4 sm:p-6 backdrop-blur">
+          <p className="text-xs sm:text-sm font-medium text-zinc-400">Investissement</p>
+          <p className="mt-1 sm:mt-2 text-xl sm:text-3xl font-bold text-zinc-200">
             {loading ? "..." : formatEUR(totalInvested)}
           </p>
         </div>
-        <div className="rounded-2xl border border-zinc-800 bg-zinc-900/50 p-6 backdrop-blur">
-          <p className="text-sm font-medium text-zinc-400">Plus/Moins-Value</p>
-          <div className="mt-2 flex items-baseline gap-2">
+        <div className="col-span-2 sm:col-span-1 rounded-2xl border border-zinc-800 bg-zinc-900/50 p-4 sm:p-6 backdrop-blur">
+          <p className="text-xs sm:text-sm font-medium text-zinc-400">Plus/Moins-Value</p>
+          <div className="mt-1 sm:mt-2 flex items-baseline gap-2">
             <p
-              className={`text-3xl font-bold ${
+              className={`text-2xl sm:text-3xl font-bold ${
                 totalPV >= 0 ? "text-emerald-400" : "text-rose-400"
               }`}
             >
               {loading ? "..." : (totalPV > 0 ? "+" : "") + formatEUR(totalPV)}
             </p>
             <span
-              className={`text-sm font-medium ${
+              className={`text-xs sm:text-sm font-medium ${
                 totalPerformance >= 0 ? "text-emerald-500" : "text-rose-500"
               }`}
             >

@@ -8,6 +8,7 @@ import {
   ArrowLeftRight,
   Wallet,
   Briefcase,
+  ChevronLeft,
 } from "lucide-react";
 
 const navItems = [
@@ -20,26 +21,54 @@ const navItems = [
 interface SidebarProps {
   className?: string;
   onNavigate?: () => void;
+  isCollapsed?: boolean;
+  onToggle?: () => void;
 }
 
-export default function Sidebar({ className = "", onNavigate }: SidebarProps) {
+export default function Sidebar({
+  className = "",
+  onNavigate,
+  isCollapsed = false,
+  onToggle,
+}: SidebarProps) {
   const pathname = usePathname();
 
   return (
     <aside
-      className={`flex h-screen w-64 flex-col border-r border-zinc-800 bg-black backdrop-blur-xl ${className}`}
+      className={`flex h-screen flex-col border-r border-zinc-800 bg-black backdrop-blur-xl transition-all duration-300 ${
+        isCollapsed ? "w-20" : "w-64"
+      } ${className}`}
     >
+      {/* Toggle Button */}
+      {onToggle && (
+        <button
+          onClick={onToggle}
+          className="absolute -right-3 top-6 z-50 flex h-6 w-6 items-center justify-center rounded-full border border-zinc-700 bg-zinc-900 text-zinc-400 transition-colors hover:text-white"
+        >
+          <ChevronLeft
+            className={`h-4 w-4 transition-transform duration-300 ${
+              isCollapsed ? "rotate-180" : ""
+            }`}
+          />
+        </button>
+      )}
       {/* Logo */}
-      <div className="flex h-16 items-center gap-3 border-b border-zinc-800 px-6">
-        <div className="flex h-9 w-9 items-center justify-center rounded-lg bg-gradient-to-br from-violet-600 to-fuchsia-600 shadow-lg shadow-violet-500/20">
+      <div
+        className={`flex h-16 items-center border-b border-zinc-800 transition-all duration-300 ${
+          isCollapsed ? "justify-center px-0" : "gap-3 px-6"
+        }`}
+      >
+        <div className="flex h-9 w-9 shrink-0 items-center justify-center rounded-lg bg-gradient-to-br from-violet-600 to-fuchsia-600 shadow-lg shadow-violet-500/20">
           <Wallet className="h-5 w-5 text-white" />
         </div>
-        <div>
-          <h1 className="text-lg font-bold text-white">MyFinances</h1>
-          <p className="bg-gradient-to-r from-violet-400 to-fuchsia-400 bg-clip-text text-[10px] font-medium uppercase tracking-widest text-transparent">
-            PEA Tracker
-          </p>
-        </div>
+        {!isCollapsed && (
+          <div className="overflow-hidden whitespace-nowrap transition-all duration-300">
+            <h1 className="text-lg font-bold text-white">MyFinances</h1>
+            <p className="bg-gradient-to-r from-violet-400 to-fuchsia-400 bg-clip-text text-[10px] font-medium uppercase tracking-widest text-transparent">
+              PEA Tracker
+            </p>
+          </div>
+        )}
       </div>
 
       {/* Navigation */}
@@ -51,37 +80,37 @@ export default function Sidebar({ className = "", onNavigate }: SidebarProps) {
               key={item.href}
               href={item.href}
               onClick={onNavigate}
-              className={`group flex items-center gap-3 rounded-xl px-4 py-3 text-sm font-medium transition-all duration-200 ${
+              className={`group flex items-center rounded-xl py-3 text-sm font-medium transition-all duration-200 ${
+                isCollapsed ? "justify-center px-0 mx-2" : "gap-3 px-4"
+              } ${
                 isActive
                   ? "bg-violet-500/10 text-violet-400 shadow-sm shadow-violet-500/5 ring-1 ring-violet-500/20"
                   : "text-zinc-500 hover:bg-zinc-900 hover:text-zinc-200"
               }`}
+              title={isCollapsed ? item.label : undefined}
             >
               <item.icon
-                className={`h-5 w-5 transition-colors ${
+                className={`shrink-0 transition-colors ${
+                  isCollapsed ? "h-6 w-6" : "h-5 w-5"
+                } ${
                   isActive
                     ? "text-violet-400"
                     : "text-zinc-500 group-hover:text-zinc-300"
                 }`}
               />
-              {item.label}
-              {isActive && (
-                <span className="ml-auto h-1.5 w-1.5 rounded-full bg-violet-400 shadow-sm shadow-violet-400/50" />
+              {!isCollapsed && (
+                <>
+                  <span className="whitespace-nowrap">{item.label}</span>
+                  {isActive && (
+                    <span className="ml-auto h-1.5 w-1.5 shrink-0 rounded-full bg-violet-400 shadow-sm shadow-violet-400/50" />
+                  )}
+                </>
               )}
             </Link>
           );
         })}
       </nav>
 
-      {/* Footer */}
-      <div className="border-t border-zinc-800 p-4">
-        <div className="rounded-xl border border-zinc-800 bg-gradient-to-br from-zinc-900/50 to-black p-4">
-          <p className="text-xs font-medium text-zinc-400">Portefeuille PEA</p>
-          <p className="mt-1 text-[10px] text-zinc-600">
-            Données via Yahoo Finance
-          </p>
-        </div>
-      </div>
     </aside>
   );
 }

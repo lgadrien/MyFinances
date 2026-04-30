@@ -1,5 +1,6 @@
 "use client";
 
+import { useState } from "react";
 import { usePathname } from "next/navigation";
 import Sidebar from "./Sidebar";
 import BottomNav from "./BottomNav";
@@ -11,14 +12,17 @@ export default function ResponsiveLayout({
 }) {
   const pathname = usePathname();
   const isLoginPage = pathname === "/login";
+  const [isCollapsed, setIsCollapsed] = useState(false);
 
   return (
     <div className="min-h-screen bg-black text-zinc-50">
       {/* Desktop Sidebar */}
       {!isLoginPage && (
-        <div className="hidden md:block">
-          <Sidebar className="fixed left-0 top-0 z-40" />
-        </div>
+        <Sidebar
+          className="fixed left-0 top-0 z-40 hidden md:flex"
+          isCollapsed={isCollapsed}
+          onToggle={() => setIsCollapsed(!isCollapsed)}
+        />
       )}
 
       {/* Mobile Header (Branding only) */}
@@ -40,7 +44,9 @@ export default function ResponsiveLayout({
         className={
           isLoginPage
             ? ""
-            : "min-h-screen p-4 pb-24 transition-all md:ml-64 md:p-8 md:pb-8"
+            : `min-h-screen p-4 pb-24 transition-all duration-300 md:p-8 md:pb-8 ${
+                isCollapsed ? "md:ml-20" : "md:ml-64"
+              }`
         }
       >
         {children}

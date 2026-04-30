@@ -18,7 +18,7 @@ export default function DashboardDividendChart({
   dividendHistory,
 }: DashboardDividendChartProps) {
   return (
-    <ResponsiveContainer width="100%" height="100%">
+    <ResponsiveContainer width="99%" height="99%" debounce={50}>
       <BarChart data={dividendHistory}>
         <XAxis
           dataKey="month"

@@ -40,7 +40,7 @@ export default function BenchmarkChart() {
       </div>
 
       <div className="h-80">
-        <ResponsiveContainer width="100%" height="100%">
+        <ResponsiveContainer width="99%" height="99%" debounce={50}>
           <LineChart data={DUMMY_BENCHMARK_DATA}>
             <XAxis
               dataKey="month"

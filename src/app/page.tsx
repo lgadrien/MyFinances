@@ -195,7 +195,7 @@ export default function DashboardPage() {
       )}
 
       {/* ── Stats Cards (avec countUp + stagger) ─────────────────── */}
-      <div className="grid grid-cols-1 gap-4 sm:grid-cols-2 xl:grid-cols-4">
+      <div className="grid grid-cols-2 gap-3 sm:gap-4 xl:grid-cols-4">
         <StatsCard
           label="Total Investi"
           rawValue={totalInvested}
@@ -214,26 +214,28 @@ export default function DashboardPage() {
           accentColor="fuchsia"
           index={1}
         />
-        <StatsCard
-          label="Plus-Value"
-          rawValue={totalPlusValue}
-          value={formatEUR(totalPlusValue)}
-          formatValue={formatEUR}
-          icon={TrendingUp}
-          trend={{
-            value:
-              totalInvested > 0
-                ? `${((totalPlusValue / totalInvested) * 100).toFixed(1)}%`
-                : "0%",
-            positive: totalPlusValue >= 0,
-          }}
-          accentColor={totalPlusValue >= 0 ? "emerald" : "amber"}
-          index={2}
-        />
+        <div className="col-span-2 sm:col-span-1">
+          <StatsCard
+            label="Plus-Value"
+            rawValue={totalPlusValue}
+            value={formatEUR(totalPlusValue)}
+            formatValue={formatEUR}
+            icon={TrendingUp}
+            trend={{
+              value:
+                totalInvested > 0
+                  ? `${((totalPlusValue / totalInvested) * 100).toFixed(1)}%`
+                  : "0%",
+              positive: totalPlusValue >= 0,
+            }}
+            accentColor={totalPlusValue >= 0 ? "emerald" : "amber"}
+            index={2}
+          />
+        </div>
 
         {/* Capital Total — carte custom avec progress bar animée */}
         <div
-          className="group relative overflow-hidden rounded-2xl border border-zinc-800/80 bg-gradient-to-br from-violet-500/10 to-violet-600/5 p-5 backdrop-blur-sm transition-all duration-300 hover:-translate-y-0.5 hover:border-zinc-700/60 hover:shadow-xl hover:shadow-violet-500/10"
+          className="col-span-2 xl:col-span-1 group relative overflow-hidden rounded-2xl border border-zinc-800/80 bg-gradient-to-br from-violet-500/10 to-violet-600/5 p-5 backdrop-blur-sm transition-all duration-300 hover:-translate-y-0.5 hover:border-zinc-700/60 hover:shadow-xl hover:shadow-violet-500/10"
           style={{
             animationDelay: "240ms",
             animation: "statsCardIn 0.5s cubic-bezier(0.16, 1, 0.3, 1) both",
@@ -383,12 +385,14 @@ export default function DashboardPage() {
         </div>
       </div>
 
-      {/* ── Tableau Positions avec Sparklines ─────────────────────── */}
-      <div className="rounded-2xl border border-zinc-800 bg-gradient-to-br from-zinc-900/60 to-black p-6 backdrop-blur-sm">
+      {/* ── Positions du Portefeuille ─────────────────────────────── */}
+      <div className="rounded-2xl border border-zinc-800 bg-gradient-to-br from-zinc-900/60 to-black p-4 sm:p-6 backdrop-blur-sm">
         <h2 className="mb-4 text-lg font-bold text-white">
           Positions du Portefeuille
         </h2>
-        <div className="overflow-x-auto">
+        
+        {/* Vue Desktop : Tableau */}
+        <div className="hidden overflow-x-auto md:block">
           <table className="w-full text-sm">
             <thead>
               <tr className="border-b border-zinc-800">
@@ -469,6 +473,67 @@ export default function DashboardPage() {
               })}
             </tbody>
           </table>
+        </div>
+
+        {/* Vue Mobile : Cartes */}
+        <div className="grid gap-4 md:hidden">
+          {positions.map((pos) => {
+            const isPositive = (pos.plusValue || 0) >= 0;
+            return (
+              <div
+                key={pos.ticker}
+                className="rounded-xl border border-zinc-800/60 bg-zinc-900/40 p-4 transition-all hover:bg-zinc-800/40"
+              >
+                <div className="mb-3 flex items-start justify-between">
+                  <div>
+                    <p className="font-bold text-white">{pos.name}</p>
+                    <p className="text-xs text-zinc-500">{pos.ticker}</p>
+                  </div>
+                  <div className="text-right">
+                    <p className="font-bold text-white">
+                      {formatEUR(pos.capitalValue || 0)}
+                    </p>
+                    <p
+                      className={`text-sm font-semibold ${
+                        isPositive ? "text-emerald-400" : "text-rose-400"
+                      }`}
+                    >
+                      {isPositive ? "+" : ""}
+                      {formatEUR(pos.plusValue || 0)}
+                    </p>
+                  </div>
+                </div>
+                
+                <div className="mb-3 grid grid-cols-2 gap-2 rounded-lg bg-black/40 p-3 text-xs">
+                  <div>
+                    <span className="block text-zinc-500">Qté</span>
+                    <span className="font-medium text-zinc-200">{pos.totalQuantity}</span>
+                  </div>
+                  <div>
+                    <span className="block text-zinc-500">PRU</span>
+                    <span className="font-medium text-zinc-200">{formatPrice(pos.pru)}</span>
+                  </div>
+                  <div>
+                    <span className="block text-zinc-500">Prix Actuel</span>
+                    <span className="font-medium text-zinc-200">
+                      {pos.currentPrice ? formatPrice(pos.currentPrice) : "—"}
+                    </span>
+                  </div>
+                  <div>
+                    <span className="block text-zinc-500">Investi</span>
+                    <span className="font-medium text-zinc-200">{formatEUR(pos.totalInvested)}</span>
+                  </div>
+                </div>
+                
+                <div className="flex h-10 w-full items-center justify-center rounded-lg bg-zinc-900/80">
+                  <PositionSparklineCell
+                    ticker={pos.ticker}
+                    isPositive={isPositive}
+                  />
+                </div>
+              </div>
+            );
+          })}
         </div>
       </div>
     </div>
