@@ -4,6 +4,7 @@ import { useState } from "react";
 import { usePathname } from "next/navigation";
 import Sidebar from "./Sidebar";
 import BottomNav from "./BottomNav";
+import GlobalSettingsToggles from "./GlobalSettingsToggles";
 
 export default function ResponsiveLayout({
   children,
@@ -25,10 +26,11 @@ export default function ResponsiveLayout({
         />
       )}
 
-      {/* Mobile Header (Branding only) */}
+      {/* Mobile Header */}
       {!isLoginPage && (
-        <div className="sticky top-0 z-30 flex h-16 items-center justify-center border-b border-zinc-800 bg-black/80 px-4 backdrop-blur-md md:hidden">
+        <div className="sticky top-0 z-30 flex h-16 items-center justify-between border-b border-zinc-800 bg-black/80 px-4 backdrop-blur-md md:hidden">
           <span className="text-lg font-bold text-white">MyFinances</span>
+          <GlobalSettingsToggles horizontal />
         </div>
       )}
 

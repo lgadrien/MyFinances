@@ -16,10 +16,12 @@ import PositionSparklineCell from "@/components/ui/PositionSparklineCell";
 import { StatsCardSkeleton, ChartSkeleton } from "@/components/ui/Skeleton";
 import { usePortfolio } from "@/hooks/usePortfolio";
 import { formatEUR, formatPercent } from "@/lib/utils";
+import { useSettingsStore } from "@/stores/useSettingsStore";
 
 
 
 export default function PortfolioPage() {
+  useSettingsStore();
   const {
     positions,
     filteredHistory,

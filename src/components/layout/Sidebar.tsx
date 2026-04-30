@@ -10,6 +10,7 @@ import {
   Briefcase,
   ChevronLeft,
 } from "lucide-react";
+import GlobalSettingsToggles from "./GlobalSettingsToggles";
 
 const navItems = [
   { href: "/", label: "Dashboard", icon: LayoutDashboard },
@@ -111,6 +112,7 @@ export default function Sidebar({
         })}
       </nav>
 
+      <GlobalSettingsToggles isCollapsed={isCollapsed} />
     </aside>
   );
 }

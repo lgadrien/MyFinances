@@ -29,10 +29,13 @@ interface SearchResult {
   exchDisp: string;
 }
 
+import { useSettingsStore } from "@/stores/useSettingsStore";
+
 // Allowed transaction types — defined at module level to avoid re-creation on each render
 const VALID_TYPES = new Set(["Achat", "Vente", "Dividende"]);
 
 export default function TransactionsPage() {
+  useSettingsStore();
   const { transactions, isLoading: loading, addTransaction, updateTransaction, deleteTransaction } = useTransactions();
   const [isModalOpen, setIsModalOpen] = useState(false);
   const [filterType, setFilterType] = useState<string>("all");

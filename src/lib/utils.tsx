@@ -7,21 +7,37 @@
 
 // ─── Formatters monnaie / pourcentage ────────────────────────────────────────
 
-/** Formate un nombre en euros (ex: 1 234,56 €) */
-export const formatEUR = (n: number): string =>
-  new Intl.NumberFormat("fr-FR", {
-    style: "currency",
-    currency: "EUR",
-    minimumFractionDigits: 2,
-    maximumFractionDigits: 2,
-  }).format(n);
+import { useSettingsStore } from "@/stores/useSettingsStore";
 
-/** Formate un prix sans le symbole €, avec 2 décimales (ex: 1 234,56 €) */
-export const formatPrice = (n: number): string =>
-  new Intl.NumberFormat("fr-FR", {
+/** Formate un nombre avec devise et gère le mode Privacy */
+export const formatEUR = (n: number): string => {
+  const { privacyMode, currency } = useSettingsStore.getState();
+  if (privacyMode) return "****";
+
+  const rate = currency === "USD" ? 1.08 : 1; // Taux fixe simple pour la démo
+  const val = n * rate;
+
+  return new Intl.NumberFormat(currency === "USD" ? "en-US" : "fr-FR", {
+    style: "currency",
+    currency: currency === "USD" ? "USD" : "EUR",
     minimumFractionDigits: 2,
     maximumFractionDigits: 2,
-  }).format(n) + " €";
+  }).format(val);
+};
+
+/** Formate un prix (ex: 1 234,56 €) */
+export const formatPrice = (n: number): string => {
+  const { privacyMode, currency } = useSettingsStore.getState();
+  if (privacyMode) return "****";
+
+  const rate = currency === "USD" ? 1.08 : 1;
+  const val = n * rate;
+
+  return new Intl.NumberFormat(currency === "USD" ? "en-US" : "fr-FR", {
+    minimumFractionDigits: 2,
+    maximumFractionDigits: 2,
+  }).format(val) + (currency === "USD" ? " $" : " €");
+};
 
 /** Formate un ratio en pourcentage (ex: 12,34 %) */
 export const formatPercent = (n: number): string =>
@@ -30,6 +46,21 @@ export const formatPercent = (n: number): string =>
     minimumFractionDigits: 2,
     maximumFractionDigits: 2,
   }).format(n);
+
+/** Helper pour extraire la géographie d'un ticker */
+export const getGeography = (ticker: string): string => {
+  if (ticker.endsWith(".PA")) return "France";
+  if (ticker.endsWith(".AS")) return "Pays-Bas";
+  if (ticker.endsWith(".DE")) return "Allemagne";
+  if (ticker.endsWith(".MI")) return "Italie";
+  if (ticker.endsWith(".MC")) return "Espagne";
+  if (ticker.endsWith(".BR")) return "Belgique";
+  if (ticker.endsWith(".LS")) return "Portugal";
+  if (ticker.endsWith(".HE")) return "Finlande";
+  if (ticker.endsWith(".L")) return "Royaume-Uni";
+  if (!ticker.includes(".")) return "États-Unis"; // AAPL, MSFT...
+  return "Autre";
+};
 
 // ─── Couleurs des graphiques ─────────────────────────────────────────────────
 

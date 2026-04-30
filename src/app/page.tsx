@@ -20,14 +20,17 @@ import AnimatedDonut from "@/components/ui/AnimatedDonut";
 import PositionSparklineCell from "@/components/ui/PositionSparklineCell";
 import { useDashboard } from "@/hooks/useDashboard";
 import { useCountUp } from "@/hooks/useCountUp";
-import { formatEUR, formatPrice } from "@/lib/utils";
+import { formatEUR, formatPrice, getGeography } from "@/lib/utils";
 
 const DashboardDividendChart = dynamic(
   () => import("@/components/DashboardDividendChart"),
   { ssr: false, loading: () => <ChartSkeleton height={288} /> },
 );
 
+import { useSettingsStore } from "@/stores/useSettingsStore";
+
 export default function DashboardPage() {
+  useSettingsStore();
   const {
     positions,
     dividendHistory,
@@ -66,18 +69,48 @@ export default function DashboardPage() {
     );
   }, [positions]);
 
+  const [donutView, setDonutView] = React.useState<"Actions" | "Secteurs" | "Géographie">("Actions");
+
   const donutData = React.useMemo(() => {
-    return positions
-      .filter((p) => p.capitalValue && p.capitalValue > 0)
-      .map((p) => ({
-        name: p.name,
-        value: Math.round(p.capitalValue || 0),
-        percent:
-          totalDonutValue > 0
-            ? Math.round(p.capitalValue || 0) / totalDonutValue
-            : 0,
-      }));
-  }, [positions, totalDonutValue]);
+    if (donutView === "Actions") {
+      return positions
+        .filter((p) => p.capitalValue && p.capitalValue > 0)
+        .map((p) => ({
+          name: p.name || p.ticker,
+          value: Math.round(p.capitalValue || 0),
+          percent: totalDonutValue > 0 ? Math.round(p.capitalValue || 0) / totalDonutValue : 0,
+        }))
+        .sort((a, b) => b.value - a.value);
+    } else if (donutView === "Secteurs") {
+      const map = new Map<string, number>();
+      for (const p of positions) {
+        if (!p.capitalValue || p.capitalValue <= 0) continue;
+        const sector = p.sector || "Autre";
+        map.set(sector, (map.get(sector) || 0) + p.capitalValue);
+      }
+      return Array.from(map.entries())
+        .map(([name, value]) => ({
+          name,
+          value: Math.round(value),
+          percent: totalDonutValue > 0 ? Math.round(value) / totalDonutValue : 0,
+        }))
+        .sort((a, b) => b.value - a.value);
+    } else {
+      const map = new Map<string, number>();
+      for (const p of positions) {
+        if (!p.capitalValue || p.capitalValue <= 0) continue;
+        const geo = getGeography(p.ticker);
+        map.set(geo, (map.get(geo) || 0) + p.capitalValue);
+      }
+      return Array.from(map.entries())
+        .map(([name, value]) => ({
+          name,
+          value: Math.round(value),
+          percent: totalDonutValue > 0 ? Math.round(value) / totalDonutValue : 0,
+        }))
+        .sort((a, b) => b.value - a.value);
+    }
+  }, [positions, totalDonutValue, donutView]);
 
   // ── Loading state avec skeletons premium ────────────────────────
   if (loading) {
@@ -279,11 +312,29 @@ export default function DashboardPage() {
       <div className="grid grid-cols-1 gap-6 xl:grid-cols-2">
         {/* AnimatedDonut — Répartition Capital */}
         <div className="rounded-2xl border border-zinc-800 bg-gradient-to-br from-zinc-900/60 to-black p-6 backdrop-blur-sm">
-          <div className="mb-2 flex items-center gap-2">
-            <Sparkles className="h-4 w-4 text-violet-400" />
-            <h2 className="text-lg font-bold text-white">
-              Répartition du Capital
-            </h2>
+          <div className="mb-4 flex flex-col justify-between gap-4 sm:flex-row sm:items-center">
+            <div className="flex items-center gap-2">
+              <Sparkles className="h-4 w-4 text-violet-400" />
+              <h2 className="text-lg font-bold text-white">
+                Répartition du Capital
+              </h2>
+            </div>
+            
+            <div className="flex rounded-lg bg-zinc-800/50 p-1">
+              {(["Actions", "Secteurs", "Géographie"] as const).map((view) => (
+                <button
+                  key={view}
+                  onClick={() => setDonutView(view)}
+                  className={`rounded-md px-3 py-1 text-xs font-medium transition-all ${
+                    donutView === view
+                      ? "bg-zinc-700 text-white shadow-sm"
+                      : "text-zinc-400 hover:text-zinc-200"
+                  }`}
+                >
+                  {view}
+                </button>
+              ))}
+            </div>
           </div>
           <AnimatedDonut
             data={donutData}

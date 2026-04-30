@@ -52,10 +52,13 @@ function getTrendSignalFromChange(changePercent: number): TrendSignal {
   return "NEUTRAL";
 }
 
+import { useSettingsStore } from "@/stores/useSettingsStore";
+
 type SortKey = "name" | "sector" | "price" | "changePercent";
 type SortDir = "asc" | "desc" | null;
 
 export default function MarchePage() {
+  useSettingsStore();
   const queryClient = useQueryClient();
   const [search, setSearch] = useState("");
   const [categoryFilter, setCategoryFilter] = useState<"Tous" | MarketCategory>(
