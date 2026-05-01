@@ -134,157 +134,165 @@ export default function StockChart({ ticker, name, onClose }: StockChartProps) {
   const signalCfg = trendScore ? SIGNAL_CONFIG[trendScore.signal] : null;
 
   return (
-    <div
-      className="relative flex w-full max-w-4xl flex-col overflow-hidden rounded-2xl border border-zinc-800 bg-zinc-900 shadow-2xl"
-      onClick={(e) => e.stopPropagation()}
-    >
-      <StockChartHeader
-        ticker={ticker}
-        name={name}
-        displayPoint={displayPoint}
-        isPositive={isPositive}
-        periodChange={periodChange}
-        periodChangePercent={periodChangePercent}
-        signal={trendScore?.signal ?? null}
-        onClose={onClose}
+    <div className="fixed inset-0 z-50 flex items-center justify-center p-4 sm:p-6">
+      <div
+        className="absolute inset-0 bg-black/80 backdrop-blur-sm"
+        onClick={onClose}
       />
+      <div
+        className="relative flex w-full max-w-4xl max-h-[90vh] flex-col overflow-hidden rounded-2xl border border-zinc-800 bg-zinc-900 shadow-2xl"
+        onClick={(e) => e.stopPropagation()}
+      >
+        <StockChartHeader
+          ticker={ticker}
+          name={name}
+          displayPoint={displayPoint}
+          isPositive={isPositive}
+          periodChange={periodChange}
+          periodChangePercent={periodChangePercent}
+          signal={trendScore?.signal ?? null}
+          onClose={onClose}
+        />
 
-      {/* ── Tabs ── */}
-      <div className="flex items-center gap-1 border-b border-zinc-800/30 px-6 py-2">
-        <button
-          onClick={() => setActiveTab("chart")}
-          className={`rounded-lg px-3 py-1.5 text-xs font-semibold transition-all ${
-            activeTab === "chart"
-              ? "bg-zinc-700/60 text-white"
-              : "text-zinc-500 hover:text-zinc-300"
-          }`}
-        >
-          Graphique
-        </button>
-        <button
-          onClick={() => setActiveTab("indicators")}
-          className={`flex items-center gap-1.5 rounded-lg px-3 py-1.5 text-xs font-semibold transition-all ${
-            activeTab === "indicators"
-              ? "bg-violet-500/15 text-violet-400"
-              : "text-zinc-500 hover:text-zinc-300"
-          }`}
-        >
-          <Activity className="h-3 w-3" />
-          Analyse technique
-        </button>
+        {/* ── Tabs ── */}
+        <div className="flex items-center gap-1 border-b border-zinc-800/30 px-6 py-2">
+          <button
+            onClick={() => setActiveTab("chart")}
+            className={`rounded-lg px-3 py-1.5 text-xs font-semibold transition-all ${
+              activeTab === "chart"
+                ? "bg-zinc-700/60 text-white"
+                : "text-zinc-500 hover:text-zinc-300"
+            }`}
+          >
+            Graphique
+          </button>
+          <button
+            onClick={() => setActiveTab("indicators")}
+            className={`flex items-center gap-1.5 rounded-lg px-3 py-1.5 text-xs font-semibold transition-all ${
+              activeTab === "indicators"
+                ? "bg-violet-500/15 text-violet-400"
+                : "text-zinc-500 hover:text-zinc-300"
+            }`}
+          >
+            <Activity className="h-3 w-3" />
+            Analyse technique
+          </button>
 
-        {/* Spacer + Period selector (chart tab only) */}
-        {activeTab === "chart" && (
-          <div className="ml-auto flex items-center gap-1">
-            {TIME_PERIODS.map((period) => (
-              <button
-                key={period.interval}
-                onClick={() => handlePeriodChange(period.interval)}
-                className={`rounded-lg px-3.5 py-1.5 text-xs font-semibold transition-all ${
-                  activeInterval === period.interval
-                    ? isPositive
-                      ? "bg-emerald-500/15 text-emerald-400 ring-1 ring-emerald-500/30"
-                      : "bg-red-500/15 text-red-400 ring-1 ring-red-500/30"
-                    : "text-zinc-500 hover:bg-zinc-800/50 hover:text-zinc-300"
-                }`}
-                title={period.description}
-              >
-                {period.label}
-              </button>
-            ))}
-          </div>
-        )}
+          {/* Spacer + Period selector (chart tab only) */}
+          {activeTab === "chart" && (
+            <div className="ml-auto flex items-center gap-1 overflow-x-auto hide-scrollbar">
+              {TIME_PERIODS.map((period) => (
+                <button
+                  key={period.interval}
+                  onClick={() => handlePeriodChange(period.interval)}
+                  className={`shrink-0 rounded-lg px-3.5 py-1.5 text-xs font-semibold transition-all ${
+                    activeInterval === period.interval
+                      ? isPositive
+                        ? "bg-emerald-500/15 text-emerald-400 ring-1 ring-emerald-500/30"
+                        : "bg-red-500/15 text-red-400 ring-1 ring-red-500/30"
+                      : "text-zinc-500 hover:bg-zinc-800/50 hover:text-zinc-300"
+                  }`}
+                  title={period.description}
+                >
+                  {period.label}
+                </button>
+              ))}
+            </div>
+          )}
 
-        {/* OHLC info on hover */}
-        {activeTab === "chart" && crosshairData && (
-          <div className="ml-3 flex gap-3 text-xs text-zinc-500">
-            <span>
-              O{" "}
-              <span className="font-medium text-zinc-300">
-                {crosshairData.open.toFixed(2)}
-              </span>
-            </span>
-            <span>
-              H{" "}
-              <span className="font-medium text-emerald-400">
-                {crosshairData.high.toFixed(2)}
-              </span>
-            </span>
-            <span>
-              L{" "}
-              <span className="font-medium text-red-400">
-                {crosshairData.low.toFixed(2)}
-              </span>
-            </span>
-            <span>
-              C{" "}
-              <span className="font-medium text-zinc-200">
-                {crosshairData.close.toFixed(2)}
-              </span>
-            </span>
-          </div>
-        )}
-      </div>
-
-      {loading ? (
-        <div className="flex h-64 items-center justify-center">
-          <Loader2 className="h-8 w-8 animate-spin text-zinc-500" />
-        </div>
-      ) : data.length === 0 ? (
-        <div className="flex h-64 items-center justify-center text-sm text-zinc-500">
-          Aucune donnée disponible
-        </div>
-      ) : activeTab === "chart" ? (
-        <>
-          <MainPriceChart
-            data={enrichedData}
-            minPrice={minPrice}
-            maxPrice={maxPrice}
-            pricePadding={pricePadding}
-            avgPrice={avgPrice}
-            gradientId={gradientId}
-            gradientColor={gradientColor}
-            formatDateLabel={formatDateLabel}
-            setCrosshairData={setCrosshairData}
-          />
-
-          {/* Stats row */}
-          <div className="border-t border-zinc-800/30 px-6 py-3">
-            <div className="flex items-center justify-between text-xs text-zinc-500">
+          {/* OHLC info on hover */}
+          {activeTab === "chart" && crosshairData && (
+            <div className="ml-3 hidden md:flex gap-3 text-xs text-zinc-500">
               <span>
-                Min:{" "}
-                <span className="font-medium text-red-400">
-                  {minPrice.toFixed(2)} €
-                </span>
-              </span>
-              <span>
-                Moy:{" "}
+                O{" "}
                 <span className="font-medium text-zinc-300">
-                  {avgPrice.toFixed(2)} €
+                  {crosshairData.open.toFixed(2)}
                 </span>
               </span>
               <span>
-                Max:{" "}
+                H{" "}
                 <span className="font-medium text-emerald-400">
-                  {maxPrice.toFixed(2)} €
+                  {crosshairData.high.toFixed(2)}
                 </span>
               </span>
-              <span className="text-zinc-600">
-                {data.length} points ·{" "}
-                {TIME_PERIODS.find((p) => p.interval === activeInterval)
-                  ?.description || activeInterval}
+              <span>
+                L{" "}
+                <span className="font-medium text-red-400">
+                  {crosshairData.low.toFixed(2)}
+                </span>
+              </span>
+              <span>
+                C{" "}
+                <span className="font-medium text-zinc-200">
+                  {crosshairData.close.toFixed(2)}
+                </span>
               </span>
             </div>
-          </div>
-        </>
-      ) : (
-        <TechnicalAnalysisPanel
-          trendScore={trendScore}
-          enrichedData={enrichedData}
-          signalCfg={signalCfg}
-          formatDateLabel={formatDateLabel}
-        />
-      )}
+          )}
+        </div>
+
+        <div className="flex-1 overflow-y-auto overflow-x-hidden min-h-[300px]">
+          {loading ? (
+            <div className="flex h-64 items-center justify-center">
+              <Loader2 className="h-8 w-8 animate-spin text-zinc-500" />
+            </div>
+          ) : data.length === 0 ? (
+            <div className="flex h-64 items-center justify-center text-sm text-zinc-500">
+              Aucune donnée disponible
+            </div>
+          ) : activeTab === "chart" ? (
+            <>
+              <MainPriceChart
+                data={enrichedData}
+                minPrice={minPrice}
+                maxPrice={maxPrice}
+                pricePadding={pricePadding}
+                avgPrice={avgPrice}
+                gradientId={gradientId}
+                gradientColor={gradientColor}
+                formatDateLabel={formatDateLabel}
+                setCrosshairData={setCrosshairData}
+              />
+
+              {/* Stats row */}
+              <div className="border-t border-zinc-800/30 px-6 py-3">
+                <div className="flex items-center justify-between text-xs text-zinc-500">
+                  <span>
+                    Min:{" "}
+                    <span className="font-medium text-red-400">
+                      {minPrice.toFixed(2)} €
+                    </span>
+                  </span>
+                  <span className="hidden sm:inline">
+                    Moy:{" "}
+                    <span className="font-medium text-zinc-300">
+                      {avgPrice.toFixed(2)} €
+                    </span>
+                  </span>
+                  <span>
+                    Max:{" "}
+                    <span className="font-medium text-emerald-400">
+                      {maxPrice.toFixed(2)} €
+                    </span>
+                  </span>
+                  <span className="text-zinc-600 hidden md:inline">
+                    {data.length} points ·{" "}
+                    {TIME_PERIODS.find((p) => p.interval === activeInterval)
+                      ?.description || activeInterval}
+                  </span>
+                </div>
+              </div>
+            </>
+          ) : (
+            <TechnicalAnalysisPanel
+              trendScore={trendScore}
+              enrichedData={enrichedData}
+              signalCfg={signalCfg}
+              formatDateLabel={formatDateLabel}
+            />
+          )}
+        </div>
+      </div>
     </div>
   );
 }
