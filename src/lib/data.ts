@@ -16,13 +16,14 @@ function mapTransaction(t: unknown): Transaction {
 // ─── Settings ────────────────────────────────────────────────────────────────
 
 /** Fetch generic app settings (cash & target capital). */
-export async function fetchSettings(): Promise<{
+export async function fetchSettings(environment: string = "PEA"): Promise<{
   cash_balance: number;
   target_capital: number;
 } | null> {
   const { data, error } = await supabase
     .from("settings")
     .select("cash_balance, target_capital")
+    .eq("environment", environment)
     .limit(1)
     .single();
 
@@ -40,15 +41,25 @@ export async function fetchSettings(): Promise<{
 export async function updateSettings(
   cash_balance: number,
   target_capital: number,
+  environment: string = "PEA",
 ): Promise<boolean> {
   // First fetch the id (we need it to target the right row)
   const { data: row } = await supabase
     .from("settings")
     .select("id")
+    .eq("environment", environment)
     .limit(1)
     .single();
 
-  if (!row) return false;
+  if (!row) {
+    // Insert if doesn't exist for this env
+    const { error } = await supabase.from("settings").insert({
+      cash_balance,
+      target_capital,
+      environment,
+    });
+    return !error;
+  }
 
   const { error } = await supabase
     .from("settings")
@@ -109,12 +120,13 @@ export async function removeFavorite(ticker: string): Promise<boolean> {
 // ─── Transactions ─────────────────────────────────────────────────────────────
 
 /** Fetch all transactions from Supabase, sorted by date desc. */
-export async function fetchTransactions(): Promise<Transaction[]> {
+export async function fetchTransactions(environment: string = "PEA"): Promise<Transaction[]> {
   const { data, error } = await supabase
     .from("transactions")
     .select(
       "id, ticker, type, date, quantity, unit_price, total_amount, fees, created_at",
     )
+    .eq("environment", environment)
     .order("date", { ascending: false });
 
   if (error) {
@@ -154,6 +166,7 @@ export async function insertTransaction(tx: {
   unit_price: number;
   total_amount: number;
   fees: number;
+  environment?: string;
 }): Promise<Transaction | null> {
   const validationError = validateTransactionPayload(tx);
   if (validationError) {
@@ -163,7 +176,7 @@ export async function insertTransaction(tx: {
 
   const { data, error } = await supabase
     .from("transactions")
-    .insert({ ...tx, ticker: tx.ticker.trim().toUpperCase() })
+    .insert({ ...tx, ticker: tx.ticker.trim().toUpperCase(), environment: tx.environment || "PEA" })
     .select()
     .single();
 

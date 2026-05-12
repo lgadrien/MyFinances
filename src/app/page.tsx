@@ -27,14 +27,20 @@ const DashboardDividendChart = dynamic(
   { ssr: false, loading: () => <ChartSkeleton height={288} /> },
 );
 
+const PortfolioHistoryChart = dynamic(
+  () => import("@/components/PortfolioHistoryChart"),
+  { ssr: false, loading: () => <ChartSkeleton height={288} /> },
+);
+
 import { useSettingsStore } from "@/stores/useSettingsStore";
 
 export default function DashboardPage() {
-  useSettingsStore();
+  const environment = useSettingsStore((s) => s.environment);
   const {
     positions,
     dividendHistory,
     projectedDividends,
+    portfolioHistory,
     totalInvested,
     totalDividends,
     totalPlusValue,
@@ -165,7 +171,7 @@ export default function DashboardPage() {
             Dashboard
           </h1>
           <p className="mt-1 text-sm text-zinc-400">
-            Vue d&apos;ensemble de votre portefeuille PEA
+            Vue d&apos;ensemble de votre portefeuille {environment}
           </p>
         </div>
         <button
@@ -344,61 +350,74 @@ export default function DashboardPage() {
           />
         </div>
 
-        {/* Bar Chart — Historique Dividendes */}
-        <div className="rounded-2xl border border-zinc-800 bg-gradient-to-br from-zinc-900/60 to-black p-6 backdrop-blur-sm">
-          <h2 className="mb-4 text-lg font-bold text-white">
-            Historique des Dividendes
-          </h2>
-          <div className="h-[288px]">
-            <DashboardDividendChart dividendHistory={dividendHistory} />
+        {/* Conditional Chart: Dividendes (PEA) ou Evolution (BINANCE) */}
+        {environment === "BINANCE" ? (
+          <div className="rounded-2xl border border-zinc-800 bg-gradient-to-br from-zinc-900/60 to-black p-6 backdrop-blur-sm">
+            <h2 className="mb-4 text-lg font-bold text-white">
+              Évolution du Capital
+            </h2>
+            <div className="h-[288px]">
+              <PortfolioHistoryChart filteredHistory={portfolioHistory} />
+            </div>
           </div>
-        </div>
+        ) : (
+          <div className="rounded-2xl border border-zinc-800 bg-gradient-to-br from-zinc-900/60 to-black p-6 backdrop-blur-sm">
+            <h2 className="mb-4 text-lg font-bold text-white">
+              Historique des Dividendes
+            </h2>
+            <div className="h-[288px]">
+              <DashboardDividendChart dividendHistory={dividendHistory} />
+            </div>
+          </div>
+        )}
       </div>
 
       {/* ── Projections & Liquidités ─────────────────────────────── */}
-      <div className="grid grid-cols-1 gap-6 lg:grid-cols-2">
-        {/* Prévisions Dividendes */}
-        <div className="rounded-2xl border border-zinc-800 bg-gradient-to-br from-zinc-900/60 to-black p-6 backdrop-blur-sm">
-          <div className="mb-4 flex items-center justify-between">
-            <div className="flex items-center gap-2">
-              <CalendarDays className="h-5 w-5 text-violet-400" />
-              <h2 className="text-lg font-bold text-white">
-                Prévisions Dividendes
-              </h2>
+      <div className={`grid grid-cols-1 gap-6 ${environment === "BINANCE" ? "" : "lg:grid-cols-2"}`}>
+        {/* Prévisions Dividendes (Uniquement PEA) */}
+        {environment !== "BINANCE" && (
+          <div className="rounded-2xl border border-zinc-800 bg-gradient-to-br from-zinc-900/60 to-black p-6 backdrop-blur-sm">
+            <div className="mb-4 flex items-center justify-between">
+              <div className="flex items-center gap-2">
+                <CalendarDays className="h-5 w-5 text-violet-400" />
+                <h2 className="text-lg font-bold text-white">
+                  Prévisions Dividendes
+                </h2>
+              </div>
+              <span className="rounded-full bg-zinc-800/60 px-2.5 py-0.5 text-[10px] font-medium text-zinc-500">
+                Basé sur N-1
+              </span>
             </div>
-            <span className="rounded-full bg-zinc-800/60 px-2.5 py-0.5 text-[10px] font-medium text-zinc-500">
-              Basé sur N-1
-            </span>
-          </div>
-          {projectedDividends.length > 0 ? (
-            <div className="space-y-3">
-              {projectedDividends.map((pd, i) => (
-                <div
-                  key={pd.month}
-                  className="flex items-center justify-between rounded-xl border border-zinc-800/40 bg-zinc-900/30 px-4 py-3 transition-colors hover:bg-zinc-800/30"
-                  style={{ animationDelay: `${i * 60}ms` }}
-                >
-                  <div className="flex items-center gap-3">
-                    <div className="h-2 w-2 rounded-full bg-emerald-400 animate-glow-pulse" />
-                    <span className="text-sm font-medium text-zinc-300 capitalize">
-                      {new Date(pd.month + "-01").toLocaleDateString("fr-FR", {
-                        month: "long",
-                        year: "numeric",
-                      })}
+            {projectedDividends.length > 0 ? (
+              <div className="space-y-3">
+                {projectedDividends.map((pd, i) => (
+                  <div
+                    key={pd.month}
+                    className="flex items-center justify-between rounded-xl border border-zinc-800/40 bg-zinc-900/30 px-4 py-3 transition-colors hover:bg-zinc-800/30"
+                    style={{ animationDelay: `${i * 60}ms` }}
+                  >
+                    <div className="flex items-center gap-3">
+                      <div className="h-2 w-2 rounded-full bg-emerald-400 animate-glow-pulse" />
+                      <span className="text-sm font-medium text-zinc-300 capitalize">
+                        {new Date(pd.month + "-01").toLocaleDateString("fr-FR", {
+                          month: "long",
+                          year: "numeric",
+                        })}
+                      </span>
+                    </div>
+                    <span className="font-bold text-emerald-400">
+                      +{formatEUR(pd.amount)}
                     </span>
                   </div>
-                  <span className="font-bold text-emerald-400">
-                    +{formatEUR(pd.amount)}
-                  </span>
-                </div>
-              ))}
-            </div>
-          ) : (
-            <p className="text-sm text-zinc-500">
-              Aucune projection à venir pour vos actions actuelles.
-            </p>
-          )}
-        </div>
+                ))}
+              </div>
+            ) : (
+              <p className="text-sm text-zinc-500">
+                Aucune projection à venir pour vos actions actuelles.
+              </p>
+            )}
+          </div>
+        )}
 
         {/* Capital et Liquidités */}
         <div className="animate-glow-pulse rounded-2xl border border-zinc-800 bg-gradient-to-br from-zinc-900/60 to-black p-6 backdrop-blur-sm shadow-[0_0_20px_rgba(139,92,246,0.08)]">
@@ -410,12 +429,12 @@ export default function DashboardPage() {
               </h2>
             </div>
             <span className="rounded-full bg-fuchsia-500/10 px-2.5 py-0.5 text-[10px] font-semibold text-fuchsia-400 ring-1 ring-fuchsia-500/20">
-              PEA
+              {environment}
             </span>
           </div>
           <div className="space-y-3">
             <div className="flex justify-between rounded-xl bg-zinc-900/30 px-4 py-3 text-sm">
-              <span className="text-zinc-400">Actions (Investi + PV)</span>
+              <span className="text-zinc-400">Actifs (Investi + PV)</span>
               <span className="font-semibold text-white">
                 {formatEUR(totalCapital)}
               </span>
@@ -427,7 +446,7 @@ export default function DashboardPage() {
               </span>
             </div>
             <div className="flex justify-between rounded-xl border border-violet-500/20 bg-violet-500/5 px-4 py-3">
-              <span className="font-bold text-zinc-200">TOTAL PEA</span>
+              <span className="font-bold text-zinc-200">TOTAL {environment}</span>
               <span className="font-bold text-violet-400">
                 {formatEUR(totalCapital + cashBalance)}
               </span>

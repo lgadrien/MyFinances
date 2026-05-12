@@ -136,3 +136,31 @@ WHERE id = (SELECT id FROM public.settings LIMIT 1);
 -- ─────────────────────────────────────────────────────────────
 -- Done! Your MyFinances database is ready.
 -- ─────────────────────────────────────────────────────────────
+
+-- ─────────────────────────────────────────────────────────────
+-- 7. MULTI-ENVIRONMENT SUPPORT (PEA vs BINANCE)
+--    Added dynamically for Binance support
+-- ─────────────────────────────────────────────────────────────
+ALTER TABLE public.transactions ADD COLUMN IF NOT EXISTS environment TEXT NOT NULL DEFAULT 'PEA' CHECK (environment IN ('PEA', 'BINANCE'));
+ALTER TABLE public.favorites ADD COLUMN IF NOT EXISTS environment TEXT NOT NULL DEFAULT 'PEA' CHECK (environment IN ('PEA', 'BINANCE'));
+ALTER TABLE public.settings ADD COLUMN IF NOT EXISTS environment TEXT NOT NULL DEFAULT 'PEA' CHECK (environment IN ('PEA', 'BINANCE'));
+
+ALTER TABLE public.portfolio_history ADD COLUMN IF NOT EXISTS environment TEXT NOT NULL DEFAULT 'PEA' CHECK (environment IN ('PEA', 'BINANCE'));
+ALTER TABLE public.portfolio_history DROP CONSTRAINT IF EXISTS portfolio_history_date_unique;
+ALTER TABLE public.portfolio_history ADD CONSTRAINT portfolio_history_date_environment_unique UNIQUE (date, environment);
+
+-- Drop old indexes and create new ones that include environment
+DROP INDEX IF EXISTS idx_transactions_ticker;
+DROP INDEX IF EXISTS idx_transactions_date;
+DROP INDEX IF EXISTS idx_favorites_ticker;
+DROP INDEX IF EXISTS idx_portfolio_history_date;
+
+CREATE INDEX IF NOT EXISTS idx_transactions_ticker_env ON public.transactions (ticker, environment);
+CREATE INDEX IF NOT EXISTS idx_transactions_date_env   ON public.transactions (date DESC, environment);
+CREATE INDEX IF NOT EXISTS idx_favorites_ticker_env ON public.favorites (ticker, environment);
+CREATE INDEX IF NOT EXISTS idx_portfolio_history_date_env ON public.portfolio_history (date DESC, environment);
+
+-- Update Favorites constraint
+ALTER TABLE public.favorites DROP CONSTRAINT IF EXISTS favorites_ticker_unique;
+ALTER TABLE public.favorites ADD CONSTRAINT favorites_ticker_environment_unique UNIQUE (ticker, environment);
+

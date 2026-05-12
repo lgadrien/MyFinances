@@ -72,6 +72,8 @@ export function usePortfolio(): UsePortfolioReturn {
 
   const { transactions, isLoading: isTxLoading } = useTransactions();
 
+  const environment = useSettingsStore((s) => s.environment);
+
   const loadData = useCallback(async () => {
     if (isTxLoading) return;
     
@@ -80,7 +82,7 @@ export function usePortfolio(): UsePortfolioReturn {
       setLoading(true);
       const initialPositions = calculatePortfolioPositions(transactions, instrumentMap);
 
-      const historyRes = await fetch("/api/portfolio/history");
+      const historyRes = await fetch(`/api/portfolio/history?environment=${environment}`);
       const historyData = await historyRes.json();
       setHistory(Array.isArray(historyData) ? historyData : []);
 
@@ -122,7 +124,7 @@ export function usePortfolio(): UsePortfolioReturn {
       setLoading(false);
       setRefreshing(false);
     }
-  }, [instrumentMap, transactions, isTxLoading]);
+  }, [instrumentMap, transactions, isTxLoading, environment]);
 
   useEffect(() => {
     loadData();

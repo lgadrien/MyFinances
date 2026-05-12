@@ -6,36 +6,38 @@ import {
   updateTransaction,
   deleteTransaction,
 } from "@/lib/data";
+import { useSettingsStore } from "@/stores/useSettingsStore";
 
 export function useTransactions() {
   const queryClient = useQueryClient();
+  const environment = useSettingsStore((s) => s.environment);
 
   const query = useQuery({
-    queryKey: ["transactions"],
-    queryFn: fetchTransactions,
+    queryKey: ["transactions", environment],
+    queryFn: () => fetchTransactions(environment),
     staleTime: 5 * 60 * 1000,
   });
 
   const transactions = useMemo(() => query.data || [], [query.data]);
 
   const addTx = useMutation({
-    mutationFn: insertTransaction,
+    mutationFn: (tx: Parameters<typeof insertTransaction>[0]) => insertTransaction({ ...tx, environment }),
     onSuccess: () => {
-      queryClient.invalidateQueries({ queryKey: ["transactions"] });
+      queryClient.invalidateQueries({ queryKey: ["transactions", environment] });
     },
   });
 
   const updateTx = useMutation({
     mutationFn: ({ id, tx }: { id: string; tx: any }) => updateTransaction(id, tx),
     onSuccess: () => {
-      queryClient.invalidateQueries({ queryKey: ["transactions"] });
+      queryClient.invalidateQueries({ queryKey: ["transactions", environment] });
     },
   });
 
   const deleteTx = useMutation({
     mutationFn: deleteTransaction,
     onSuccess: () => {
-      queryClient.invalidateQueries({ queryKey: ["transactions"] });
+      queryClient.invalidateQueries({ queryKey: ["transactions", environment] });
     },
   });
 

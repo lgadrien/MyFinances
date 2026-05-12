@@ -3,11 +3,15 @@ import { supabase } from "@/lib/supabase";
 
 export const dynamic = "force-dynamic";
 
-export async function GET() {
+export async function GET(request: Request) {
   try {
+    const { searchParams } = new URL(request.url);
+    const environment = searchParams.get("environment") || "PEA";
+
     const { data, error } = await supabase
       .from("portfolio_history")
       .select("*")
+      .eq("environment", environment)
       .order("date", { ascending: true });
 
     if (error) {
