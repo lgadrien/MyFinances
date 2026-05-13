@@ -20,7 +20,7 @@ import AnimatedDonut from "@/components/ui/AnimatedDonut";
 import PositionSparklineCell from "@/components/ui/PositionSparklineCell";
 import { useDashboard } from "@/hooks/useDashboard";
 import { useCountUp } from "@/hooks/useCountUp";
-import { formatEUR, formatPrice, getGeography } from "@/lib/utils";
+import { formatEUR, formatPrice, getGeography, cleanTicker } from "@/lib/utils";
 
 const DashboardDividendChart = dynamic(
   () => import("@/components/DashboardDividendChart"),
@@ -35,7 +35,7 @@ const PortfolioHistoryChart = dynamic(
 import { useSettingsStore } from "@/stores/useSettingsStore";
 
 export default function DashboardPage() {
-  const environment = useSettingsStore((s) => s.environment);
+  const { environment, privacyMode, currency } = useSettingsStore();
   const {
     positions,
     dividendHistory,
@@ -503,7 +503,7 @@ export default function DashboardPage() {
                     <td className="px-4 py-3">
                       <div>
                         <p className="font-semibold text-white">{pos.name}</p>
-                        <p className="text-xs text-zinc-500">{pos.ticker}</p>
+                        <p className="text-xs text-zinc-500">{cleanTicker(pos.ticker)}</p>
                       </div>
                     </td>
                     <td className="px-4 py-3 text-right font-medium tabular-nums text-zinc-200">
@@ -557,7 +557,7 @@ export default function DashboardPage() {
                 <div className="mb-3 flex items-start justify-between">
                   <div>
                     <p className="font-bold text-white">{pos.name}</p>
-                    <p className="text-xs text-zinc-500">{pos.ticker}</p>
+                    <p className="text-xs text-zinc-500">{cleanTicker(pos.ticker)}</p>
                   </div>
                   <div className="text-right">
                     <p className="font-bold text-white">

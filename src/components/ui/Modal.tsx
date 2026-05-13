@@ -75,31 +75,32 @@ export default function Modal({
 
   return createPortal(
     <div
-      className="fixed inset-0 z-[100] overflow-y-auto bg-black/60 p-4 backdrop-blur-sm"
+      className="fixed inset-0 z-[100] flex items-end justify-center bg-black/60 backdrop-blur-sm sm:items-center sm:p-4"
       onClick={onClose}
     >
-      <div className="flex min-h-full items-center justify-center p-4">
-        <div
-          ref={modalRef}
-          onClick={(e) => e.stopPropagation()}
-          className="relative w-full max-w-lg rounded-2xl border border-zinc-800 bg-zinc-900 p-6 shadow-2xl"
-          role="dialog"
-          aria-modal="true"
-          aria-labelledby="modal-title"
-        >
-          {/* Header */}
-          <div className="mb-6 flex items-center justify-between">
-            <h2 id="modal-title" className="text-lg font-bold text-white">{title}</h2>
-            <button
-              onClick={onClose}
-              className="rounded-lg p-2 text-zinc-400 transition-colors hover:bg-zinc-800 hover:text-white"
-              aria-label="Fermer"
-            >
-              <X className="h-5 w-5" />
-            </button>
-          </div>
+      <div
+        ref={modalRef}
+        onClick={(e) => e.stopPropagation()}
+        className="animate-in slide-in-from-bottom-full relative h-[90vh] w-full rounded-t-3xl border border-zinc-800 bg-zinc-900 p-6 shadow-2xl transition-all duration-300 sm:h-auto sm:max-w-lg sm:rounded-2xl"
+        role="dialog"
+        aria-modal="true"
+        aria-labelledby="modal-title"
+      >
+        {/* Header */}
+        <div className="mb-6 flex items-center justify-between">
+          <div className="h-1.5 w-12 rounded-full bg-zinc-800 sm:hidden absolute top-3 left-1/2 -translate-x-1/2" />
+          <h2 id="modal-title" className="text-xl font-bold text-white sm:text-lg">{title}</h2>
+          <button
+            onClick={onClose}
+            className="rounded-lg p-2 text-zinc-400 transition-colors hover:bg-zinc-800 hover:text-white"
+            aria-label="Fermer"
+          >
+            <X className="h-5 w-5" />
+          </button>
+        </div>
 
-          {/* Content */}
+        {/* Content - Scrollable if too long */}
+        <div className="max-h-[calc(90vh-100px)] overflow-y-auto pr-1 sm:max-h-[80vh]">
           {children}
         </div>
       </div>

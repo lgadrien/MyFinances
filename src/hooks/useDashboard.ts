@@ -68,7 +68,7 @@ export function useDashboard(): DashboardData {
   const [savingSettings, setSavingSettings] = useState(false);
   const [isSettingsOpen, setIsSettingsOpen] = useState(false);
 
-  const environment = useSettingsStore((s) => s.environment);
+  const { environment, privacyMode, currency } = useSettingsStore();
   const { transactions, isLoading: isTxLoading } = useTransactions();
 
   useEffect(() => {
@@ -89,7 +89,11 @@ export function useDashboard(): DashboardData {
         }
 
         // Fetch portfolio history
-        const historyRes = await fetch(`/api/portfolio/history?environment=${environment}`);
+        const historyUrl = environment === "BINANCE" 
+          ? "/api/binance/history" 
+          : `/api/portfolio/history?environment=${environment}`;
+          
+        const historyRes = await fetch(historyUrl);
         const historyData = await historyRes.json();
         setPortfolioHistory(Array.isArray(historyData) ? historyData : []);
 

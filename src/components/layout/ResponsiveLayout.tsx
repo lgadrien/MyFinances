@@ -5,6 +5,8 @@ import { usePathname } from "next/navigation";
 import Sidebar from "./Sidebar";
 import BottomNav from "./BottomNav";
 import GlobalSettingsToggles from "./GlobalSettingsToggles";
+import { useSettingsStore } from "@/stores/useSettingsStore";
+import EnvSwitcher from "./EnvSwitcher";
 
 export default function ResponsiveLayout({
   children,
@@ -14,6 +16,9 @@ export default function ResponsiveLayout({
   const pathname = usePathname();
   const isLoginPage = pathname === "/login";
   const [isCollapsed, setIsCollapsed] = useState(false);
+  
+  // S'abonner aux réglages pour forcer un re-render global lors des changements
+  useSettingsStore();
 
   return (
     <div className="min-h-screen bg-black text-zinc-50">
@@ -29,7 +34,10 @@ export default function ResponsiveLayout({
       {/* Mobile Header */}
       {!isLoginPage && (
         <div className="sticky top-0 z-30 flex h-16 items-center justify-between border-b border-zinc-800 bg-black/80 px-4 backdrop-blur-md md:hidden">
-          <span className="text-lg font-bold text-white">MyFinances</span>
+          <div className="flex items-center gap-3">
+            <span className="text-lg font-bold text-white">MyFinances</span>
+            <EnvSwitcher mobile />
+          </div>
           <GlobalSettingsToggles horizontal />
         </div>
       )}

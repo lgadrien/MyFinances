@@ -229,7 +229,8 @@ export default function PortfolioPage() {
               </div>
             </div>
 
-            <div className="overflow-x-auto">
+            {/* Desktop Table View */}
+            <div className="hidden overflow-x-auto md:block">
               <table className="w-full text-sm">
                 <thead>
                   <tr className="border-b border-zinc-800 text-left text-zinc-400">
@@ -293,17 +294,58 @@ export default function PortfolioPage() {
                   })}
                 </tbody>
               </table>
-              <div className="mt-4 flex items-center justify-between text-xs">
-                <span
-                  className={`${Object.values(targetAllocations).reduce((a, b) => a + b, 0) > 100 ? "text-rose-400 font-bold" : "text-zinc-500"}`}
-                >
-                  Total Cible :{" "}
-                  {Object.values(targetAllocations)
-                    .reduce((a, b) => a + b, 0)
-                    .toFixed(1)}
-                  %
-                </span>
-              </div>
+            </div>
+
+            {/* Mobile Card View */}
+            <div className="grid gap-4 md:hidden">
+              {positions.map((pos) => {
+                const currentPct = totalValue > 0 ? ((pos.capitalValue || 0) / totalValue) * 100 : 0;
+                const targetPct = targetAllocations[pos.ticker] || 0;
+                const targetCap = (totalValue + rebalanceCash) * (targetPct / 100);
+                const diff = targetCap - (pos.capitalValue || 0);
+
+                return (
+                  <div key={pos.ticker} className="rounded-xl border border-zinc-800 bg-zinc-900/30 p-4">
+                    <div className="mb-3 flex items-center justify-between">
+                      <div>
+                        <p className="font-bold text-white">{pos.name}</p>
+                        <p className="text-xs text-zinc-500">{pos.ticker} • {currentPct.toFixed(1)}% actuel</p>
+                      </div>
+                      <div className={`text-right font-bold ${diff >= 0 ? "text-emerald-400" : "text-rose-400"}`}>
+                        {diff >= 0 ? "+" : ""}{formatEUR(diff)}
+                      </div>
+                    </div>
+                    <div className="flex items-center gap-3">
+                      <span className="text-xs text-zinc-400">Cible %</span>
+                      <input
+                        type="number"
+                        min="0"
+                        max="100"
+                        value={targetPct.toFixed(1)}
+                        onChange={(e) =>
+                          setTargetAllocations((prev) => ({
+                            ...prev,
+                            [pos.ticker]: parseFloat(e.target.value) || 0,
+                          }))
+                        }
+                        className="flex-1 rounded-lg border border-zinc-700 bg-zinc-800 px-3 py-1.5 text-sm text-zinc-200 outline-none focus:border-violet-500"
+                      />
+                    </div>
+                  </div>
+                );
+              })}
+            </div>
+
+            <div className="mt-4 flex items-center justify-between text-xs">
+              <span
+                className={`${Object.values(targetAllocations).reduce((a, b) => a + b, 0) > 100 ? "text-rose-400 font-bold" : "text-zinc-500"}`}
+              >
+                Total Cible :{" "}
+                {Object.values(targetAllocations)
+                  .reduce((a, b) => a + b, 0)
+                  .toFixed(1)}
+                %
+              </span>
             </div>
           </div>
         )}

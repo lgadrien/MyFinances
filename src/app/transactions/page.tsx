@@ -368,18 +368,7 @@ export default function TransactionsPage() {
           </p>
         </div>
 
-        {/* Mobile compact button */}
-        <button
-          onClick={() => {
-            setEditingTransaction(null);
-            setIsModalOpen(true);
-          }}
-          className="flex h-10 w-10 items-center justify-center rounded-full bg-gradient-to-r from-violet-600 to-fuchsia-600 text-white shadow-lg shadow-violet-500/20 transition-all hover:from-violet-700 hover:to-fuchsia-700 hover:shadow-violet-500/30 active:scale-95 md:hidden"
-        >
-          <Plus className="h-5 w-5" />
-        </button>
-
-        {/* Desktop button */}
+        {/* Desktop actions */}
         <div className="hidden items-center gap-3 md:flex">
           <input
             type="file"
@@ -411,6 +400,26 @@ export default function TransactionsPage() {
           >
             <Plus className="h-4 w-4" />
             Ajouter une opération
+          </button>
+        </div>
+
+        {/* Mobile actions */}
+        <div className="flex items-center gap-2 md:hidden">
+          <button
+            onClick={handleExportCSV}
+            className="flex h-10 w-10 items-center justify-center rounded-xl bg-zinc-800 text-zinc-400"
+            title="Exporter"
+          >
+            <Download className="h-4 w-4" />
+          </button>
+          <button
+            onClick={() => {
+              setEditingTransaction(null);
+              setIsModalOpen(true);
+            }}
+            className="flex h-10 w-10 items-center justify-center rounded-xl bg-gradient-to-r from-violet-600 to-fuchsia-600 text-white shadow-lg shadow-violet-500/20"
+          >
+            <Plus className="h-5 w-5" />
           </button>
         </div>
       </div>

@@ -13,6 +13,8 @@ import {
   type PortfolioPosition,
 } from "@/lib/calculations";
 import { FRENCH_INSTRUMENTS } from "@/lib/french-instruments";
+import { cleanTicker } from "@/lib/utils";
+import { useSettingsStore } from "@/stores/useSettingsStore";
 
 export type TimeRange = "1W" | "1M" | "1Y" | "Max";
 
@@ -72,7 +74,7 @@ export function usePortfolio(): UsePortfolioReturn {
 
   const { transactions, isLoading: isTxLoading } = useTransactions();
 
-  const environment = useSettingsStore((s) => s.environment);
+  const { environment, privacyMode, currency } = useSettingsStore();
 
   const loadData = useCallback(async () => {
     if (isTxLoading) return;
@@ -98,6 +100,7 @@ export function usePortfolio(): UsePortfolioReturn {
           const plusValue = capitalValue - pos.totalInvested;
           return {
             ...pos,
+            name: pos.name === pos.ticker ? cleanTicker(pos.ticker) : pos.name,
             currentPrice,
             capitalValue,
             plusValue,

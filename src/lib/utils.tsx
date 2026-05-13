@@ -9,6 +9,27 @@
 
 import { useSettingsStore } from "@/stores/useSettingsStore";
 
+/** Nettoie un ticker en enlevant les préfixes financiers ou crypto "chelous" (^, LD, st...) */
+export const cleanTicker = (ticker: string): string => {
+  if (!ticker) return "";
+  let cleaned = ticker;
+  
+  // Enlever le préfixe ^ des indices (ex: ^FCHI -> FCHI)
+  if (cleaned.startsWith("^")) {
+    cleaned = cleaned.substring(1);
+  }
+  
+  // Enlever LD (Liquid/Lido) ou st (staked) des cryptos
+  // On vérifie que ce qui reste est assez long pour ne pas casser des tickers légitimes très courts
+  if (cleaned.startsWith("LD") && cleaned.length > 4) {
+    cleaned = cleaned.substring(2);
+  } else if (cleaned.startsWith("st") && cleaned.length > 4) {
+    cleaned = cleaned.substring(2);
+  }
+  
+  return cleaned.toUpperCase();
+};
+
 /** Formate un nombre avec devise et gère le mode Privacy */
 export const formatEUR = (n: number): string => {
   const { privacyMode, currency } = useSettingsStore.getState();
