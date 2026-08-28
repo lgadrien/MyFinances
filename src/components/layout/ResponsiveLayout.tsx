@@ -5,7 +5,7 @@ import { usePathname } from "next/navigation";
 import Sidebar from "./Sidebar";
 import BottomNav from "./BottomNav";
 import GlobalSettingsToggles from "./GlobalSettingsToggles";
-import { Bell } from "lucide-react";
+import { Bell, Wallet } from "lucide-react";
 import { useAlerts } from "@/hooks/useAlerts";
 import dynamic from "next/dynamic";
 import PWAInstallPrompt from "@/components/ui/PWAInstallPrompt";
@@ -26,7 +26,7 @@ export default function ResponsiveLayout({
   const { unreadCount, isModalOpen, setIsModalOpen } = useAlerts();
 
   return (
-    <div className="min-h-screen bg-black text-zinc-50">
+    <div className="min-h-screen bg-black text-zinc-50 flex flex-col">
       {/* Desktop Sidebar */}
       {!isLoginPage && (
         <Sidebar
@@ -37,14 +37,27 @@ export default function ResponsiveLayout({
         />
       )}
 
-      {/* Mobile Header */}
+      {/* Mobile Header (Fixed with blur and safe-area top) */}
       {!isLoginPage && (
-        <div className="sticky top-0 z-30 flex h-16 items-center justify-between border-b border-zinc-800 bg-black/80 px-4 backdrop-blur-md md:hidden">
-          <span className="text-lg font-bold text-white">MyFinances</span>
+        <header className="sticky top-0 z-40 flex items-center justify-between border-b border-zinc-800/80 bg-black/80 px-4 pt-[max(env(safe-area-inset-top),0.5rem)] pb-3 backdrop-blur-xl md:hidden">
+          <div className="flex items-center gap-2.5">
+            <div className="flex h-8 w-8 items-center justify-center rounded-lg bg-gradient-to-br from-violet-600 to-fuchsia-600 shadow-md shadow-violet-500/20">
+              <Wallet className="h-4 w-4 text-white" />
+            </div>
+            <div>
+              <span className="text-base font-bold text-white leading-none block">
+                MyFinances
+              </span>
+              <span className="text-[9px] font-semibold uppercase tracking-widest text-violet-400">
+                PEA Tracker
+              </span>
+            </div>
+          </div>
+
           <div className="flex items-center gap-2">
             <button
               onClick={() => setIsModalOpen(true)}
-              className="relative flex h-9 w-9 items-center justify-center rounded-xl bg-zinc-900 border border-zinc-800 text-zinc-300 hover:text-white"
+              className="relative flex h-8 w-8 items-center justify-center rounded-xl bg-zinc-900 border border-zinc-800 text-zinc-300 active:scale-95 transition-all hover:text-white"
               title="Centre d'alertes"
             >
               <Bell className="h-4 w-4" />
@@ -56,10 +69,10 @@ export default function ResponsiveLayout({
             </button>
             <GlobalSettingsToggles horizontal />
           </div>
-        </div>
+        </header>
       )}
 
-      {/* Mobile Bottom Nav */}
+      {/* Mobile Bottom Navigation Bar */}
       {!isLoginPage && (
         <div className="md:hidden">
           <BottomNav />
@@ -80,7 +93,7 @@ export default function ResponsiveLayout({
         className={
           isLoginPage
             ? ""
-            : `min-h-screen p-4 pb-24 transition-all duration-300 md:p-8 md:pb-8 ${
+            : `flex-1 p-3.5 pb-28 sm:p-6 transition-all duration-300 md:p-8 md:pb-8 ${
                 isCollapsed ? "md:ml-20" : "md:ml-64"
               }`
         }
