@@ -19,6 +19,14 @@ const TaxSimulator = dynamic(() => import("@/components/widgets/TaxSimulator"), 
   ssr: false,
   loading: () => <ChartSkeleton height={200} />,
 });
+const RiskAnalysisPanel = dynamic(() => import("@/components/widgets/RiskAnalysisPanel"), {
+  ssr: false,
+  loading: () => <ChartSkeleton height={240} />,
+});
+const DCASimulator = dynamic(() => import("@/components/widgets/DCASimulator"), {
+  ssr: false,
+  loading: () => <ChartSkeleton height={320} />,
+});
 import AnimatedDonut from "@/components/ui/AnimatedDonut";
 import PositionSparklineCell from "@/components/ui/PositionSparklineCell";
 import { StatsCardSkeleton, ChartSkeleton } from "@/components/ui/Skeleton";
@@ -230,6 +238,18 @@ export default function PortfolioPage() {
         </div>
       )}
 
+      {/* Risk Analysis & Quantitative Health Panel */}
+      {!loading && positions.length > 0 && (
+        <div className="w-full">
+          <RiskAnalysisPanel
+            positions={positions}
+            history={filteredHistory as { total_value: number; date?: string }[]}
+            totalInvested={totalInvested}
+            totalValue={totalValue}
+          />
+        </div>
+      )}
+
       {/* Portfolio Rebalancing Tool */}
       <div className="rounded-2xl border border-zinc-800 bg-gradient-to-br from-zinc-900/50 to-black p-6 backdrop-blur-sm shadow-[0_0_15px_rgba(139,92,246,0.1)]">
         <div
@@ -356,6 +376,11 @@ export default function PortfolioPage() {
           totalDividends={positions.reduce((s, p) => s + (p.dividends || 0), 0)}
           positions={positions}
         />
+      </div>
+
+      {/* DCA & Compound Interest Projection Tool */}
+      <div className="w-full">
+        <DCASimulator currentPortfolioValue={totalValue} />
       </div>
 
       {/* Positions Table */}

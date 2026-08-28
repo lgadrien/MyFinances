@@ -8,6 +8,7 @@ import GlobalSettingsToggles from "./GlobalSettingsToggles";
 import { Bell } from "lucide-react";
 import { useAlerts } from "@/hooks/useAlerts";
 import dynamic from "next/dynamic";
+import PWAInstallPrompt from "@/components/ui/PWAInstallPrompt";
 
 const AlertsCenterModal = dynamic(
   () => import("@/components/alerts/AlertsCenterModal"),
@@ -70,6 +71,9 @@ export default function ResponsiveLayout({
         isOpen={isModalOpen}
         onClose={() => setIsModalOpen(false)}
       />
+
+      {/* PWA Mobile Install Banner */}
+      {!isLoginPage && <PWAInstallPrompt />}
 
       {/* Main Content */}
       <main

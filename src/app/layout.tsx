@@ -1,4 +1,4 @@
-import type { Metadata } from "next";
+import type { Metadata, Viewport } from "next";
 import "./globals.css";
 import ResponsiveLayout from "@/components/layout/ResponsiveLayout";
 import QueryProvider from "@/components/QueryProvider";
@@ -6,9 +6,23 @@ import { Toaster } from "react-hot-toast";
 import { SpeedInsights } from "@vercel/speed-insights/next";
 
 export const metadata: Metadata = {
-  title: "MyFinances — PEA & Crypto Portfolio Tracker",
+  title: "MyFinances — Suivi Portefeuille PEA & Bourse",
   description:
-    "Application de tracking de portefeuille boursier PEA et Crypto. Suivez vos investissements, dividendes et plus-values en temps réel.",
+    "Application de suivi de portefeuille boursier PEA. Suivez vos investissements, dividendes, analyse technique et fiscalité en temps réel.",
+  manifest: "/manifest.webmanifest",
+  appleWebApp: {
+    capable: true,
+    statusBarStyle: "black-translucent",
+    title: "MyFinances",
+  },
+};
+
+export const viewport: Viewport = {
+  themeColor: "#000000",
+  width: "device-width",
+  initialScale: 1,
+  maximumScale: 1,
+  userScalable: false,
 };
 
 export default function RootLayout({
