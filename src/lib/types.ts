@@ -1,6 +1,7 @@
-/** src/lib/types.ts
- *  Central type definitions for the MyFinances application.
- *  Import all shared types from here rather than scattering them across pages.
+/**
+ * src/lib/types.ts
+ * ─────────────────────────────────────────────────────────────────────────────
+ * Central type definitions for the MyFinances application.
  */
 
 // ─── Transactions & Portefeuille ──────────────────────────────────────────────
@@ -18,6 +19,8 @@ export interface Transaction {
   fees: number;
   created_at: string;
 }
+
+export type TransactionPayload = Omit<Transaction, "id" | "created_at">;
 
 export interface Asset {
   id: string;
@@ -42,10 +45,18 @@ export interface PortfolioPosition {
   capitalValue?: number;
 }
 
+export interface EnrichedPortfolioPosition extends PortfolioPosition {
+  currentPrice: number;
+  plusValue: number;
+  capitalValue: number;
+}
+
 export interface PortfolioSnapshot {
+  id?: string;
   date: string;
   total_value: number;
   total_invested: number;
+  created_at?: string;
 }
 
 // ─── Market ───────────────────────────────────────────────────────────────────

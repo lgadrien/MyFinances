@@ -17,12 +17,11 @@ import dynamic from "next/dynamic";
 import Badge from "@/components/ui/Badge";
 const StockChart = dynamic(() => import("@/components/StockChart"), { ssr: false });
 import {
-  fetchTransactions,
-  fetchStockPrice,
   fetchFavorites,
   addFavorite,
   removeFavorite,
 } from "@/lib/data";
+import { useTransactions } from "@/hooks/useTransactions";
 import {
   FRENCH_INSTRUMENTS,
   type MarketCategory,
@@ -30,6 +29,7 @@ import {
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 import { SIGNAL_CONFIG, type TrendSignal } from "@/lib/technical-analysis";
 import { formatEUR, formatPrice } from "@/lib/utils";
+import { useAlerts } from "@/hooks/useAlerts";
 
 interface MarketRow {
   ticker: string;
@@ -60,6 +60,7 @@ type SortDir = "asc" | "desc" | null;
 export default function MarchePage() {
   useSettingsStore();
   const queryClient = useQueryClient();
+  const { checkAlerts } = useAlerts();
   const [search, setSearch] = useState("");
   const [categoryFilter, setCategoryFilter] = useState<"Tous" | MarketCategory>(
     "Tous",
@@ -81,17 +82,14 @@ export default function MarchePage() {
     setFavorites(serverFavorites);
   }, [serverFavorites]);
 
-  // Tanstack Query - Load Transactions (to know owned status)
-  const { data: transactions = [] } = useQuery({
-    queryKey: ["transactions"],
-    queryFn: fetchTransactions,
-  });
+  // Load Transactions with hook (shares cache & filters by active environment)
+  const { transactions } = useTransactions();
 
   const ownedTickers = useMemo(() => {
     return new Set(
       transactions
-        .filter((t: { type: string; ticker: string }) => t.type === "Achat")
-        .map((t: { type: string; ticker: string }) => t.ticker),
+        .filter((t) => t.type === "Achat")
+        .map((t) => t.ticker),
     );
   }, [transactions]);
 
@@ -119,7 +117,7 @@ export default function MarchePage() {
       if (!rowsMap.has(ticker)) {
         rowsMap.set(ticker, {
           ticker,
-          name: ticker, // We don't have the real name yet, fallback to ticker
+          name: ticker,
           sector: "Autre",
           category: "Action",
           price: 0,
@@ -165,35 +163,43 @@ export default function MarchePage() {
     return Array.from(baseMap.values());
   }, [baseRows, dynamicRows, ownedTickers]);
 
-  // Tanstack Query - Prices
+  // Tanstack Query - Batch Market Prices (fast 1-request loading)
   const {
-    data: pricesMap = new Map(),
+    data: pricesMap = new Map<string, { price: number; change: number; changePercent: number }>(),
     isLoading: loading,
     isRefetching: refreshing,
   } = useQuery({
-    queryKey: ["market-prices", allRows.map((r) => r.ticker).join(",")],
+    queryKey: ["market-prices", allRows.map((r) => r.ticker).sort().join(",")],
     queryFn: async () => {
-      const map = new Map();
-      const concurrencyLimit = 4; // Keep under 6 to allow Next.js Router (Link) to fetch RSC payloads without freezing!
-      
-      // Process in larger parallel batches to avoid extreme sequential latency
-      for (let i = 0; i < allRows.length; i += concurrencyLimit) {
-        const batch = allRows.slice(i, i + concurrencyLimit);
-        const results = await Promise.allSettled(
-          batch.map((r) => fetchStockPrice(r.ticker)),
-        );
-
-        results.forEach((result, idx) => {
-          if (result.status === "fulfilled" && result.value) {
-            map.set(batch[idx].ticker, result.value);
-          }
+      const map = new Map<string, { price: number; change: number; changePercent: number }>();
+      try {
+        const tickers = allRows.map((r) => r.ticker);
+        const res = await fetch("/api/stock/batch", {
+          method: "POST",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({ tickers }),
         });
+        if (res.ok) {
+          const json = await res.json();
+          const quotes = json.quotes || {};
+          Object.entries(quotes).forEach(([t, q]) => {
+            const quote = q as { price?: number; change?: number; changePercent?: number } | undefined;
+            if (quote && typeof quote.price === "number") {
+              map.set(t, {
+                price: quote.price,
+                change: quote.change ?? 0,
+                changePercent: quote.changePercent ?? 0,
+              });
+            }
+          });
+        }
+      } catch (e) {
+        console.error("Batch price fetch error:", e);
       }
       return map;
     },
-    // Rafraîchissement en arrière-plan toutes les 60s
     refetchInterval: 60000,
-    staleTime: 30000,
+    staleTime: 45000,
   });
 
   // Calculate merged rows with prices
@@ -212,6 +218,17 @@ export default function MarchePage() {
       return r;
     });
   }, [allRows, pricesMap]);
+
+  // Check alerts against live batch prices
+  useEffect(() => {
+    if (pricesMap.size > 0) {
+      const quotesObj: Record<string, { price: number }> = {};
+      pricesMap.forEach((val, key) => {
+        quotesObj[key] = { price: val.price };
+      });
+      checkAlerts(quotesObj);
+    }
+  }, [pricesMap, checkAlerts]);
 
   // New search state
   interface TickerResult {

@@ -1,5 +1,6 @@
 import { NextResponse } from "next/server";
 import type { NextRequest } from "next/server";
+import { AUTH_COOKIE_NAME, getExpectedToken } from "@/lib/auth";
 
 // Paths accessible without authentication
 const PUBLIC_PATHS = ["/login", "/api/auth/login", "/api/cron/snapshot"];
@@ -11,7 +12,7 @@ const STATIC_PREFIXES = [
   "/favicon.ico",
 ];
 
-export default function middleware(request: NextRequest) {
+export default async function middleware(request: NextRequest) {
   const { pathname } = request.nextUrl;
 
   // Always allow static assets
@@ -24,9 +25,15 @@ export default function middleware(request: NextRequest) {
     return NextResponse.next();
   }
 
-  // Validate authentication cookie
-  const authToken = request.cookies.get("access_token");
-  const isAuthenticated = authToken?.value === "true";
+  // Validate authentication cookie with secret
+  const accessPassword = process.env.ACCESS_PASSWORD;
+  const authToken = request.cookies.get(AUTH_COOKIE_NAME);
+  
+  let isAuthenticated = false;
+  if (accessPassword && authToken?.value) {
+    const expectedToken = await getExpectedToken(accessPassword);
+    isAuthenticated = authToken.value === expectedToken;
+  }
 
   if (!isAuthenticated) {
     if (pathname.startsWith("/api")) {

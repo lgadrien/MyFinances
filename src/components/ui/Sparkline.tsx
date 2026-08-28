@@ -3,15 +3,11 @@
  * ─────────────────────────────────────────────────────────────────────────────
  * Mini graphique sparkline en SVG natif (0 dépendance, ~2KB compressé).
  * Utilisé dans les tableaux de positions pour afficher la tendance des prix.
- *
- * Props :
- *   data    — tableau de nombres (prix)
- *   width   — largeur en px (défaut: 80)
- *   height  — hauteur en px (défaut: 32)
- *   color   — couleur de la ligne ("emerald" | "rose" | custom hex)
  */
 
 "use client";
+
+import { useId } from "react";
 
 interface SparklineProps {
   data: number[];
@@ -28,6 +24,9 @@ export default function Sparkline({
   positive,
   className = "",
 }: SparklineProps) {
+  const reactId = useId();
+  const gradId = `spark-${reactId.replace(/:/g, "")}`;
+
   if (!data || data.length < 2) return null;
 
   const min = Math.min(...data);
@@ -50,7 +49,6 @@ export default function Sparkline({
   // Derive automatiquement la couleur depuis la première et dernière valeur
   const isPositive = positive ?? data[data.length - 1] >= data[0];
   const stroke = isPositive ? "#34d399" : "#f87171"; // emerald-400 / rose-400
-  const gradId = `spark-${Math.random().toString(36).slice(2, 9)}`;
 
   // Points pour le fill (chemin fermé)
   const firstX = pad;

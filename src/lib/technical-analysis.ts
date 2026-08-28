@@ -239,6 +239,32 @@ export interface TrendScore {
 
 /** Calcule le signal composite à partir des données OHLCV */
 export function computeTrendScore(data: OHLCV[]): TrendScore {
+  if (!data || data.length < 2) {
+    return {
+      signal: "NEUTRAL",
+      score: 0,
+      confidence: 0,
+      details: {
+        rsiSignal: null,
+        macdSignal: null,
+        bollingerSignal: null,
+        emaSignal: null,
+        momentumSignal: null,
+        volumeSignal: null,
+      },
+      indicators: {
+        rsi: null,
+        macd: null,
+        macdHistogram: null,
+        ema20: null,
+        ema50: null,
+        bollingerPercentB: null,
+        atrPercent: null,
+        volumeSurgeMultiplier: null,
+      },
+    };
+  }
+
   const closes = data.map((d) => d.close);
   const volumes = data.map((d) => d.volume);
   const n = closes.length;

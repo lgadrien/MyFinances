@@ -10,7 +10,12 @@ import {
   ResponsiveContainer,
   ReferenceLine,
 } from "recharts";
-import { type TrendSignal, SIGNAL_CONFIG } from "@/lib/technical-analysis";
+import {
+  type TrendSignal,
+  type TrendScore,
+  SIGNAL_CONFIG,
+} from "@/lib/technical-analysis";
+import type { HistoryPoint } from "./MainPriceChart";
 
 // Gauge component
 function RSIGauge({ value }: { value: number }) {
@@ -97,10 +102,20 @@ function ScoreBar({ score }: { score: number }) {
   );
 }
 
+export type EnrichedChartPoint = HistoryPoint & {
+  rsi?: number | null;
+  macd?: number | null;
+  macdHistogram?: number | null;
+  sma20?: number | null;
+  sma50?: number | null;
+  bbUpper?: number | null;
+  bbLower?: number | null;
+};
+
 interface TechnicalAnalysisPanelProps {
-  trendScore: any;
-  enrichedData: any[];
-  signalCfg: any;
+  trendScore: TrendScore | null;
+  enrichedData: EnrichedChartPoint[];
+  signalCfg: (typeof SIGNAL_CONFIG)[TrendSignal] | null;
   formatDateLabel: (d: string) => string;
 }
 

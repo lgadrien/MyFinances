@@ -1,4 +1,4 @@
-import { TrendingUp, TrendingDown, X } from "lucide-react";
+import { TrendingUp, TrendingDown, X, Bell } from "lucide-react";
 import { type TrendSignal, SIGNAL_CONFIG } from "@/lib/technical-analysis";
 
 interface StockChartHeaderProps {
@@ -10,6 +10,7 @@ interface StockChartHeaderProps {
   periodChangePercent: number;
   signal: TrendSignal | null;
   onClose: () => void;
+  onOpenAlert?: () => void;
 }
 
 export function StockChartHeader({
@@ -21,6 +22,7 @@ export function StockChartHeader({
   periodChangePercent,
   signal,
   onClose,
+  onOpenAlert,
 }: StockChartHeaderProps) {
   return (
     <div className="flex items-start justify-between border-b border-zinc-800/30 px-6 py-5">
@@ -62,13 +64,25 @@ export function StockChartHeader({
           </div>
         )}
       </div>
-      <button
-        onClick={onClose}
-        aria-label="Fermer le graphique"
-        className="rounded-lg p-2 text-zinc-400 transition-colors hover:bg-zinc-800 hover:text-white"
-      >
-        <X className="h-5 w-5" />
-      </button>
+      <div className="flex items-center gap-2">
+        {onOpenAlert && (
+          <button
+            onClick={onOpenAlert}
+            className="flex items-center gap-1.5 rounded-lg bg-zinc-800/80 px-3 py-1.5 text-xs font-semibold text-zinc-200 transition-colors hover:bg-zinc-700 hover:text-white"
+            title="Créer une alerte sur ce cours"
+          >
+            <Bell className="h-3.5 w-3.5 text-violet-400" />
+            <span className="hidden sm:inline">Créer une alerte</span>
+          </button>
+        )}
+        <button
+          onClick={onClose}
+          aria-label="Fermer le graphique"
+          className="rounded-lg p-2 text-zinc-400 transition-colors hover:bg-zinc-800 hover:text-white"
+        >
+          <X className="h-5 w-5" />
+        </button>
+      </div>
     </div>
   );
 }

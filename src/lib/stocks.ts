@@ -1,8 +1,5 @@
 import { unstable_cache } from "next/cache";
 
-// Server-side in-process cache (2 min TTL — suitable for a single-instance server)
-const cache = new Map<string, { data: StockQuote; timestamp: number }>();
-const CACHE_TTL_MS = 2 * 60 * 1000; // 2 minutes
 const FETCH_TIMEOUT_MS = 6_000; // 6 s — Yahoo Finance can be slow
 
 export interface StockQuote {
@@ -63,10 +60,37 @@ export async function getStockQuote(ticker: string): Promise<StockQuote> {
     {
       revalidate: 120, // 2 minutes
       tags: [`stock-${normalised}`],
-    }
+    },
   );
 
   return getQuote(normalised);
+}
+
+/**
+ * Fetch quotes for multiple tickers in server-side batches.
+ */
+export async function getBatchStockQuotes(
+  tickers: string[],
+  concurrency = 8,
+): Promise<Record<string, StockQuote>> {
+  const uniqueTickers = Array.from(new Set(tickers.map((t) => t.trim().toUpperCase()))).filter(Boolean);
+  const results: Record<string, StockQuote> = {};
+
+  for (let i = 0; i < uniqueTickers.length; i += concurrency) {
+    const chunk = uniqueTickers.slice(i, i + concurrency);
+    const chunkResults = await Promise.allSettled(chunk.map((t) => getStockQuote(t)));
+
+    chunkResults.forEach((res, idx) => {
+      const ticker = chunk[idx];
+      if (res.status === "fulfilled") {
+        results[ticker] = res.value;
+      } else {
+        results[ticker] = getFallbackQuote(ticker);
+      }
+    });
+  }
+
+  return results;
 }
 
 function getFallbackQuote(ticker: string): StockQuote {

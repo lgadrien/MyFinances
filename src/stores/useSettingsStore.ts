@@ -14,10 +14,11 @@ export const useSettingsStore = create<SettingsState>()(
       currency: "EUR",
       privacyMode: false,
       setCurrency: (currency) => set({ currency }),
-      togglePrivacyMode: () => set((state) => ({ privacyMode: !state.privacyMode })),
+      togglePrivacyMode: () =>
+        set((state) => ({ privacyMode: !state.privacyMode })),
     }),
     {
       name: "myfinances-settings",
-    }
-  )
+    },
+  ),
 );

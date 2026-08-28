@@ -2,12 +2,11 @@
  * src/components/ui/Skeleton.tsx
  * ─────────────────────────────────────────────────────────────────────────────
  * Skeleton premium avec effet shimmer gradient animé.
- * Utilisation identique au composant précédent + variantes prédéfinies.
  */
 
 "use client";
 
-/** Skeleton de base — remplace le simple animate-pulse */
+/** Skeleton de base */
 export default function Skeleton({
   className,
   ...props
@@ -44,7 +43,7 @@ export function TableRowSkeleton({ cols = 6 }: { cols?: number }) {
         <td key={i} className="px-6 py-4">
           <div
             className="stats-card-skeleton h-4 rounded-md"
-            style={{ width: `${60 + Math.random() * 30}%` }}
+            style={{ width: `${60 + ((i * 17) % 30)}%` }}
           />
         </td>
       ))}

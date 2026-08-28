@@ -1,6 +1,6 @@
 "use client";
 
-import React, { useMemo } from "react";
+import React from "react";
 import dynamic from "next/dynamic";
 import {
   Wallet,
@@ -25,6 +25,11 @@ import { formatEUR, formatPrice, getGeography } from "@/lib/utils";
 const DashboardDividendChart = dynamic(
   () => import("@/components/DashboardDividendChart"),
   { ssr: false, loading: () => <ChartSkeleton height={288} /> },
+);
+
+const DividendCalendar = dynamic(
+  () => import("@/components/widgets/DividendCalendar"),
+  { ssr: false, loading: () => <ChartSkeleton height={280} /> },
 );
 
 import { useSettingsStore } from "@/stores/useSettingsStore";
@@ -68,6 +73,22 @@ export default function DashboardPage() {
       0,
     );
   }, [positions]);
+
+  const receivedByMonth = React.useMemo(() => {
+    const map: Record<string, number> = {};
+    dividendHistory.forEach((d) => {
+      map[d.month] = d.amount;
+    });
+    return map;
+  }, [dividendHistory]);
+
+  const projectedByMonth = React.useMemo(() => {
+    const map: Record<string, number> = {};
+    projectedDividends.forEach((d) => {
+      map[d.month] = d.amount;
+    });
+    return map;
+  }, [projectedDividends]);
 
   const [donutView, setDonutView] = React.useState<"Actions" | "Secteurs" | "Géographie">("Actions");
 
@@ -434,6 +455,14 @@ export default function DashboardPage() {
             </div>
           </div>
         </div>
+      </div>
+
+      {/* ── Calendrier Annuel des Dividendes ── */}
+      <div className="w-full">
+        <DividendCalendar
+          receivedByMonth={receivedByMonth}
+          projectedByMonth={projectedByMonth}
+        />
       </div>
 
       {/* ── Positions du Portefeuille ─────────────────────────────── */}

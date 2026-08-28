@@ -1,7 +1,8 @@
 "use client";
 
-import { useEffect, useState, useCallback, useMemo } from "react";
+import { useState, useMemo } from "react";
 import { Loader2, Activity } from "lucide-react";
+import { useQuery } from "@tanstack/react-query";
 import {
   computeTrendScore,
   rsi,
@@ -14,6 +15,7 @@ import {
 import { StockChartHeader } from "./stock-chart/StockChartHeader";
 import { MainPriceChart, type HistoryPoint } from "./stock-chart/MainPriceChart";
 import { TechnicalAnalysisPanel } from "./stock-chart/TechnicalAnalysisPanel";
+import AlertsCenterModal from "@/components/alerts/AlertsCenterModal";
 
 interface StockChartProps {
   ticker: string;
@@ -32,33 +34,23 @@ const TIME_PERIODS = [
 type ActiveTab = "chart" | "indicators";
 
 export default function StockChart({ ticker, name, onClose }: StockChartProps) {
-  const [data, setData] = useState<HistoryPoint[]>([]);
-  const [loading, setLoading] = useState(true);
   const [activeInterval, setActiveInterval] = useState("daily");
   const [crosshairData, setCrosshairData] = useState<HistoryPoint | null>(null);
   const [activeTab, setActiveTab] = useState<ActiveTab>("chart");
+  const [isAlertModalOpen, setIsAlertModalOpen] = useState(false);
 
-  const fetchHistory = useCallback(
-    async (interval: string) => {
-      setLoading(true);
-      try {
-        const res = await fetch(
-          `/api/stock/history?ticker=${encodeURIComponent(ticker)}&interval=${interval}`,
-        );
-        const json = await res.json();
-        setData(json.data || []);
-      } catch (err) {
-        console.error("Error fetching history:", err);
-        setData([]);
-      }
-      setLoading(false);
+  const { data = [], isLoading: loading } = useQuery<HistoryPoint[]>({
+    queryKey: ["stock-history", ticker, activeInterval],
+    queryFn: async () => {
+      const res = await fetch(
+        `/api/stock/history?ticker=${encodeURIComponent(ticker)}&interval=${activeInterval}`,
+      );
+      if (!res.ok) return [];
+      const json = await res.json();
+      return Array.isArray(json?.data) ? json.data : Array.isArray(json) ? json : [];
     },
-    [ticker],
-  );
-
-  useEffect(() => {
-    fetchHistory(activeInterval);
-  }, [activeInterval, fetchHistory]);
+    staleTime: 3 * 60 * 1000,
+  });
 
   function handlePeriodChange(interval: string) {
     setActiveInterval(interval);
@@ -152,6 +144,7 @@ export default function StockChart({ ticker, name, onClose }: StockChartProps) {
           periodChangePercent={periodChangePercent}
           signal={trendScore?.signal ?? null}
           onClose={onClose}
+          onOpenAlert={() => setIsAlertModalOpen(true)}
         />
 
         {/* ── Tabs ── */}
@@ -293,6 +286,13 @@ export default function StockChart({ ticker, name, onClose }: StockChartProps) {
           )}
         </div>
       </div>
+
+      <AlertsCenterModal
+        isOpen={isAlertModalOpen}
+        onClose={() => setIsAlertModalOpen(false)}
+        initialTicker={ticker}
+        initialPrice={lastPoint?.close ?? 0}
+      />
     </div>
   );
 }

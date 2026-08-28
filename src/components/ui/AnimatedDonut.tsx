@@ -84,22 +84,35 @@ export default function AnimatedDonut({
 
   const total = data.reduce((s, d) => s + d.value, 0);
 
-  // Construction des segments avec angles
-  let cursor = 0;
-  const segments = data.map((d, i) => {
-    const sweep = total > 0 ? (d.value / total) * 360 : 0;
-    // Réduction par le gap pour simuler l'espacement
-    const start = cursor + gap / 2;
-    const end = cursor + sweep - gap / 2;
-    cursor += sweep;
-    return {
-      ...d,
-      startAngle: start,
-      endAngle: Math.max(end, start + 0.1), // tranche min visible
-      color: CHART_COLORS[i % CHART_COLORS.length],
-      index: i,
-    };
-  });
+  // Construction des segments avec angles (sans mutation de variable)
+  const segments = data.reduce<{
+    list: {
+      name: string;
+      value: number;
+      percent?: number;
+      startAngle: number;
+      endAngle: number;
+      color: string;
+      index: number;
+    }[];
+    cursor: number;
+  }>(
+    (acc, d, i) => {
+      const sweep = total > 0 ? (d.value / total) * 360 : 0;
+      const start = acc.cursor + gap / 2;
+      const end = acc.cursor + sweep - gap / 2;
+      acc.list.push({
+        ...d,
+        startAngle: start,
+        endAngle: Math.max(end, start + 0.1),
+        color: CHART_COLORS[i % CHART_COLORS.length],
+        index: i,
+      });
+      acc.cursor += sweep;
+      return acc;
+    },
+    { list: [], cursor: 0 },
+  ).list;
 
   const displayValue =
     activeIndex !== null

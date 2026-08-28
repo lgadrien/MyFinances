@@ -1,9 +1,8 @@
 /**
  * src/hooks/useSparklineData.ts
  * ─────────────────────────────────────────────────────────────────────────────
- * Charge l'historique de prix sur 7 jours pour un ticker donné.
- * Utilise TanStack Query pour le cache — les données sont partagées
- * si plusieurs composants demandent le même ticker.
+ * Charge l'historique de prix pour un ticker donné afin d'afficher la sparkline.
+ * Utilise TanStack Query pour le cache et la déduplication des requêtes.
  */
 
 import { useQuery } from "@tanstack/react-query";
@@ -18,19 +17,29 @@ interface OHLCVPoint {
 }
 
 async function fetchSparkline(ticker: string): Promise<number[]> {
-  const res = await fetch(
-    `/api/stock/history?ticker=${encodeURIComponent(ticker)}&range=1mo&interval=1d`,
-    { signal: AbortSignal.timeout(5000) },
-  );
-  if (!res.ok) return [];
-  const data: OHLCVPoint[] = await res.json();
-  if (!Array.isArray(data)) return [];
+  try {
+    const res = await fetch(
+      `/api/stock/history?ticker=${encodeURIComponent(ticker)}&interval=daily`,
+      { signal: AbortSignal.timeout(6000) },
+    );
+    if (!res.ok) return [];
+    const json = await res.json();
+    const list: OHLCVPoint[] = Array.isArray(json)
+      ? json
+      : Array.isArray(json?.data)
+        ? json.data
+        : [];
 
-  // Prend les 10 derniers points de clôture
-  return data
-    .slice(-10)
-    .map((d) => d.close)
-    .filter((v) => typeof v === "number" && !isNaN(v));
+    if (!list.length) return [];
+
+    // Prend les 10 derniers points de clôture
+    return list
+      .slice(-10)
+      .map((d) => d.close)
+      .filter((v) => typeof v === "number" && !isNaN(v));
+  } catch {
+    return [];
+  }
 }
 
 export function useSparklineData(ticker: string, enabled = true) {
@@ -38,8 +47,8 @@ export function useSparklineData(ticker: string, enabled = true) {
     queryKey: ["sparkline", ticker],
     queryFn: () => fetchSparkline(ticker),
     enabled: enabled && !!ticker,
-    staleTime: 5 * 60 * 1000, // 5 min — données pas ultra fraîches
-    gcTime: 10 * 60 * 1000, // 10 min en cache
+    staleTime: 5 * 60 * 1000, // 5 min
+    gcTime: 10 * 60 * 1000,
     retry: 1,
   });
 }

@@ -5,6 +5,14 @@ import { usePathname } from "next/navigation";
 import Sidebar from "./Sidebar";
 import BottomNav from "./BottomNav";
 import GlobalSettingsToggles from "./GlobalSettingsToggles";
+import { Bell } from "lucide-react";
+import { useAlerts } from "@/hooks/useAlerts";
+import dynamic from "next/dynamic";
+
+const AlertsCenterModal = dynamic(
+  () => import("@/components/alerts/AlertsCenterModal"),
+  { ssr: false },
+);
 
 export default function ResponsiveLayout({
   children,
@@ -14,6 +22,7 @@ export default function ResponsiveLayout({
   const pathname = usePathname();
   const isLoginPage = pathname === "/login";
   const [isCollapsed, setIsCollapsed] = useState(false);
+  const { unreadCount, isModalOpen, setIsModalOpen } = useAlerts();
 
   return (
     <div className="min-h-screen bg-black text-zinc-50">
@@ -23,6 +32,7 @@ export default function ResponsiveLayout({
           className="fixed left-0 top-0 z-40 hidden md:flex"
           isCollapsed={isCollapsed}
           onToggle={() => setIsCollapsed(!isCollapsed)}
+          onOpenAlerts={() => setIsModalOpen(true)}
         />
       )}
 
@@ -30,7 +40,21 @@ export default function ResponsiveLayout({
       {!isLoginPage && (
         <div className="sticky top-0 z-30 flex h-16 items-center justify-between border-b border-zinc-800 bg-black/80 px-4 backdrop-blur-md md:hidden">
           <span className="text-lg font-bold text-white">MyFinances</span>
-          <GlobalSettingsToggles horizontal />
+          <div className="flex items-center gap-2">
+            <button
+              onClick={() => setIsModalOpen(true)}
+              className="relative flex h-9 w-9 items-center justify-center rounded-xl bg-zinc-900 border border-zinc-800 text-zinc-300 hover:text-white"
+              title="Centre d'alertes"
+            >
+              <Bell className="h-4 w-4" />
+              {unreadCount > 0 && (
+                <span className="absolute -top-1 -right-1 flex h-4 w-4 items-center justify-center rounded-full bg-violet-600 text-[10px] font-bold text-white shadow-sm ring-2 ring-black">
+                  {unreadCount}
+                </span>
+              )}
+            </button>
+            <GlobalSettingsToggles horizontal />
+          </div>
         </div>
       )}
 
@@ -40,6 +64,12 @@ export default function ResponsiveLayout({
           <BottomNav />
         </div>
       )}
+
+      {/* Alerts Modal */}
+      <AlertsCenterModal
+        isOpen={isModalOpen}
+        onClose={() => setIsModalOpen(false)}
+      />
 
       {/* Main Content */}
       <main

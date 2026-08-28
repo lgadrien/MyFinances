@@ -5,23 +5,31 @@ import {
   ArrowDownRight,
   RefreshCw,
   Calculator,
+  BarChart3,
+  TrendingUp,
 } from "lucide-react";
 import dynamic from "next/dynamic";
-import { format, parseISO } from "date-fns";
-import { fr } from "date-fns/locale";
 import Badge from "@/components/ui/Badge";
 const PortfolioHistoryChart = dynamic(() => import("@/components/PortfolioHistoryChart"), { ssr: false });
+const BenchmarkChart = dynamic(() => import("@/components/widgets/BenchmarkChart"), {
+  ssr: false,
+  loading: () => <ChartSkeleton height={320} />,
+});
+const TaxSimulator = dynamic(() => import("@/components/widgets/TaxSimulator"), {
+  ssr: false,
+  loading: () => <ChartSkeleton height={200} />,
+});
 import AnimatedDonut from "@/components/ui/AnimatedDonut";
 import PositionSparklineCell from "@/components/ui/PositionSparklineCell";
 import { StatsCardSkeleton, ChartSkeleton } from "@/components/ui/Skeleton";
 import { usePortfolio } from "@/hooks/usePortfolio";
 import { formatEUR, formatPercent } from "@/lib/utils";
 import { useSettingsStore } from "@/stores/useSettingsStore";
-
-
+import { useState } from "react";
 
 export default function PortfolioPage() {
   useSettingsStore();
+  const [chartView, setChartView] = useState<"history" | "benchmark">("history");
   const {
     positions,
     filteredHistory,
@@ -74,27 +82,25 @@ export default function PortfolioPage() {
       <div className="flex items-center justify-between">
         <div>
           <h1 className="text-3xl font-extrabold tracking-tight text-white">
-            Mon Portefeuille
+            Portefeuille
           </h1>
           <p className="mt-1 text-sm text-zinc-400">
-            Vue détaillée de vos positions et de leur performance
+            Analyse et suivi de vos positions
           </p>
         </div>
-        <div className="flex gap-2">
-          <button
-            onClick={loadData}
-            disabled={refreshing}
-            className="flex items-center gap-2 rounded-xl bg-zinc-800 px-4 py-2 text-sm font-medium text-zinc-300 transition-colors hover:bg-zinc-700 disabled:opacity-50"
-          >
-            <RefreshCw
-              className={`h-4 w-4 ${refreshing ? "animate-spin" : ""}`}
-            />
-            Actualiser
-          </button>
-        </div>
+        <button
+          onClick={loadData}
+          disabled={refreshing}
+          className="flex items-center gap-2 rounded-xl bg-zinc-800 px-4 py-2 text-sm font-medium text-zinc-200 transition-colors hover:bg-zinc-700 disabled:opacity-50"
+        >
+          <RefreshCw
+            className={`h-4 w-4 ${refreshing ? "animate-spin" : ""}`}
+          />
+          Actualiser
+        </button>
       </div>
 
-      {/* Summary Cards */}
+      {/* KPI Cards */}
       <div className="grid grid-cols-2 gap-3 sm:gap-6 sm:grid-cols-3">
         <div className="rounded-2xl border border-zinc-800 bg-zinc-900/50 p-4 sm:p-6 backdrop-blur">
           <p className="text-xs sm:text-sm font-medium text-zinc-400">Valeur Totale</p>
@@ -129,32 +135,68 @@ export default function PortfolioPage() {
         </div>
       </div>
 
-      {/* History Chart */}
-      <div className="rounded-2xl border border-zinc-800 bg-zinc-900/50 p-6 backdrop-blur">
-        <div className="mb-6 flex items-center justify-between">
-          <h3 className="text-lg font-semibold text-white">
-            Évolution du Portefeuille
-          </h3>
-          <div className="flex gap-1 rounded-lg bg-zinc-800/50 p-1">
-            {(["1W", "1M", "1Y", "Max"] as const).map((range) => (
-              <button
-                key={range}
-                onClick={() => setTimeRange(range)}
-                className={`rounded-md px-3 py-1 text-xs font-medium transition-colors ${
-                  timeRange === range
-                    ? "bg-violet-600 text-white shadow-sm"
-                    : "text-zinc-400 hover:text-zinc-200"
-                }`}
-              >
-                {range}
-              </button>
-            ))}
-          </div>
+      {/* History & Benchmark Chart Section */}
+      <div className="space-y-4">
+        {/* Toggle Bar */}
+        <div className="flex items-center gap-2">
+          <button
+            onClick={() => setChartView("history")}
+            className={`flex items-center gap-2 rounded-xl px-4 py-2 text-sm font-semibold transition-all ${
+              chartView === "history"
+                ? "bg-violet-600/20 text-violet-400 ring-1 ring-violet-500/30"
+                : "text-zinc-400 hover:bg-zinc-900 hover:text-zinc-200"
+            }`}
+          >
+            <BarChart3 className="h-4 w-4" />
+            <span>Historique Portefeuille</span>
+          </button>
+          <button
+            onClick={() => setChartView("benchmark")}
+            className={`flex items-center gap-2 rounded-xl px-4 py-2 text-sm font-semibold transition-all ${
+              chartView === "benchmark"
+                ? "bg-violet-600/20 text-violet-400 ring-1 ring-violet-500/30"
+                : "text-zinc-400 hover:bg-zinc-900 hover:text-zinc-200"
+            }`}
+          >
+            <TrendingUp className="h-4 w-4" />
+            <span>Benchmark vs Indices</span>
+          </button>
         </div>
 
-        <div className="h-[300px] w-full">
-          <PortfolioHistoryChart filteredHistory={filteredHistory} />
-        </div>
+        {chartView === "benchmark" ? (
+          <BenchmarkChart
+            portfolioHistory={
+              filteredHistory as { date: string; total_value: number }[]
+            }
+          />
+        ) : (
+          <div className="rounded-2xl border border-zinc-800 bg-zinc-900/50 p-6 backdrop-blur">
+            <div className="mb-6 flex items-center justify-between">
+              <h3 className="text-lg font-semibold text-white">
+                Évolution du Portefeuille
+              </h3>
+              <div className="flex gap-1 rounded-lg bg-zinc-800/50 p-1">
+                {(["1W", "1M", "1Y", "Max"] as const).map((range) => (
+                  <button
+                    key={range}
+                    onClick={() => setTimeRange(range)}
+                    className={`rounded-md px-3 py-1 text-xs font-medium transition-colors ${
+                      timeRange === range
+                        ? "bg-violet-600 text-white shadow-sm"
+                        : "text-zinc-400 hover:text-zinc-200"
+                    }`}
+                  >
+                    {range}
+                  </button>
+                ))}
+              </div>
+            </div>
+
+            <div className="h-[300px] w-full">
+              <PortfolioHistoryChart filteredHistory={filteredHistory} />
+            </div>
+          </div>
+        )}
       </div>
 
       {/* Allocation Charts */}
@@ -218,68 +260,64 @@ export default function PortfolioPage() {
                   onChange={(e) =>
                     setRebalanceCash(parseFloat(e.target.value) || 0)
                   }
-                  className="w-full rounded-xl border border-zinc-700 bg-zinc-800 px-4 py-2 text-sm text-zinc-200 outline-none focus:border-violet-500"
+                  placeholder="Ex: 500"
+                  className="w-full rounded-xl border border-zinc-700 bg-zinc-800 px-4 py-2 text-sm text-white placeholder-zinc-500 outline-none focus:border-violet-500"
                 />
               </div>
               <div className="text-sm text-zinc-400">
-                Capital cible total :{" "}
-                <strong className="text-white">
-                  {formatEUR(totalValue + rebalanceCash)}
-                </strong>
+                Laissez vide ou entrez un montant pour voir les achats
+                recommandés.
               </div>
             </div>
 
             <div className="overflow-x-auto">
-              <table className="w-full text-sm">
-                <thead>
-                  <tr className="border-b border-zinc-800 text-left text-zinc-400">
-                    <th className="pb-3 font-medium">Actif</th>
-                    <th className="pb-3 text-right font-medium">
-                      Allocation actuelle
-                    </th>
-                    <th className="pb-3 text-center font-medium">
-                      Allocation cible (%)
-                    </th>
-                    <th className="pb-3 text-right font-medium">
-                      À Acheter/Vendre (€)
-                    </th>
+              <table className="w-full text-left text-sm text-zinc-300">
+                <thead className="border-b border-zinc-800 text-xs uppercase text-zinc-400">
+                  <tr>
+                    <th className="py-2">Actif</th>
+                    <th className="py-2 text-right">Actuel (€)</th>
+                    <th className="py-2 text-right">Actuel (%)</th>
+                    <th className="py-2 text-right">Cible (%)</th>
+                    <th className="py-2 text-right">Action Recommandée</th>
                   </tr>
                 </thead>
-                <tbody className="divide-y divide-zinc-800/20">
-                  {positions.map((pos) => {
+                <tbody className="divide-y divide-zinc-800/50">
+                  {positions.map((p) => {
+                    const currentVal = p.capitalValue || 0;
                     const currentPct =
-                      totalValue > 0
-                        ? ((pos.capitalValue || 0) / totalValue) * 100
-                        : 0;
-                    const targetPct = targetAllocations[pos.ticker] || 0;
-                    const targetCap =
-                      (totalValue + rebalanceCash) * (targetPct / 100);
-                    const diff = targetCap - (pos.capitalValue || 0);
+                      totalValue > 0 ? (currentVal / totalValue) * 100 : 0;
+                    const targetPct = targetAllocations[p.ticker] || 0;
+
+                    // Formule de rééquilibrage : (Valeur Totale + Cash) * % Cible - Valeur Actuelle
+                    const totalRebalanceTarget = totalValue + rebalanceCash;
+                    const idealVal =
+                      (totalRebalanceTarget * targetPct) / 100;
+                    const diff = idealVal - currentVal;
 
                     return (
-                      <tr key={pos.ticker}>
-                        <td className="py-3 text-zinc-200">
-                          {pos.name}{" "}
-                          <span className="text-xs text-zinc-500">
-                            ({pos.ticker})
-                          </span>
+                      <tr key={p.ticker}>
+                        <td className="py-3 font-medium text-white">
+                          {p.name}
                         </td>
-                        <td className="py-3 text-right text-zinc-400">
+                        <td className="py-3 text-right">
+                          {formatEUR(currentVal)}
+                        </td>
+                        <td className="py-3 text-right">
                           {currentPct.toFixed(1)}%
                         </td>
-                        <td className="py-3 text-center">
+                        <td className="py-3 text-right">
                           <input
                             type="number"
                             min="0"
                             max="100"
-                            value={targetPct.toFixed(1)}
+                            value={targetAllocations[p.ticker] ?? 0}
                             onChange={(e) =>
-                              setTargetAllocations((prev) => ({
-                                ...prev,
-                                [pos.ticker]: parseFloat(e.target.value) || 0,
-                              }))
+                              setTargetAllocations({
+                                ...targetAllocations,
+                                [p.ticker]: parseFloat(e.target.value) || 0,
+                              })
                             }
-                            className="w-20 rounded border border-zinc-700 bg-zinc-800 px-2 py-1 text-center text-zinc-200 outline-none focus:border-violet-500"
+                            className="w-16 rounded-lg border border-zinc-700 bg-zinc-800 px-2 py-1 text-right text-xs text-white outline-none focus:border-violet-500"
                           />
                         </td>
                         <td
@@ -307,6 +345,17 @@ export default function PortfolioPage() {
             </div>
           </div>
         )}
+      </div>
+
+      {/* Tax Simulator Tool */}
+      <div className="w-full">
+        <TaxSimulator
+          totalCapital={totalValue}
+          totalPlusValue={Math.max(0, totalPV)}
+          totalInvested={totalInvested}
+          totalDividends={positions.reduce((s, p) => s + (p.dividends || 0), 0)}
+          positions={positions}
+        />
       </div>
 
       {/* Positions Table */}

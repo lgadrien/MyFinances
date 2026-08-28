@@ -342,9 +342,6 @@ export default function TransactionsPage() {
     setTransactionToDelete(tx);
   };
 
-  const inputClasses =
-    "w-full rounded-xl border border-slate-700/50 bg-slate-800/50 px-4 py-2.5 text-sm text-slate-200 outline-none transition-colors focus:border-emerald-500/50 focus:ring-1 focus:ring-emerald-500/20 placeholder:text-slate-500";
-
   const SortIcon = ({ colKey }: { colKey: keyof Transaction }) => {
     if (sortKey !== colKey)
       return <ChevronsUpDown className="ml-1 h-3 w-3 text-slate-600" />;
@@ -390,10 +387,11 @@ export default function TransactionsPage() {
           />
           <button
             onClick={() => fileInputRef.current?.click()}
-            className="flex items-center gap-2 rounded-xl bg-zinc-800 px-4 py-2.5 text-sm font-medium text-zinc-300 transition-colors hover:bg-zinc-700"
+            disabled={isImporting}
+            className="flex items-center gap-2 rounded-xl bg-zinc-800 px-4 py-2.5 text-sm font-medium text-zinc-300 transition-colors hover:bg-zinc-700 disabled:opacity-50"
             title="Importer CSV"
           >
-            <Upload className="h-4 w-4" />
+            <Upload className={`h-4 w-4 ${isImporting ? "animate-spin" : ""}`} />
           </button>
           <button
             onClick={handleExportCSV}

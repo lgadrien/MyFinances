@@ -7,6 +7,8 @@ import {
   deleteTransaction,
 } from "@/lib/data";
 
+import type { TransactionPayload } from "@/lib/types";
+
 export function useTransactions() {
   const queryClient = useQueryClient();
 
@@ -19,14 +21,15 @@ export function useTransactions() {
   const transactions = useMemo(() => query.data || [], [query.data]);
 
   const addTx = useMutation({
-    mutationFn: insertTransaction,
+    mutationFn: (tx: TransactionPayload) => insertTransaction(tx),
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ["transactions"] });
     },
   });
 
   const updateTx = useMutation({
-    mutationFn: ({ id, tx }: { id: string; tx: any }) => updateTransaction(id, tx),
+    mutationFn: ({ id, tx }: { id: string; tx: TransactionPayload }) =>
+      updateTransaction(id, tx),
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ["transactions"] });
     },

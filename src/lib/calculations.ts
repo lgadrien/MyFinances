@@ -1,65 +1,69 @@
 /**
- * Re-export shared types from the central types file.
- * All app code should import Transaction, Asset, PortfolioPosition from here
- * OR directly from "@/lib/types" — both work.
+ * src/lib/calculations.ts
+ * ─────────────────────────────────────────────────────────────────────────────
+ * Financial calculations engine for PEA / Crypto portfolio tracking.
+ * Provides accurate PRU (Weighted Average Price), P&L, dividend projections,
+ * and positions calculation.
  */
+
 export type {
   Transaction,
   Asset,
   PortfolioPosition,
+  EnrichedPortfolioPosition,
   TransactionType,
 } from "@/lib/types";
 
-// Local import for internal use
 import type { Transaction, PortfolioPosition } from "@/lib/types";
 
-/** Calcule le PRU (Prix de Revient Unitaire) pour un ticker donné.
- *  PRU = Σ(qté × prix_unitaire) / Σ qté (achats seulement, hors frais).
+/**
+ * Calcule le PRU chronologique pour un ensemble de transactions d'un ticker.
+ * Gère correctement la réinitialisation du PRU si la position a été clôturée (quantité = 0).
  */
 export function calculatePRU(transactions: Transaction[]): number {
-  let totalQty = 0;
-  let totalCost = 0;
-  for (const t of transactions) {
-    if (t.type === "Achat" && typeof t.quantity === "number" && typeof t.unit_price === "number") {
-      totalQty += t.quantity;
-      totalCost += t.quantity * t.unit_price;
+  const sorted = [...transactions].sort((a, b) => a.date.localeCompare(b.date));
+  let currentQty = 0;
+  let currentPRU = 0;
+
+  for (const t of sorted) {
+    const qty = Number(t.quantity) || 0;
+    const price = Number(t.unit_price) || 0;
+    const fees = Number(t.fees) || 0;
+
+    if (t.type === "Achat" && qty > 0) {
+      const newQty = currentQty + qty;
+      const totalCost = currentQty * currentPRU + qty * price + fees;
+      currentPRU = newQty > 0 ? totalCost / newQty : 0;
+      currentQty = newQty;
+    } else if (t.type === "Vente" && qty > 0) {
+      currentQty = Math.max(0, currentQty - qty);
+      if (currentQty === 0) {
+        currentPRU = 0;
+      }
     }
   }
-  return totalQty > 0 ? totalCost / totalQty : 0;
+
+  return currentPRU;
 }
 
-/** Calcule le total investi basé sur le PRU et la quantité nette (achats - ventes). */
+/** Calcule le montant total investi net actuel du portefeuille */
 export function calculateTotalInvested(transactions: Transaction[]): number {
-  let boughtQty = 0;
-  let totalCost = 0;
-  let soldQty = 0;
-
-  for (const t of transactions) {
-    if (t.type === "Achat" && typeof t.quantity === "number" && typeof t.unit_price === "number") {
-      boughtQty += t.quantity;
-      totalCost += t.quantity * t.unit_price;
-    } else if (t.type === "Vente" && typeof t.quantity === "number") {
-      soldQty += t.quantity;
-    }
-  }
-
-  const pru = boughtQty > 0 ? totalCost / boughtQty : 0;
-  const netQty = boughtQty - soldQty;
-  return netQty > 0 ? pru * netQty : 0;
+  const positions = calculatePortfolioPositions(transactions);
+  return positions.reduce((sum, p) => sum + (p.totalInvested || 0), 0);
 }
 
-/** Calcule les dividendes cumulés nets : Σ (total_amount - fees) pour type = Dividende. */
+/** Calcule les dividendes cumulés nets : Σ (total_amount - fees) pour type = Dividende */
 export function calculateDividends(transactions: Transaction[]): number {
   let total = 0;
   for (const t of transactions) {
     if (t.type === "Dividende") {
-      total += t.total_amount - t.fees;
+      total += (Number(t.total_amount) || 0) - (Number(t.fees) || 0);
     }
   }
   return total;
 }
 
-/** Calcule la plus-value : (prix_actuel - PRU) × quantité. */
+/** Calcule la plus-value latente : (prix_actuel - PRU) × quantité */
 export function calculatePlusValue(
   pru: number,
   currentPrice: number,
@@ -69,71 +73,74 @@ export function calculatePlusValue(
 }
 
 /**
- * Calcule les positions du portefeuille avec PRU, dividendes, etc.
- * Algorithme O(n) via Map groupée par ticker (vs O(n²) avec filter).
+ * Calcule les positions du portefeuille avec PRU chronologique, dividendes et frais.
  */
 export function calculatePortfolioPositions(
   transactions: Transaction[],
   instrumentLookup?: Map<string, { name: string; sector: string }>,
 ): PortfolioPosition[] {
-  // Accumulate per ticker in a single pass
-  type Accumulator = {
-    boughtQty: number;
-    soldQty: number;
-    totalCost: number;
-    totalFees: number;
-    dividends: number;
-  };
-
-  const map = new Map<string, Accumulator>();
+  // Regrouper par ticker
+  const txByTicker = new Map<string, Transaction[]>();
 
   for (const t of transactions) {
-    if (!map.has(t.ticker)) {
-      map.set(t.ticker, {
-        boughtQty: 0,
-        soldQty: 0,
-        totalCost: 0,
-        totalFees: 0,
-        dividends: 0,
-      });
+    if (!t.ticker) continue;
+    const ticker = t.ticker.trim().toUpperCase();
+    if (!txByTicker.has(ticker)) {
+      txByTicker.set(ticker, []);
     }
-    const acc = map.get(t.ticker)!;
-
-    if (t.type === "Achat") {
-      acc.boughtQty += (t.quantity || 0);
-      acc.totalCost += (t.quantity || 0) * (t.unit_price || 0);
-      acc.totalFees += (t.fees || 0);
-    } else if (t.type === "Vente") {
-      acc.soldQty += (t.quantity || 0);
-      acc.totalFees += (t.fees || 0);
-    } else if (t.type === "Dividende") {
-      acc.dividends += (t.total_amount || 0) - (t.fees || 0);
-      acc.totalFees += (t.fees || 0);
-    }
+    txByTicker.get(ticker)!.push(t);
   }
 
   const positions: PortfolioPosition[] = [];
 
-  for (const [ticker, acc] of map) {
-    const totalQuantity = acc.boughtQty - acc.soldQty;
-    // Skip fully sold positions with no remaining shares
-    if (totalQuantity <= 0 && acc.boughtQty === 0) continue;
+  for (const [ticker, txList] of txByTicker) {
+    // Trier chronologiquement
+    const sorted = [...txList].sort((a, b) => a.date.localeCompare(b.date));
 
-    const pru = acc.boughtQty > 0 ? acc.totalCost / acc.boughtQty : 0;
-    const totalInvested = totalQuantity > 0 ? pru * totalQuantity : 0;
+    let currentQty = 0;
+    let currentPRU = 0;
+    let totalFees = 0;
+    let dividends = 0;
 
-    const info = instrumentLookup?.get(ticker);
+    for (const t of sorted) {
+      const qty = Number(t.quantity) || 0;
+      const price = Number(t.unit_price) || 0;
+      const fees = Number(t.fees) || 0;
+      const totalAmount = Number(t.total_amount) || 0;
 
-    positions.push({
-      ticker,
-      name: info?.name ?? ticker,
-      sector: info?.sector ?? null,
-      totalQuantity,
-      totalInvested,
-      totalFees: acc.totalFees,
-      pru,
-      dividends: acc.dividends,
-    });
+      totalFees += fees;
+
+      if (t.type === "Achat" && qty > 0) {
+        const newQty = currentQty + qty;
+        const totalCost = currentQty * currentPRU + qty * price + fees;
+        currentPRU = newQty > 0 ? totalCost / newQty : 0;
+        currentQty = newQty;
+      } else if (t.type === "Vente" && qty > 0) {
+        currentQty = Math.max(0, currentQty - qty);
+        if (currentQty === 0) {
+          currentPRU = 0;
+        }
+      } else if (t.type === "Dividende") {
+        dividends += totalAmount - fees;
+      }
+    }
+
+    // Si on a des actions restantes ou des dividendes historiques
+    if (currentQty > 0.0001 || dividends > 0) {
+      const info = instrumentLookup?.get(ticker);
+      const totalInvested = currentQty > 0 ? currentPRU * currentQty : 0;
+
+      positions.push({
+        ticker,
+        name: info?.name ?? ticker,
+        sector: info?.sector ?? null,
+        totalQuantity: currentQty,
+        totalInvested,
+        totalFees,
+        pru: currentPRU,
+        dividends,
+      });
+    }
   }
 
   return positions;
@@ -149,9 +156,10 @@ export function groupDividendsByMonth(
   const grouped = new Map<string, number>();
 
   for (const t of transactions) {
-    if (t.type === "Dividende") {
+    if (t.type === "Dividende" && t.date) {
       const month = t.date.substring(0, 7); // "YYYY-MM"
-      grouped.set(month, (grouped.get(month) ?? 0) + t.total_amount);
+      const net = (Number(t.total_amount) || 0) - (Number(t.fees) || 0);
+      grouped.set(month, (grouped.get(month) ?? 0) + net);
     }
   }
 

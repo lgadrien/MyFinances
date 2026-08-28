@@ -9,8 +9,10 @@ import {
   Wallet,
   Briefcase,
   ChevronLeft,
+  Bell,
 } from "lucide-react";
 import GlobalSettingsToggles from "./GlobalSettingsToggles";
+import { useAlerts } from "@/hooks/useAlerts";
 
 const navItems = [
   { href: "/", label: "Dashboard", icon: LayoutDashboard },
@@ -24,6 +26,7 @@ interface SidebarProps {
   onNavigate?: () => void;
   isCollapsed?: boolean;
   onToggle?: () => void;
+  onOpenAlerts?: () => void;
 }
 
 export default function Sidebar({
@@ -31,8 +34,10 @@ export default function Sidebar({
   onNavigate,
   isCollapsed = false,
   onToggle,
+  onOpenAlerts,
 }: SidebarProps) {
   const pathname = usePathname();
+  const { unreadCount, alerts } = useAlerts();
 
   return (
     <aside
@@ -110,6 +115,36 @@ export default function Sidebar({
             </Link>
           );
         })}
+
+        {/* Alerts Center Trigger Button */}
+        {onOpenAlerts && (
+          <button
+            onClick={onOpenAlerts}
+            className={`group flex w-full items-center rounded-xl py-3 text-sm font-medium text-zinc-500 transition-all duration-200 hover:bg-zinc-900 hover:text-zinc-200 ${
+              isCollapsed ? "justify-center px-0 mx-2" : "gap-3 px-4"
+            }`}
+            title={isCollapsed ? "Alertes" : undefined}
+          >
+            <div className="relative">
+              <Bell className={`shrink-0 ${isCollapsed ? "h-6 w-6" : "h-5 w-5"}`} />
+              {unreadCount > 0 && (
+                <span className="absolute -top-1 -right-1 flex h-3.5 w-3.5 items-center justify-center rounded-full bg-violet-600 text-[9px] font-bold text-white ring-2 ring-black">
+                  {unreadCount}
+                </span>
+              )}
+            </div>
+            {!isCollapsed && (
+              <>
+                <span className="whitespace-nowrap">Alertes</span>
+                {alerts.length > 0 && (
+                  <span className="ml-auto rounded-full bg-zinc-800 px-2 py-0.5 text-[10px] text-zinc-400">
+                    {alerts.length}
+                  </span>
+                )}
+              </>
+            )}
+          </button>
+        )}
       </nav>
 
       <GlobalSettingsToggles isCollapsed={isCollapsed} />

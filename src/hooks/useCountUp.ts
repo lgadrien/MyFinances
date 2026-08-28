@@ -3,9 +3,6 @@
  * ─────────────────────────────────────────────────────────────────────────────
  * Anime un nombre de 0 jusqu'à `target` en `duration` ms.
  * Utilise requestAnimationFrame pour 60fps, easing ease-out cubique.
- *
- * Usage :
- *   const displayed = useCountUp(totalInvested, { duration: 1200 });
  */
 
 import { useEffect, useRef, useState } from "react";
@@ -23,30 +20,24 @@ export function useCountUp(
   target: number,
   { duration = 1000, delay = 0, skipSmallChanges = false }: CountUpOptions = {},
 ): number {
-  const [current, setCurrent] = useState(0);
+  const safeTarget = typeof target === "number" && !Number.isNaN(target) ? target : 0;
+  const [current, setCurrent] = useState<number>(() => safeTarget);
   const frameRef = useRef<number | null>(null);
-  const previousTarget = useRef<number>(0);
+  const previousTarget = useRef<number>(safeTarget);
   const timeoutRef = useRef<ReturnType<typeof setTimeout> | null>(null);
 
   useEffect(() => {
-    // Safety check: if target is NaN, don't trigger animation
-    if (Number.isNaN(target)) {
-      setCurrent(0);
-      return;
-    }
-
     // Ignore les changements inférieurs à 1% si skipSmallChanges
     if (
       skipSmallChanges &&
       previousTarget.current !== 0 &&
-      Math.abs(target - previousTarget.current) / previousTarget.current < 0.01
+      Math.abs(safeTarget - previousTarget.current) / previousTarget.current < 0.01
     ) {
-      setCurrent(target);
       return;
     }
 
     const startValue = previousTarget.current;
-    previousTarget.current = target;
+    previousTarget.current = safeTarget;
 
     if (frameRef.current) cancelAnimationFrame(frameRef.current);
     if (timeoutRef.current) clearTimeout(timeoutRef.current);
@@ -60,7 +51,7 @@ export function useCountUp(
 
         // Easing ease-out cubique : décélère vers la fin
         const eased = 1 - Math.pow(1 - progress, 3);
-        const value = startValue + (target - startValue) * eased;
+        const value = startValue + (safeTarget - startValue) * eased;
 
         setCurrent(value);
 
@@ -76,7 +67,7 @@ export function useCountUp(
       if (frameRef.current) cancelAnimationFrame(frameRef.current);
       if (timeoutRef.current) clearTimeout(timeoutRef.current);
     };
-  }, [target, duration, delay, skipSmallChanges]);
+  }, [safeTarget, duration, delay, skipSmallChanges]);
 
   return current;
 }

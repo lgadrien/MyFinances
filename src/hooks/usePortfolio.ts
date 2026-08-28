@@ -1,7 +1,7 @@
 /**
  * src/hooks/usePortfolio.ts
  * ─────────────────────────────────────────────────────────────────────────────
- * Encapsule la logique de chargement et de calcul de la page Portefeuille.
+ * Encapsule la logique de chargement et de calcul de la page Portefeuille PEA.
  */
 
 import { useEffect, useState, useMemo, useCallback } from "react";
@@ -74,16 +74,21 @@ export function usePortfolio(): UsePortfolioReturn {
 
   const loadData = useCallback(async () => {
     if (isTxLoading) return;
-    
+
     try {
       setRefreshing(true);
       setLoading(true);
-      const initialPositions = calculatePortfolioPositions(transactions, instrumentMap);
 
+      // 1. History
       const historyRes = await fetch("/api/portfolio/history");
       const historyData = await historyRes.json();
       setHistory(Array.isArray(historyData) ? historyData : []);
 
+      // 2. Positions
+      const initialPositions = calculatePortfolioPositions(
+        transactions,
+        instrumentMap,
+      );
       const activePositions = initialPositions.filter(
         (p) => p.totalQuantity > 0.0001,
       );
@@ -91,7 +96,7 @@ export function usePortfolio(): UsePortfolioReturn {
       const enriched = await Promise.all(
         activePositions.map(async (pos) => {
           const priceData = await fetchStockPrice(pos.ticker);
-          const currentPrice = priceData?.price ?? 0;
+          const currentPrice = priceData?.price ?? pos.pru;
           const capitalValue = currentPrice * pos.totalQuantity;
           const plusValue = capitalValue - pos.totalInvested;
           return {
@@ -105,7 +110,7 @@ export function usePortfolio(): UsePortfolioReturn {
 
       setPositions(enriched);
 
-      // Init target allocations une seule fois
+      // Init target allocations
       setTargetAllocations((prev) => {
         if (Object.keys(prev).length > 0 || enriched.length === 0) return prev;
         const total = enriched.reduce((s, p) => s + (p.capitalValue ?? 0), 0);
