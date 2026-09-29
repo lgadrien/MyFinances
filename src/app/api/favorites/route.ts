@@ -1,21 +1,12 @@
 import { NextRequest, NextResponse } from "next/server";
-import { supabase } from "@/lib/supabase";
-
-// ── Input validation ──────────────────────────────────────────────────────────
-
-const TICKER_RE = /^[A-Z0-9^.=-]{1,12}$/;
-
-function sanitizeTicker(raw: unknown): string | null {
-  if (typeof raw !== "string") return null;
-  const t = raw.trim().toUpperCase();
-  return TICKER_RE.test(t) ? t : null;
-}
+import { supabaseAdmin } from "@/lib/supabase-server";
+import { sanitizeTicker } from "@/lib/validation";
 
 // ── GET /api/favorites ────────────────────────────────────────────────────────
 
 export async function GET() {
   try {
-    const { data, error } = await supabase
+    const { data, error } = await supabaseAdmin
       .from("favorites")
       .select("ticker")
       .order("created_at", { ascending: true });
@@ -44,7 +35,7 @@ export async function POST(req: NextRequest) {
       );
     }
 
-    const { error } = await supabase.from("favorites").insert([{ ticker }]);
+    const { error } = await supabaseAdmin.from("favorites").insert([{ ticker }]);
 
     if (error) {
       // PG unique violation → already favorited, treat as success
@@ -76,7 +67,7 @@ export async function DELETE(req: NextRequest) {
       );
     }
 
-    const { error } = await supabase
+    const { error } = await supabaseAdmin
       .from("favorites")
       .delete()
       .eq("ticker", ticker);

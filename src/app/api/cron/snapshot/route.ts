@@ -1,9 +1,9 @@
 import { NextResponse } from "next/server";
-import { supabase } from "@/lib/supabase";
-import { fetchTransactions } from "@/lib/data";
+import { supabaseAdmin } from "@/lib/supabase-server";
 import { calculatePortfolioPositions } from "@/lib/calculations";
 import { FRENCH_INSTRUMENTS } from "@/lib/french-instruments";
 import { getStockQuote } from "@/lib/stocks";
+import type { Transaction } from "@/lib/types";
 
 export const dynamic = "force-dynamic"; // Prevent static caching
 
@@ -22,8 +22,26 @@ export async function GET(request: Request) {
   }
 
   try {
-    // 1. Fetch all transactions
-    const transactions = await fetchTransactions();
+    // 1. Fetch all transactions directly via supabaseAdmin (service_role bypasses RLS)
+    //    On n'appelle pas /api/transactions pour éviter un self-call HTTP depuis le handler.
+    const { data: txData, error: txError } = await supabaseAdmin
+      .from("transactions")
+      .select("id, ticker, type, date, quantity, unit_price, total_amount, fees, created_at")
+      .order("date", { ascending: false });
+
+    if (txError) {
+      console.error("[cron/snapshot] Error fetching transactions:", txError);
+      return NextResponse.json({ error: txError.message }, { status: 500 });
+    }
+
+    const transactions: Transaction[] = (txData ?? []).map((t) => ({
+      ...(t as Transaction),
+      quantity: Number(t.quantity),
+      unit_price: Number(t.unit_price),
+      total_amount: Number(t.total_amount),
+      fees: Number(t.fees),
+    }));
+
     if (!transactions.length) {
       return NextResponse.json({ message: "No transactions found" });
     }
@@ -36,30 +54,27 @@ export async function GET(request: Request) {
 
     // 3. Calculate positions
     const positions = calculatePortfolioPositions(transactions, instrumentMap);
-
-    // Filter active positions
     const activePositions = positions.filter((p) => p.totalQuantity > 0.0001);
 
-    // 4. Get live prices and calculate total value
-    let totalValue = 0;
-    const totalInvested = activePositions.reduce(
-      (sum, p) => sum + p.totalInvested,
-      0,
-    );
+    // 4. Get live prices — accumulation thread-safe via reduce sur les résultats
+    const totalInvested = activePositions.reduce((sum, p) => sum + p.totalInvested, 0);
 
-    await Promise.allSettled(
+    const positionValues = await Promise.allSettled(
       activePositions.map(async (pos) => {
         const quote = await getStockQuote(pos.ticker);
-        const currentPrice = quote.price ?? 0;
-        totalValue += currentPrice * pos.totalQuantity;
+        return (quote.price ?? 0) * pos.totalQuantity;
       }),
     );
 
-    // 5. Insert into portfolio_history
-    // Check if entry already exists for today to avoid duplicates (or upsert)
+    const totalValue = positionValues.reduce(
+      (sum, r) => sum + (r.status === "fulfilled" ? r.value : 0),
+      0,
+    );
+
+    // 5. Upsert into portfolio_history via supabaseAdmin
     const today = new Date().toISOString().split("T")[0];
 
-    const { error } = await supabase.from("portfolio_history").upsert(
+    const { error } = await supabaseAdmin.from("portfolio_history").upsert(
       {
         date: today,
         total_value: totalValue,

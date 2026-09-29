@@ -67,24 +67,20 @@ CREATE INDEX IF NOT EXISTS idx_portfolio_history_date ON public.portfolio_histor
 
 -- ─────────────────────────────────────────────────────────────
 -- 5. ROW LEVEL SECURITY (RLS)
+--    RLS is enabled on all tables.
+--    No public / anon policies are granted: all database access is handled
+--    server-side in Next.js API Routes using SUPABASE_SERVICE_ROLE_KEY,
+--    which safely bypasses RLS while protecting your database from direct
+--    browser/public requests.
 -- ─────────────────────────────────────────────────────────────
 ALTER TABLE public.transactions      ENABLE ROW LEVEL SECURITY;
 ALTER TABLE public.favorites         ENABLE ROW LEVEL SECURITY;
 ALTER TABLE public.settings          ENABLE ROW LEVEL SECURITY;
 ALTER TABLE public.portfolio_history ENABLE ROW LEVEL SECURITY;
 
-CREATE POLICY "anon_all_transactions"
-    ON public.transactions FOR ALL TO anon
-    USING (true) WITH CHECK (true);
+-- If you previously created open anon policies, drop them:
+DROP POLICY IF EXISTS "anon_all_transactions"      ON public.transactions;
+DROP POLICY IF EXISTS "anon_all_favorites"         ON public.favorites;
+DROP POLICY IF EXISTS "anon_all_settings"          ON public.settings;
+DROP POLICY IF EXISTS "anon_all_portfolio_history" ON public.portfolio_history;
 
-CREATE POLICY "anon_all_favorites"
-    ON public.favorites FOR ALL TO anon
-    USING (true) WITH CHECK (true);
-
-CREATE POLICY "anon_all_settings"
-    ON public.settings FOR ALL TO anon
-    USING (true) WITH CHECK (true);
-
-CREATE POLICY "anon_all_portfolio_history"
-    ON public.portfolio_history FOR ALL TO anon
-    USING (true) WITH CHECK (true);

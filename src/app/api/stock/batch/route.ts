@@ -1,5 +1,6 @@
 import { NextRequest, NextResponse } from "next/server";
 import { getBatchStockQuotes } from "@/lib/stocks";
+import { sanitizeTicker } from "@/lib/validation";
 
 export const dynamic = "force-dynamic";
 
@@ -13,7 +14,11 @@ export async function GET(request: NextRequest) {
     );
   }
 
-  const tickers = tickersParam.split(",").map((t) => t.trim()).filter(Boolean);
+  const tickers = tickersParam
+    .split(",")
+    .map((t) => sanitizeTicker(t))
+    .filter((t): t is string => t !== null);
+
   if (tickers.length === 0) {
     return NextResponse.json({ quotes: {} });
   }
@@ -25,7 +30,10 @@ export async function GET(request: NextRequest) {
 export async function POST(request: NextRequest) {
   try {
     const body = await request.json();
-    const tickers: string[] = Array.isArray(body?.tickers) ? body.tickers : [];
+    const rawTickers: unknown[] = Array.isArray(body?.tickers) ? body.tickers : [];
+    const tickers = rawTickers
+      .map((t) => sanitizeTicker(t))
+      .filter((t: string | null): t is string => t !== null);
 
     if (tickers.length === 0) {
       return NextResponse.json({ quotes: {} });

@@ -1,5 +1,4 @@
-import { supabase } from "./supabase";
-import type { Transaction } from "./calculations";
+import type { Transaction } from "@/lib/types";
 
 // Shared transaction row mapper — avoids repeating Number() casts everywhere
 function mapTransaction(t: unknown): Transaction {
@@ -15,51 +14,39 @@ function mapTransaction(t: unknown): Transaction {
 
 // ─── Settings ────────────────────────────────────────────────────────────────
 
-/** Fetch generic app settings (cash & target capital). */
+/** Fetch generic app settings (cash & target capital) via API. */
 export async function fetchSettings(): Promise<{
   cash_balance: number;
   target_capital: number;
 } | null> {
-  const { data, error } = await supabase
-    .from("settings")
-    .select("cash_balance, target_capital")
-    .limit(1)
-    .single();
-
-  if (error || !data) return null;
-  return {
-    cash_balance: Number(data.cash_balance),
-    target_capital: Number(data.target_capital),
-  };
+  try {
+    const res = await fetch("/api/settings");
+    if (!res.ok) return null;
+    return await res.json();
+  } catch (error) {
+    console.error("Failed to fetch settings:", error);
+    return null;
+  }
 }
 
 /**
- * Upsert app settings — one round-trip instead of two (select + update).
- * Requires the settings table to have a unique constraint usable by upsert.
+ * Update app settings via API.
  */
 export async function updateSettings(
   cash_balance: number,
   target_capital: number,
 ): Promise<boolean> {
-  // First fetch the id (we need it to target the right row)
-  const { data: row } = await supabase
-    .from("settings")
-    .select("id")
-    .limit(1)
-    .single();
-
-  if (!row) return false;
-
-  const { error } = await supabase
-    .from("settings")
-    .update({
-      cash_balance,
-      target_capital,
-      updated_at: new Date().toISOString(),
-    })
-    .eq("id", row.id);
-
-  return !error;
+  try {
+    const res = await fetch("/api/settings", {
+      method: "PUT",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ cash_balance, target_capital }),
+    });
+    return res.ok;
+  } catch (error) {
+    console.error("Failed to update settings:", error);
+    return false;
+  }
 }
 
 // ─── Favorites ───────────────────────────────────────────────────────────────
@@ -108,21 +95,17 @@ export async function removeFavorite(ticker: string): Promise<boolean> {
 
 // ─── Transactions ─────────────────────────────────────────────────────────────
 
-/** Fetch all transactions from Supabase, sorted by date desc. */
+/** Fetch all transactions via API, sorted by date desc. */
 export async function fetchTransactions(): Promise<Transaction[]> {
-  const { data, error } = await supabase
-    .from("transactions")
-    .select(
-      "id, ticker, type, date, quantity, unit_price, total_amount, fees, created_at",
-    )
-    .order("date", { ascending: false });
-
-  if (error) {
-    console.error("Error fetching transactions:", error.message);
+  try {
+    const res = await fetch("/api/transactions");
+    if (!res.ok) return [];
+    const data = await res.json();
+    return Array.isArray(data) ? data.map(mapTransaction) : [];
+  } catch (error) {
+    console.error("Failed to fetch transactions:", error);
     return [];
   }
-
-  return (data ?? []).map(mapTransaction);
 }
 
 /** Validate transaction payload before sending to DB. */
@@ -145,7 +128,7 @@ function validateTransactionPayload(tx: {
   return null;
 }
 
-/** Insert a new transaction into Supabase. */
+/** Insert a new transaction via API. */
 export async function insertTransaction(tx: {
   ticker: string;
   type: "Achat" | "Dividende" | "Vente";
@@ -161,21 +144,22 @@ export async function insertTransaction(tx: {
     return null;
   }
 
-  const { data, error } = await supabase
-    .from("transactions")
-    .insert({ ...tx, ticker: tx.ticker.trim().toUpperCase() })
-    .select()
-    .single();
-
-  if (error) {
-    console.error("Error inserting transaction:", error.message);
+  try {
+    const res = await fetch("/api/transactions", {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify(tx),
+    });
+    if (!res.ok) return null;
+    const data = await res.json();
+    return data ? mapTransaction(data) : null;
+  } catch (error) {
+    console.error("Failed to insert transaction:", error);
     return null;
   }
-
-  return data ? mapTransaction(data as Record<string, unknown>) : null;
 }
 
-/** Update an existing transaction in Supabase. */
+/** Update an existing transaction via API. */
 export async function updateTransaction(
   id: string,
   tx: {
@@ -196,33 +180,34 @@ export async function updateTransaction(
     return null;
   }
 
-  const { data, error } = await supabase
-    .from("transactions")
-    .update({ ...tx, ticker: tx.ticker.trim().toUpperCase() })
-    .eq("id", id)
-    .select()
-    .single();
-
-  if (error) {
-    console.error("Error updating transaction:", error.message);
+  try {
+    const res = await fetch(`/api/transactions/${encodeURIComponent(id)}`, {
+      method: "PUT",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify(tx),
+    });
+    if (!res.ok) return null;
+    const data = await res.json();
+    return data ? mapTransaction(data) : null;
+  } catch (error) {
+    console.error("Failed to update transaction:", error);
     return null;
   }
-
-  return data ? mapTransaction(data as Record<string, unknown>) : null;
 }
 
-/** Delete a transaction from Supabase by ID. */
+/** Delete a transaction by ID via API. */
 export async function deleteTransaction(id: string): Promise<boolean> {
   if (!id) return false;
 
-  const { error } = await supabase.from("transactions").delete().eq("id", id);
-
-  if (error) {
-    console.error("Error deleting transaction:", error.message);
+  try {
+    const res = await fetch(`/api/transactions/${encodeURIComponent(id)}`, {
+      method: "DELETE",
+    });
+    return res.ok;
+  } catch (error) {
+    console.error("Failed to delete transaction:", error);
     return false;
   }
-
-  return true;
 }
 
 // ─── Market data ─────────────────────────────────────────────────────────────
