@@ -8,15 +8,17 @@ import { getStockQuote } from "@/lib/stocks";
 export const dynamic = "force-dynamic"; // Prevent static caching
 
 export async function GET(request: Request) {
-  // Check for Vercel Cron Secret if environment variable is set
+  // CRON_SECRET est obligatoire — l'absence de la variable est une misconfiguration,
+  // pas un mode "ouvert". Sans ce secret, n'importe qui pourrait déclencher des snapshots.
+  const cronSecret = process.env.CRON_SECRET;
+  if (!cronSecret) {
+    console.error("[cron/snapshot] CRON_SECRET is not set — request rejected. Set it in your environment variables.");
+    return new Response("Service misconfigured", { status: 503 });
+  }
+
   const authHeader = request.headers.get("authorization");
-  if (
-    process.env.CRON_SECRET &&
-    authHeader !== `Bearer ${process.env.CRON_SECRET}`
-  ) {
-    return new Response("Unauthorized", {
-      status: 401,
-    });
+  if (authHeader !== `Bearer ${cronSecret}`) {
+    return new Response("Unauthorized", { status: 401 });
   }
 
   try {
