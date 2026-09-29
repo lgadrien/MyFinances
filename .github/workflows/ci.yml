@@ -83,6 +83,7 @@ jobs:
         env:
           NEXT_PUBLIC_SUPABASE_URL: https://placeholder.supabase.co
           NEXT_PUBLIC_SUPABASE_ANON_KEY: placeholder-anon-key
+          SUPABASE_SERVICE_ROLE_KEY: placeholder-service-role-key
           ACCESS_PASSWORD: ci-placeholder-password
           ALPHA_VANTAGE_KEY: placeholder-key
           CRON_SECRET: placeholder-cron-secret

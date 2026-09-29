@@ -25,10 +25,24 @@ if (!serviceRoleKey) {
   );
 }
 
-export const supabaseAdmin = createClient(supabaseUrl, serviceRoleKey, {
-  auth: {
-    // Désactiver la gestion de session côté serveur (inutile pour service_role)
-    autoRefreshToken: false,
-    persistSession: false,
+function isValidUrl(url: string): boolean {
+  try {
+    new URL(url);
+    return true;
+  } catch {
+    return false;
+  }
+}
+
+export const supabaseAdmin = createClient(
+  isValidUrl(supabaseUrl) ? supabaseUrl : "https://placeholder.supabase.co",
+  serviceRoleKey || "placeholder-service-role-key",
+  {
+    auth: {
+      // Désactiver la gestion de session côté serveur (inutile pour service_role)
+      autoRefreshToken: false,
+      persistSession: false,
+    },
   },
-});
+);
+
