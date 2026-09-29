@@ -1,0 +1,88 @@
+# ──────────────────────────────────────────────────────────────────────────────
+#  MyFinances — CI Pipeline
+#  Runs on every push and pull request.
+#  Steps: install → lint → test → build
+# ──────────────────────────────────────────────────────────────────────────────
+
+name: CI
+
+on:
+  push:
+    branches: ["**"]
+  pull_request:
+    branches: ["**"]
+
+# Cancel any in-progress run for the same ref (avoids duplicate CI on fast pushes)
+concurrency:
+  group: ci-${{ github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  ci:
+    name: Lint · Test · Build
+    runs-on: ubuntu-latest
+    timeout-minutes: 15
+
+    steps:
+      # ── 1. Checkout ─────────────────────────────────────────────────────────
+      - name: Checkout repository
+        uses: actions/checkout@v4
+
+      # ── 2. Node.js setup ────────────────────────────────────────────────────
+      - name: Set up Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: 20
+          cache: "npm"
+
+      # ── 3. Install dependencies ─────────────────────────────────────────────
+      - name: Install dependencies
+        run: npm ci
+
+      # ── 4. Lint ─────────────────────────────────────────────────────────────
+      - name: Lint (ESLint)
+        run: npm run lint
+
+      # ── 5. Unit tests + Code coverage ──────────────────────────────────────
+      - name: Run tests with coverage (Vitest)
+        run: npm run test:coverage
+
+      # ── 5b. Publish coverage summary in the GitHub job summary ─────────────
+      - name: Coverage summary → GitHub job summary
+        if: always()
+        run: |
+          echo "## 📊 Code Coverage" >> $GITHUB_STEP_SUMMARY
+          echo "" >> $GITHUB_STEP_SUMMARY
+          echo '```' >> $GITHUB_STEP_SUMMARY
+          cat coverage/coverage-summary.json \
+            | node -e "
+              const d = JSON.parse(require('fs').readFileSync('/dev/stdin','utf8')).total;
+              const fmt = (k) => \`\${k.padEnd(12)} \${String(d[k].pct+'%').padStart(6)}  (\${d[k].covered}/\${d[k].total})\`;
+              console.log(fmt('statements'));
+              console.log(fmt('branches'));
+              console.log(fmt('functions'));
+              console.log(fmt('lines'));
+            " 2>/dev/null || echo "Coverage summary not available"
+          echo '```' >> $GITHUB_STEP_SUMMARY
+
+      # ── 5c. Upload HTML report as a downloadable artifact ──────────────────
+      - name: Upload coverage report
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: coverage-report
+          path: coverage/
+          retention-days: 14
+
+      # ── 6. Build ────────────────────────────────────────────────────────────
+      # Next.js reads NEXT_PUBLIC_* at build time.
+      # We pass placeholder values so the build succeeds in CI without real secrets.
+      # Real secrets are injected by Vercel at deploy time — never commit them here.
+      - name: Build (Next.js)
+        run: npm run build
+        env:
+          NEXT_PUBLIC_SUPABASE_URL: https://placeholder.supabase.co
+          NEXT_PUBLIC_SUPABASE_ANON_KEY: placeholder-anon-key
+          ACCESS_PASSWORD: ci-placeholder-password
+          ALPHA_VANTAGE_KEY: placeholder-key
+          CRON_SECRET: placeholder-cron-secret

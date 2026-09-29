@@ -7,7 +7,7 @@
 
 import { useEffect, useState } from "react";
 import {
-  fetchStockPrice,
+  fetchBatchStockPrices,
   fetchSettings,
   updateSettings,
 } from "@/lib/data";
@@ -91,13 +91,11 @@ export function useDashboard(): DashboardData {
 
         const pos = calculatePortfolioPositions(transactions, instrumentLookup);
 
-        // Prix live en parallèle
-        const prices = await Promise.all(
-          pos.map((p) => fetchStockPrice(p.ticker)),
-        );
+        // Prix live via un seul appel batch (1 requête HTTP au lieu de N)
+        const quotes = await fetchBatchStockPrices(pos.map((p) => p.ticker));
 
-        const enriched: EnrichedPosition[] = pos.map((p, i) => {
-          const currentPrice = prices[i]?.price ?? p.pru;
+        const enriched: EnrichedPosition[] = pos.map((p) => {
+          const currentPrice = quotes[p.ticker]?.price ?? p.pru;
           return {
             ...p,
             currentPrice,

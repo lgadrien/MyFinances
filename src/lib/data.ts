@@ -250,3 +250,25 @@ export async function fetchStockPrice(
     return null;
   }
 }
+
+/**
+ * Fetch live prices for multiple tickers in a single HTTP request.
+ * Uses /api/stock/batch instead of N individual /api/stock calls.
+ * Returns a map of ticker → price data; missing tickers are simply absent.
+ */
+export async function fetchBatchStockPrices(
+  tickers: string[],
+): Promise<Record<string, { price: number; change: number; changePercent: number }>> {
+  if (!tickers.length) return {};
+  try {
+    const params = tickers.map(encodeURIComponent).join(",");
+    const res = await fetch(`/api/stock/batch?tickers=${params}`, {
+      signal: AbortSignal.timeout(10_000), // 10 s — batch peut être plus lent
+    });
+    if (!res.ok) return {};
+    const data = await res.json();
+    return (data.quotes as Record<string, { price: number; change: number; changePercent: number }>) ?? {};
+  } catch {
+    return {};
+  }
+}

@@ -6,7 +6,7 @@
 
 import { useEffect, useState, useMemo, useCallback } from "react";
 import { subDays, subMonths, subYears, parseISO } from "date-fns";
-import { fetchStockPrice } from "@/lib/data";
+import { fetchBatchStockPrices } from "@/lib/data";
 import { useTransactions } from "@/hooks/useTransactions";
 import {
   calculatePortfolioPositions,
@@ -93,20 +93,22 @@ export function usePortfolio(): UsePortfolioReturn {
         (p) => p.totalQuantity > 0.0001,
       );
 
-      const enriched = await Promise.all(
-        activePositions.map(async (pos) => {
-          const priceData = await fetchStockPrice(pos.ticker);
-          const currentPrice = priceData?.price ?? pos.pru;
-          const capitalValue = currentPrice * pos.totalQuantity;
-          const plusValue = capitalValue - pos.totalInvested;
-          return {
-            ...pos,
-            currentPrice,
-            capitalValue,
-            plusValue,
-          } as EnrichedPortfolioPosition;
-        }),
+      // Prix live via un seul appel batch (1 requête HTTP au lieu de N)
+      const quotes = await fetchBatchStockPrices(
+        activePositions.map((p) => p.ticker),
       );
+
+      const enriched: EnrichedPortfolioPosition[] = activePositions.map((pos) => {
+        const currentPrice = quotes[pos.ticker]?.price ?? pos.pru;
+        const capitalValue = currentPrice * pos.totalQuantity;
+        const plusValue = capitalValue - pos.totalInvested;
+        return {
+          ...pos,
+          currentPrice,
+          capitalValue,
+          plusValue,
+        } as EnrichedPortfolioPosition;
+      });
 
       setPositions(enriched);
 
