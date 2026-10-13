@@ -3,6 +3,7 @@ import { useMemo } from "react";
 import {
   fetchTransactions,
   insertTransaction,
+  insertTransactions,
   updateTransaction,
   deleteTransaction,
 } from "@/lib/data";
@@ -22,6 +23,13 @@ export function useTransactions() {
 
   const addTx = useMutation({
     mutationFn: (tx: TransactionPayload) => insertTransaction(tx),
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ["transactions"] });
+    },
+  });
+
+  const importTx = useMutation({
+    mutationFn: insertTransactions,
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ["transactions"] });
     },
@@ -47,6 +55,7 @@ export function useTransactions() {
     isLoading: query.isLoading,
     isError: query.isError,
     addTransaction: addTx.mutateAsync,
+    importTransactions: importTx.mutateAsync,
     updateTransaction: updateTx.mutateAsync,
     deleteTransaction: deleteTx.mutateAsync,
   };

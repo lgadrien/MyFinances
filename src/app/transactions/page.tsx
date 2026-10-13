@@ -18,15 +18,15 @@ import Badge from "@/components/ui/Badge";
 import Modal from "@/components/ui/Modal";
 import { fetchStockPrice } from "@/lib/data";
 import { useTransactions } from "@/hooks/useTransactions";
-import type { Transaction } from "@/lib/calculations";
+import type { Transaction, TransactionPayload } from "@/lib/types";
 import { formatEUR, formatPrice } from "@/lib/utils";
 import toast from "react-hot-toast";
 
 interface SearchResult {
-  symbol: string;
+  ticker: string;
   name: string;
   type: string;
-  exchDisp: string;
+  exchange: string;
 }
 
 import { useSettingsStore } from "@/stores/useSettingsStore";
@@ -36,7 +36,7 @@ const VALID_TYPES = new Set(["Achat", "Vente", "Dividende"]);
 
 export default function TransactionsPage() {
   useSettingsStore();
-  const { transactions, isLoading: loading, addTransaction, updateTransaction, deleteTransaction } = useTransactions();
+  const { transactions, isLoading: loading, addTransaction, importTransactions, updateTransaction, deleteTransaction } = useTransactions();
   const [isModalOpen, setIsModalOpen] = useState(false);
   const [filterType, setFilterType] = useState<string>("all");
   const [isImporting, setIsImporting] = useState(false);
@@ -76,10 +76,10 @@ export default function TransactionsPage() {
         setIsSearching(true);
         try {
           const res = await fetch(
-            `/api/search?q=${encodeURIComponent(tickerSearch)}`,
+            `/api/stock/search?q=${encodeURIComponent(tickerSearch)}`,
           );
           const data = await res.json();
-          setSearchResults(data);
+          setSearchResults(Array.isArray(data?.results) ? data.results : []);
         } catch (error) {
           console.error("Search error", error);
           setSearchResults([]);
@@ -172,12 +172,16 @@ export default function TransactionsPage() {
     if (!file) return;
 
     setIsImporting(true);
-    let imported = 0;
     let skipped = 0;
 
     try {
       const text = await file.text();
       const lines = text.split("\n");
+      // Same operation already stored (or twice in the file) → skipped, so re-importing an export adds nothing
+      const keyOf = (t: TransactionPayload) =>
+        [t.date, t.type, t.ticker, t.quantity, t.total_amount].join("|");
+      const seen = new Set(transactions.map(keyOf));
+      const toImport: TransactionPayload[] = [];
 
       for (let i = 1; i < lines.length; i++) {
         const line = lines[i].trim();
@@ -213,7 +217,7 @@ export default function TransactionsPage() {
           continue;
         }
 
-        const result = await addTransaction({
+        const tx: TransactionPayload = {
           date: cols[1]?.trim(),
           type,
           ticker,
@@ -221,19 +225,27 @@ export default function TransactionsPage() {
           unit_price: isNaN(unit_price) ? 0 : unit_price,
           total_amount,
           fees,
-        });
-        if (result) imported++;
-        else skipped++;
+        };
+        if (seen.has(keyOf(tx))) {
+          skipped++;
+          continue;
+        }
+        seen.add(keyOf(tx));
+        toImport.push(tx);
       }
 
-      // Use the new addTransaction from useTransactions
-      // React Query invalidation is handled in the hook
-      if (imported > 0) {
-        toast.success(
-          `Import réussi : ${imported} opération(s) ajoutée(s)${skipped > 0 ? `, ${skipped} ignorée(s)` : ""}.`,
-        );
+      if (toImport.length === 0) {
+        toast.error("Aucune nouvelle ligne valide trouvée dans le fichier CSV.");
+        return;
+      }
+
+      const importError = await importTransactions(toImport);
+      if (importError) {
+        toast.error(`Import annulé, rien n'a été ajouté : ${importError}`);
       } else {
-        toast.error("Aucune ligne valide trouvée dans le fichier CSV.");
+        toast.success(
+          `Import réussi : ${toImport.length} opération(s) ajoutée(s)${skipped > 0 ? `, ${skipped} ignorée(s)` : ""}.`,
+        );
       }
     } catch (err) {
       console.error(err);
@@ -734,11 +746,11 @@ export default function TransactionsPage() {
               <ul className="absolute z-50 mt-2 max-h-48 w-full overflow-y-auto rounded-xl border border-zinc-700 bg-zinc-800 py-1 shadow-xl">
                 {searchResults.map((result) => (
                   <li
-                    key={result.symbol}
+                    key={result.ticker}
                     onClick={async () => {
                       setFormData((prev) => ({
                         ...prev,
-                        ticker: result.symbol,
+                        ticker: result.ticker,
                       }));
                       setSearchResults([]);
                       setTickerSearch("");
@@ -747,7 +759,7 @@ export default function TransactionsPage() {
                         formData.type === "Achat" ||
                         formData.type === "Vente"
                       ) {
-                        const priceData = await fetchStockPrice(result.symbol);
+                        const priceData = await fetchStockPrice(result.ticker);
                         if (priceData) {
                           setFormData((prev) => ({
                             ...prev,
@@ -763,7 +775,7 @@ export default function TransactionsPage() {
                   >
                     <div className="flex items-center justify-between">
                       <span className="font-semibold text-white">
-                        {result.symbol}
+                        {result.ticker}
                       </span>
                       <span className="text-xs text-zinc-400">
                         {result.type}

@@ -11,32 +11,31 @@ import { useSettingsStore } from "@/stores/useSettingsStore";
 
 /** Formate un nombre avec devise et gère le mode Privacy */
 export const formatEUR = (n: number): string => {
-  const { privacyMode, currency } = useSettingsStore.getState();
+  const { privacyMode, currency, usdRate } = useSettingsStore.getState();
   if (privacyMode) return "****";
 
-  const rate = currency === "USD" ? 1.08 : 1; // Taux fixe simple pour la démo
-  const val = n * rate;
+  // Until the live rate has loaded, amounts stay in EUR rather than using a made-up rate
+  const usd = currency === "USD" && usdRate !== null;
 
-  return new Intl.NumberFormat(currency === "USD" ? "en-US" : "fr-FR", {
+  return new Intl.NumberFormat(usd ? "en-US" : "fr-FR", {
     style: "currency",
-    currency: currency === "USD" ? "USD" : "EUR",
+    currency: usd ? "USD" : "EUR",
     minimumFractionDigits: 2,
     maximumFractionDigits: 2,
-  }).format(val);
+  }).format(usd ? n * usdRate : n);
 };
 
 /** Formate un prix (ex: 1 234,56 €) */
 export const formatPrice = (n: number): string => {
-  const { privacyMode, currency } = useSettingsStore.getState();
+  const { privacyMode, currency, usdRate } = useSettingsStore.getState();
   if (privacyMode) return "****";
 
-  const rate = currency === "USD" ? 1.08 : 1;
-  const val = n * rate;
+  const usd = currency === "USD" && usdRate !== null;
 
-  return new Intl.NumberFormat(currency === "USD" ? "en-US" : "fr-FR", {
+  return new Intl.NumberFormat(usd ? "en-US" : "fr-FR", {
     minimumFractionDigits: 2,
     maximumFractionDigits: 2,
-  }).format(val) + (currency === "USD" ? " $" : " €");
+  }).format(usd ? n * usdRate : n) + (usd ? " $" : " €");
 };
 
 /** Formate un ratio en pourcentage (ex: 12,34 %) */

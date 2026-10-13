@@ -1,6 +1,6 @@
 import { NextResponse } from "next/server";
 import type { NextRequest } from "next/server";
-import { AUTH_COOKIE_NAME, getExpectedToken } from "@/lib/auth";
+import { AUTH_COOKIE_NAME, verifySessionToken } from "@/lib/auth";
 
 // Paths accessible without authentication
 const PUBLIC_PATHS = ["/login", "/api/auth/login", "/api/cron/snapshot"];
@@ -31,8 +31,7 @@ export default async function middleware(request: NextRequest) {
   
   let isAuthenticated = false;
   if (accessPassword && authToken?.value) {
-    const expectedToken = await getExpectedToken(accessPassword);
-    isAuthenticated = authToken.value === expectedToken;
+    isAuthenticated = await verifySessionToken(accessPassword, authToken.value);
   }
 
   if (!isAuthenticated) {

@@ -23,9 +23,7 @@ export default defineConfig({
         // Fichiers de config / types purs / données statiques
         "src/lib/types.ts",
         "src/lib/french-instruments.ts",
-        "src/lib/supabase.ts",
         "src/lib/supabase-server.ts",
-        "src/lib/stocks.ts",
         // Couche data (requêtes Supabase — nécessitent un mock DB)
         "src/lib/data.ts",
         // Stores Zustand (état UI)

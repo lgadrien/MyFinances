@@ -1,9 +1,7 @@
 import { describe, it, expect } from "vitest";
 import {
-  calculatePRU,
   calculateTotalInvested,
   calculateDividends,
-  calculatePlusValue,
   calculatePortfolioPositions,
   groupDividendsByMonth,
   type Transaction,
@@ -39,8 +37,8 @@ describe("Financial Calculations Engine", () => {
     // Total cost = (10*50 + 2) + (10*60 + 2) = 502 + 602 = 1104
     // Total qty = 20
     // PRU = 1104 / 20 = 55.20
-    const pru = calculatePRU(transactions);
-    expect(pru).toBeCloseTo(55.2, 2);
+    const [position] = calculatePortfolioPositions(transactions);
+    expect(position.pru).toBeCloseTo(55.2, 2);
   });
 
   it("handles partial sales without corrupting chronological PRU", () => {
@@ -182,12 +180,34 @@ describe("Financial Calculations Engine", () => {
     expect(totalDividends).toBe(228.5);
   });
 
-  it("calculates latent plus-value correctly", () => {
-    const pv = calculatePlusValue(100, 125, 10);
-    expect(pv).toBe(250);
+  it("orders same-day transactions by entry time (buy then sell closes the position)", () => {
+    const transactions: Transaction[] = [
+      // API returns newest first: the sell comes before the buy in the input
+      {
+        id: "2",
+        ticker: "AIR.PA",
+        type: "Vente",
+        date: "2025-03-03",
+        quantity: 10,
+        unit_price: 110,
+        total_amount: 1100,
+        fees: 0,
+        created_at: "2025-03-03T15:00:00Z",
+      },
+      {
+        id: "1",
+        ticker: "AIR.PA",
+        type: "Achat",
+        date: "2025-03-03",
+        quantity: 10,
+        unit_price: 100,
+        total_amount: 1000,
+        fees: 0,
+        created_at: "2025-03-03T09:00:00Z",
+      },
+    ];
 
-    const mv = calculatePlusValue(100, 80, 10);
-    expect(mv).toBe(-200);
+    expect(calculatePortfolioPositions(transactions)).toHaveLength(0);
   });
 
   it("groups dividends by month sorted chronologically", () => {

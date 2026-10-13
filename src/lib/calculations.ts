@@ -16,36 +16,6 @@ export type {
 
 import type { Transaction, PortfolioPosition } from "@/lib/types";
 
-/**
- * Calcule le PRU chronologique pour un ensemble de transactions d'un ticker.
- * Gère correctement la réinitialisation du PRU si la position a été clôturée (quantité = 0).
- */
-export function calculatePRU(transactions: Transaction[]): number {
-  const sorted = [...transactions].sort((a, b) => a.date.localeCompare(b.date));
-  let currentQty = 0;
-  let currentPRU = 0;
-
-  for (const t of sorted) {
-    const qty = Number(t.quantity) || 0;
-    const price = Number(t.unit_price) || 0;
-    const fees = Number(t.fees) || 0;
-
-    if (t.type === "Achat" && qty > 0) {
-      const newQty = currentQty + qty;
-      const totalCost = currentQty * currentPRU + qty * price + fees;
-      currentPRU = newQty > 0 ? totalCost / newQty : 0;
-      currentQty = newQty;
-    } else if (t.type === "Vente" && qty > 0) {
-      currentQty = Math.max(0, currentQty - qty);
-      if (currentQty === 0) {
-        currentPRU = 0;
-      }
-    }
-  }
-
-  return currentPRU;
-}
-
 /** Calcule le montant total investi net actuel du portefeuille */
 export function calculateTotalInvested(transactions: Transaction[]): number {
   const positions = calculatePortfolioPositions(transactions);
@@ -61,15 +31,6 @@ export function calculateDividends(transactions: Transaction[]): number {
     }
   }
   return total;
-}
-
-/** Calcule la plus-value latente : (prix_actuel - PRU) × quantité */
-export function calculatePlusValue(
-  pru: number,
-  currentPrice: number,
-  quantity: number,
-): number {
-  return (currentPrice - pru) * quantity;
 }
 
 /**
@@ -94,8 +55,12 @@ export function calculatePortfolioPositions(
   const positions: PortfolioPosition[] = [];
 
   for (const [ticker, txList] of txByTicker) {
-    // Trier chronologiquement
-    const sorted = [...txList].sort((a, b) => a.date.localeCompare(b.date));
+    // Trier chronologiquement ; même jour → ordre de saisie (sinon une vente peut passer avant son achat)
+    const sorted = [...txList].sort(
+      (a, b) =>
+        a.date.localeCompare(b.date) ||
+        (a.created_at ?? "").localeCompare(b.created_at ?? ""),
+    );
 
     let currentQty = 0;
     let currentPRU = 0;

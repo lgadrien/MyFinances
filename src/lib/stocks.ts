@@ -4,57 +4,63 @@ const FETCH_TIMEOUT_MS = 6_000; // 6 s — Yahoo Finance can be slow
 
 export interface StockQuote {
   ticker: string;
+  /** Converted to EUR, except FX pairs (=X) and indices (^), which keep Yahoo's value. */
   price: number;
   change: number;
   changePercent: number;
+  /** Currency of the original Yahoo quote (e.g. "USD"). */
+  currency: string;
   lastUpdated: string;
 }
 
+/**
+ * Throws when Yahoo fails, so the failure is never cached nor shown as a 0 € price.
+ */
 export async function getStockQuote(ticker: string): Promise<StockQuote> {
   const normalised = ticker.trim().toUpperCase();
-  if (!normalised) return getFallbackQuote(ticker);
+  if (!normalised) throw new Error("Empty ticker");
 
   const getQuote = unstable_cache(
-    async (t: string) => {
-      try {
-        const url =
-          `https://query1.finance.yahoo.com/v8/finance/chart/` +
-          `${encodeURIComponent(t)}?range=1d&interval=5m&includePrePost=false`;
+    async (t: string): Promise<StockQuote> => {
+      const url =
+        `https://query1.finance.yahoo.com/v8/finance/chart/` +
+        `${encodeURIComponent(t)}?range=1d&interval=5m&includePrePost=false`;
 
-        const res = await fetch(url, {
-          headers: {
-            "User-Agent": "Mozilla/5.0",
-            Accept: "application/json",
-          },
-          signal: AbortSignal.timeout(FETCH_TIMEOUT_MS),
-        });
+      const res = await fetch(url, {
+        headers: {
+          "User-Agent": "Mozilla/5.0",
+          Accept: "application/json",
+        },
+        signal: AbortSignal.timeout(FETCH_TIMEOUT_MS),
+      });
+      if (!res.ok) throw new Error(`Yahoo ${res.status} for ${t}`);
 
-        if (!res.ok) return getFallbackQuote(t);
-
-        const data = await res.json();
-        const meta = data?.chart?.result?.[0]?.meta;
-        if (!meta) return getFallbackQuote(t);
-
-        const currentPrice: number = meta.regularMarketPrice ?? 0;
-        const previousClose: number =
-          meta.chartPreviousClose ?? meta.previousClose ?? currentPrice;
-        const change = currentPrice - previousClose;
-        const changePercent =
-          previousClose > 0 ? (change / previousClose) * 100 : 0;
-
-        const quote: StockQuote = {
-          ticker: t,
-          price: round2(currentPrice),
-          change: round2(change),
-          changePercent: round2(changePercent),
-          lastUpdated: new Date().toISOString(),
-        };
-
-        return quote;
-      } catch (error) {
-        console.error(`[stocks] Failed to fetch ${t}:`, error);
-        return getFallbackQuote(t);
+      const data = await res.json();
+      const meta = data?.chart?.result?.[0]?.meta;
+      const currentPrice = meta?.regularMarketPrice;
+      if (typeof currentPrice !== "number" || currentPrice <= 0) {
+        throw new Error(`No price for ${t}`);
       }
+
+      const previousClose: number =
+        meta.chartPreviousClose ?? meta.previousClose ?? currentPrice;
+      const currency: string = meta.currency ?? "EUR";
+      const isFxOrIndex = t.endsWith("=X") || t.startsWith("^");
+      // shortcut: GBp (pence) quotes fail on the FX lookup and show as missing; handle /100 if UK stocks are ever held.
+      const fx =
+        currency === "EUR" || isFxOrIndex
+          ? 1
+          : (await getStockQuote(`${currency}EUR=X`)).price;
+
+      const change = currentPrice - previousClose;
+      return {
+        ticker: t,
+        price: round2(currentPrice * fx),
+        change: round2(change * fx),
+        changePercent: round2(previousClose > 0 ? (change / previousClose) * 100 : 0),
+        currency,
+        lastUpdated: new Date().toISOString(),
+      };
     },
     [`stock-quote-${normalised}`],
     {
@@ -68,6 +74,7 @@ export async function getStockQuote(ticker: string): Promise<StockQuote> {
 
 /**
  * Fetch quotes for multiple tickers in server-side batches.
+ * Tickers whose quote failed are left out of the result.
  */
 export async function getBatchStockQuotes(
   tickers: string[],
@@ -81,26 +88,15 @@ export async function getBatchStockQuotes(
     const chunkResults = await Promise.allSettled(chunk.map((t) => getStockQuote(t)));
 
     chunkResults.forEach((res, idx) => {
-      const ticker = chunk[idx];
       if (res.status === "fulfilled") {
-        results[ticker] = res.value;
+        results[chunk[idx]] = res.value;
       } else {
-        results[ticker] = getFallbackQuote(ticker);
+        console.error(`[stocks] Failed to fetch ${chunk[idx]}:`, res.reason);
       }
     });
   }
 
   return results;
-}
-
-function getFallbackQuote(ticker: string): StockQuote {
-  return {
-    ticker,
-    price: 0,
-    change: 0,
-    changePercent: 0,
-    lastUpdated: new Date().toISOString(),
-  };
 }
 
 function round2(n: number): number {
