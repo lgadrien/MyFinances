@@ -128,7 +128,7 @@ export function useDashboard(): DashboardData {
               
               dDate.setFullYear(dDate.getFullYear() + 1);
               const key = dDate.toISOString().substring(0, 7);
-              projectedMap.set(key, (projectedMap.get(key) ?? 0) + (d.total_amount || 0));
+              projectedMap.set(key, (projectedMap.get(key) ?? 0) + (d.total_amount || 0) - (d.fees || 0));
             } catch (e) {
               console.warn("Invalid date in transaction", d.date, e);
               continue;

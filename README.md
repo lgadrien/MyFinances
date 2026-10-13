@@ -65,7 +65,6 @@ Fichier local : `.env.local` (jamais versionné sur Git, basé sur `.env.example
 ```env
 # ── Supabase (Obligatoire) ────────────────────────────────────────────────────
 NEXT_PUBLIC_SUPABASE_URL=https://xxxxxxxxxxxx.supabase.co
-NEXT_PUBLIC_SUPABASE_ANON_KEY=eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9...
 
 # Supabase Service Role Key (Obligatoire côté serveur — NE JAMAIS PRÉFIXER PAR NEXT_PUBLIC_)
 # Récupérer dans : Supabase Dashboard → Settings → API → service_role key
@@ -78,7 +77,7 @@ ACCESS_PASSWORD=un-mot-de-passe-tres-robuste
 
 # Secret d'authentification du Cron Vercel (Obligatoire en production)
 # Générer avec : openssl rand -hex 32
-CRON_SECRET=238f46cc0500cb4578e5910119191e992f5ff8fcff7b37689e02538d90ea2c66
+CRON_SECRET=a-generer-avec-openssl-rand-hex-32
 ```
 
 ---
@@ -202,21 +201,20 @@ MyFinances/
 | Clé | Environnement | Utilité |
 |---|---|---|
 | `NEXT_PUBLIC_SUPABASE_URL` | Production, Preview | URL de l'instance Supabase |
-| `NEXT_PUBLIC_SUPABASE_ANON_KEY` | Production, Preview | Clé publique Supabase (non utilisée pour les données) |
 | `SUPABASE_SERVICE_ROLE_KEY` | Production, Preview | Clé secrète d'administration serveur |
 | `ACCESS_PASSWORD` | Production, Preview | Mot de passe pour déverrouiller l'application |
 | `CRON_SECRET` | Production | Clé secrète autorisant le déclenchement du snapshot |
 
-4. Déployez ! Le snapshot automatique quotidien s'exécutera chaque jour à minuit UTC grâce à la directive configurée dans `vercel.json`.
+4. Déployez ! Le snapshot automatique quotidien s'exécutera chaque jour ouvré à 18:00 UTC (après la clôture d'Euronext) grâce à la directive configurée dans `vercel.json`.
 
 ---
 
 ## 🔒 Sécurité & Robustesse
 
 - **Isolation Zero-Anon & RLS stricte** : Aucune interaction directe navigateur ↔ Supabase. Toutes les requêtes en base transitent par les API Routes Next.js avec `SUPABASE_SERVICE_ROLE_KEY`.
-- **Validation stricte des tickers** : Expression régulière stricte `^[A-Z0-9^.=-]{1,12}$` appliquée systématiquement sur `/api/stock`, `/api/stock/batch` et `/api/favorites` pour éliminer tout risque d'injection.
+- **Validation stricte des tickers** : Expression régulière stricte `^[A-Z0-9^.=-]{1,12}$` appliquée systématiquement sur `/api/stock`, `/api/stock/batch`, `/api/stock/history` et `/api/favorites` pour éliminer tout risque d'injection.
 - **Protection anti-bruteforce** : Rate limiting en mémoire (5 tentatives par tranche de 15 minutes par IP) sur `/api/auth/login`.
-- **Authentification par cookie HTTP-Only** : Protection contre les attaques XSS sur la session utilisateur.
+- **Authentification par cookie HTTP-Only** : Jeton signé (HMAC-SHA256) avec expiration à 7 jours vérifiée côté serveur, inaccessible au JavaScript du navigateur.
 - **Headers HTTP durcis** : Content Security Policy (CSP), X-Frame-Options, X-Content-Type-Options configurés dans `next.config.ts`.
 - **Protection obligatoire du Cron** : L'endpoint `/api/cron/snapshot` rejette systématiquement les requêtes si `CRON_SECRET` n'est pas configuré (503 Service Misconfigured) ou si le Bearer token est absent/invalide (401 Unauthorized).
 - **Assurance qualité & CI** : Pipeline GitHub Actions automatisé exécutant le linter, le contrôle de types TypeScript et la suite de tests Vitest avec couverture minimale garantie (> 80%).

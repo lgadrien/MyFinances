@@ -13,6 +13,10 @@ export async function GET(request: NextRequest) {
     );
   }
 
-  const quote = await getStockQuote(ticker);
-  return NextResponse.json(quote);
+  try {
+    return NextResponse.json(await getStockQuote(ticker));
+  } catch (err) {
+    console.error(`[stock] ${ticker}:`, err);
+    return NextResponse.json({ error: "Cours indisponible" }, { status: 502 });
+  }
 }

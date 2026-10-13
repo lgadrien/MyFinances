@@ -1,6 +1,6 @@
 import { NextResponse } from "next/server";
 import { cookies } from "next/headers";
-import { AUTH_COOKIE_NAME, getExpectedToken } from "@/lib/auth";
+import { AUTH_COOKIE_NAME, SESSION_MAX_AGE_S, createSessionToken } from "@/lib/auth";
 
 /**
  * Simple in-memory rate limiter for login attempts.
@@ -103,13 +103,13 @@ export async function POST(request: Request) {
       // Success — reset rate limit counter for this IP
       clearRateLimit(ip);
 
-      const token = await getExpectedToken(correctPassword);
+      const token = await createSessionToken(correctPassword);
       const cookieStore = await cookies();
       cookieStore.set(AUTH_COOKIE_NAME, token, {
         httpOnly: true,
         secure: process.env.NODE_ENV === "production",
         sameSite: "strict",
-        maxAge: 60 * 60 * 24 * 7, // 7 days
+        maxAge: SESSION_MAX_AGE_S,
         path: "/",
       });
 

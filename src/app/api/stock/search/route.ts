@@ -36,7 +36,8 @@ export async function GET(req: NextRequest) {
         (q: { quoteType?: string }) =>
           q.quoteType === "EQUITY" ||
           q.quoteType === "INDEX" ||
-          q.quoteType === "ETF",
+          q.quoteType === "ETF" ||
+          q.quoteType === "MUTUALFUND",
       )
       .map(
         (q: {

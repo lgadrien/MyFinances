@@ -1,16 +1,5 @@
-import type { Transaction } from "@/lib/types";
-
-// Shared transaction row mapper — avoids repeating Number() casts everywhere
-function mapTransaction(t: unknown): Transaction {
-  const row = t as Transaction;
-  return {
-    ...row,
-    quantity: Number(row.quantity),
-    unit_price: Number(row.unit_price),
-    total_amount: Number(row.total_amount),
-    fees: Number(row.fees),
-  };
-}
+import type { Transaction, TransactionPayload } from "@/lib/types";
+import { mapTransactionRow } from "@/lib/validation";
 
 // ─── Settings ────────────────────────────────────────────────────────────────
 
@@ -101,49 +90,17 @@ export async function fetchTransactions(): Promise<Transaction[]> {
     const res = await fetch("/api/transactions");
     if (!res.ok) return [];
     const data = await res.json();
-    return Array.isArray(data) ? data.map(mapTransaction) : [];
+    return Array.isArray(data) ? data.map(mapTransactionRow) : [];
   } catch (error) {
     console.error("Failed to fetch transactions:", error);
     return [];
   }
 }
 
-/** Validate transaction payload before sending to DB. */
-function validateTransactionPayload(tx: {
-  ticker: string;
-  type: string;
-  date: string;
-  quantity: number;
-  unit_price: number;
-  total_amount: number;
-  fees: number;
-}): string | null {
-  if (!tx.ticker?.trim()) return "Ticker manquant";
-  if (!["Achat", "Vente", "Dividende"].includes(tx.type))
-    return "Type invalide";
-  if (!tx.date || isNaN(Date.parse(tx.date))) return "Date invalide";
-  if (tx.quantity < 0) return "Quantité négative";
-  if (tx.total_amount < 0) return "Montant négatif";
-  if (tx.fees < 0) return "Frais négatifs";
-  return null;
-}
-
-/** Insert a new transaction via API. */
-export async function insertTransaction(tx: {
-  ticker: string;
-  type: "Achat" | "Dividende" | "Vente";
-  date: string;
-  quantity: number;
-  unit_price: number;
-  total_amount: number;
-  fees: number;
-}): Promise<Transaction | null> {
-  const validationError = validateTransactionPayload(tx);
-  if (validationError) {
-    console.error("Invalid transaction:", validationError);
-    return null;
-  }
-
+/** Insert a new transaction via API (validated server-side). */
+export async function insertTransaction(
+  tx: TransactionPayload,
+): Promise<Transaction | null> {
   try {
     const res = await fetch("/api/transactions", {
       method: "POST",
@@ -152,33 +109,38 @@ export async function insertTransaction(tx: {
     });
     if (!res.ok) return null;
     const data = await res.json();
-    return data ? mapTransaction(data) : null;
+    return data ? mapTransactionRow(data) : null;
   } catch (error) {
     console.error("Failed to insert transaction:", error);
     return null;
   }
 }
 
-/** Update an existing transaction via API. */
+/** Insert several transactions in one request (all or nothing). Returns the error message, or null on success. */
+export async function insertTransactions(
+  txs: TransactionPayload[],
+): Promise<string | null> {
+  try {
+    const res = await fetch("/api/transactions", {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify(txs),
+    });
+    if (res.ok) return null;
+    const data = await res.json().catch(() => null);
+    return data?.error ?? "Erreur serveur";
+  } catch (error) {
+    console.error("Failed to insert transactions:", error);
+    return "Erreur réseau";
+  }
+}
+
+/** Update an existing transaction via API (validated server-side). */
 export async function updateTransaction(
   id: string,
-  tx: {
-    ticker: string;
-    type: "Achat" | "Dividende" | "Vente";
-    date: string;
-    quantity: number;
-    unit_price: number;
-    total_amount: number;
-    fees: number;
-  },
+  tx: TransactionPayload,
 ): Promise<Transaction | null> {
   if (!id) return null;
-
-  const validationError = validateTransactionPayload(tx);
-  if (validationError) {
-    console.error("Invalid transaction:", validationError);
-    return null;
-  }
 
   try {
     const res = await fetch(`/api/transactions/${encodeURIComponent(id)}`, {
@@ -188,7 +150,7 @@ export async function updateTransaction(
     });
     if (!res.ok) return null;
     const data = await res.json();
-    return data ? mapTransaction(data) : null;
+    return data ? mapTransactionRow(data) : null;
   } catch (error) {
     console.error("Failed to update transaction:", error);
     return null;
