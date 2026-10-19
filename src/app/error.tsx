@@ -39,7 +39,7 @@ export default function GlobalError({
               "Quelque chose s'est mal passé. Veuillez réessayer."}
           </p>
           {error.digest && (
-            <p className="font-mono text-[10px] text-zinc-600">
+            <p className="font-mono text-xs text-zinc-400">
               ID : {error.digest}
             </p>
           )}

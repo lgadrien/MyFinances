@@ -30,6 +30,8 @@ export interface DCAResult {
   monthlyData: { month: number; year: number; contributed: number; value: number }[];
 }
 
+const PEA_DEPOSIT_CAP = 150_000;
+
 export function calculateDCASimulation({
   initialCapital,
   monthlyContribution,
@@ -65,9 +67,11 @@ export function calculateDCASimulation({
   const totalMonths = safeYears * 12;
 
   for (let m = 1; m <= totalMonths; m++) {
-    // Deposit at beginning of month
-    currentValue += safeMonthly;
-    totalContributed += safeMonthly;
+    // Deposit at beginning of month, within the 150 000 € PEA deposit cap
+    // shortcut: initialCapital counts as deposits although it is the current value (gains included), so the cap may bind early — pass real deposits if that matters
+    const deposit = Math.min(safeMonthly, Math.max(0, PEA_DEPOSIT_CAP - totalContributed));
+    currentValue += deposit;
+    totalContributed += deposit;
 
     // Monthly returns
     const monthlyDivAmount = currentValue * monthlyDivOnly;

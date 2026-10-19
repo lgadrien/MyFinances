@@ -83,93 +83,69 @@ export async function removeFavorite(ticker: string): Promise<boolean> {
 }
 
 // ─── Transactions ─────────────────────────────────────────────────────────────
+// These throw so React Query retries and keeps the last good data, and the UI shows the server's message.
+
+/** fetch() that throws the server's error text, or "Erreur réseau" when the request never got an answer. */
+async function request(url: string, init?: RequestInit): Promise<Response> {
+  const res = await fetch(url, init).catch(() => {
+    throw new Error("Erreur réseau");
+  });
+  if (!res.ok) {
+    const data = await res.json().catch(() => null);
+    throw new Error(data?.error ?? "Erreur serveur");
+  }
+  return res;
+}
 
 /** Fetch all transactions via API, sorted by date desc. */
 export async function fetchTransactions(): Promise<Transaction[]> {
-  try {
-    const res = await fetch("/api/transactions");
-    if (!res.ok) return [];
-    const data = await res.json();
-    return Array.isArray(data) ? data.map(mapTransactionRow) : [];
-  } catch (error) {
-    console.error("Failed to fetch transactions:", error);
-    return [];
-  }
+  const data = await (await request("/api/transactions")).json();
+  return Array.isArray(data) ? data.map(mapTransactionRow) : [];
 }
 
 /** Insert a new transaction via API (validated server-side). */
 export async function insertTransaction(
   tx: TransactionPayload,
-): Promise<Transaction | null> {
-  try {
-    const res = await fetch("/api/transactions", {
-      method: "POST",
-      headers: { "Content-Type": "application/json" },
-      body: JSON.stringify(tx),
-    });
-    if (!res.ok) return null;
-    const data = await res.json();
-    return data ? mapTransactionRow(data) : null;
-  } catch (error) {
-    console.error("Failed to insert transaction:", error);
-    return null;
-  }
+): Promise<Transaction> {
+  const res = await request("/api/transactions", {
+    method: "POST",
+    headers: { "Content-Type": "application/json" },
+    body: JSON.stringify(tx),
+  });
+  return mapTransactionRow(await res.json());
 }
 
-/** Insert several transactions in one request (all or nothing). Returns the error message, or null on success. */
+/** Insert several transactions in one request (all or nothing). */
 export async function insertTransactions(
   txs: TransactionPayload[],
-): Promise<string | null> {
-  try {
-    const res = await fetch("/api/transactions", {
-      method: "POST",
-      headers: { "Content-Type": "application/json" },
-      body: JSON.stringify(txs),
-    });
-    if (res.ok) return null;
-    const data = await res.json().catch(() => null);
-    return data?.error ?? "Erreur serveur";
-  } catch (error) {
-    console.error("Failed to insert transactions:", error);
-    return "Erreur réseau";
-  }
+): Promise<void> {
+  await request("/api/transactions", {
+    method: "POST",
+    headers: { "Content-Type": "application/json" },
+    body: JSON.stringify(txs),
+  });
 }
 
 /** Update an existing transaction via API (validated server-side). */
 export async function updateTransaction(
   id: string,
   tx: TransactionPayload,
-): Promise<Transaction | null> {
-  if (!id) return null;
-
-  try {
-    const res = await fetch(`/api/transactions/${encodeURIComponent(id)}`, {
-      method: "PUT",
-      headers: { "Content-Type": "application/json" },
-      body: JSON.stringify(tx),
-    });
-    if (!res.ok) return null;
-    const data = await res.json();
-    return data ? mapTransactionRow(data) : null;
-  } catch (error) {
-    console.error("Failed to update transaction:", error);
-    return null;
-  }
+): Promise<Transaction> {
+  if (!id) throw new Error("ID manquant");
+  const res = await request(`/api/transactions/${encodeURIComponent(id)}`, {
+    method: "PUT",
+    headers: { "Content-Type": "application/json" },
+    body: JSON.stringify(tx),
+  });
+  return mapTransactionRow(await res.json());
 }
 
 /** Delete a transaction by ID via API. */
-export async function deleteTransaction(id: string): Promise<boolean> {
-  if (!id) return false;
-
-  try {
-    const res = await fetch(`/api/transactions/${encodeURIComponent(id)}`, {
-      method: "DELETE",
-    });
-    return res.ok;
-  } catch (error) {
-    console.error("Failed to delete transaction:", error);
-    return false;
-  }
+export async function deleteTransaction(id: string): Promise<void> {
+  if (!id) throw new Error("ID manquant");
+  await request(`/api/transactions/${encodeURIComponent(id)}`, {
+    method: "DELETE",
+  });
 }
 
 // ─── Market data ─────────────────────────────────────────────────────────────

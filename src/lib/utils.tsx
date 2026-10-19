@@ -9,20 +9,22 @@
 
 import { useSettingsStore } from "@/stores/useSettingsStore";
 
+// Built once: creating an Intl.NumberFormat is slow, and these run for every table cell
+// fr-FR groups thousands with U+202F, nearly invisible in large figures ("21484,00 €"): show a regular no-break space
+const visibleSpaces = (s: string) => s.replace(/\u202f/g, "\u00a0");
+const EUR = new Intl.NumberFormat("fr-FR", { style: "currency", currency: "EUR", minimumFractionDigits: 2, maximumFractionDigits: 2 });
+const USD = new Intl.NumberFormat("en-US", { style: "currency", currency: "USD", minimumFractionDigits: 2, maximumFractionDigits: 2 });
+const NUMBER_FR = new Intl.NumberFormat("fr-FR", { minimumFractionDigits: 2, maximumFractionDigits: 2 });
+const NUMBER_US = new Intl.NumberFormat("en-US", { minimumFractionDigits: 2, maximumFractionDigits: 2 });
+const PERCENT = new Intl.NumberFormat("fr-FR", { style: "percent", minimumFractionDigits: 2, maximumFractionDigits: 2 });
+
 /** Formate un nombre avec devise et gère le mode Privacy */
 export const formatEUR = (n: number): string => {
   const { privacyMode, currency, usdRate } = useSettingsStore.getState();
   if (privacyMode) return "****";
 
   // Until the live rate has loaded, amounts stay in EUR rather than using a made-up rate
-  const usd = currency === "USD" && usdRate !== null;
-
-  return new Intl.NumberFormat(usd ? "en-US" : "fr-FR", {
-    style: "currency",
-    currency: usd ? "USD" : "EUR",
-    minimumFractionDigits: 2,
-    maximumFractionDigits: 2,
-  }).format(usd ? n * usdRate : n);
+  return visibleSpaces(currency === "USD" && usdRate !== null ? USD.format(n * usdRate) : EUR.format(n));
 };
 
 /** Formate un prix (ex: 1 234,56 €) */
@@ -30,21 +32,17 @@ export const formatPrice = (n: number): string => {
   const { privacyMode, currency, usdRate } = useSettingsStore.getState();
   if (privacyMode) return "****";
 
-  const usd = currency === "USD" && usdRate !== null;
-
-  return new Intl.NumberFormat(usd ? "en-US" : "fr-FR", {
-    minimumFractionDigits: 2,
-    maximumFractionDigits: 2,
-  }).format(usd ? n * usdRate : n) + (usd ? " $" : " €");
+  return currency === "USD" && usdRate !== null
+    ? NUMBER_US.format(n * usdRate) + " $"
+    : visibleSpaces(NUMBER_FR.format(n)) + " €";
 };
 
+/** Cours d'un titre, ou niveau d'un indice (ticker "^…") : un indice se compte en points, pas en euros */
+export const formatQuote = (n: number, ticker: string): string =>
+  ticker.startsWith("^") ? `${visibleSpaces(NUMBER_FR.format(n))} pts` : formatPrice(n);
+
 /** Formate un ratio en pourcentage (ex: 12,34 %) */
-export const formatPercent = (n: number): string =>
-  new Intl.NumberFormat("fr-FR", {
-    style: "percent",
-    minimumFractionDigits: 2,
-    maximumFractionDigits: 2,
-  }).format(n);
+export const formatPercent = (n: number): string => visibleSpaces(PERCENT.format(n));
 
 /** Helper pour extraire la géographie d'un ticker */
 export const getGeography = (ticker: string): string => {
@@ -73,48 +71,6 @@ export const CHART_COLORS = [
   "#71717a", // zinc-500
   "#3f3f46", // zinc-700
 ];
-
-// ─── Rendu du label personnalisé pour PieChart ───────────────────────────────
-
-interface CustomLabelProps {
-  cx?: number;
-  cy?: number;
-  midAngle?: number;
-  innerRadius?: number;
-  outerRadius?: number;
-  percent?: number;
-}
-
-/**
- * Label affiché à l'intérieur des tranches de PieChart.
- * Masqué automatiquement si la tranche représente moins de 5 % du total.
- */
-export const renderCustomizedLabel = ({
-  cx = 0,
-  cy = 0,
-  midAngle = 0,
-  innerRadius = 0,
-  outerRadius = 0,
-  percent = 0,
-}: CustomLabelProps) => {
-  if (percent < 0.05) return null;
-  const radius = innerRadius + (outerRadius - innerRadius) * 0.5;
-  const x = cx + radius * Math.cos(-midAngle * (Math.PI / 180));
-  const y = cy + radius * Math.sin(-midAngle * (Math.PI / 180));
-  return (
-    <text
-      x={x}
-      y={y}
-      fill="white"
-      textAnchor="middle"
-      dominantBaseline="central"
-      fontSize="11"
-      fontWeight="bold"
-    >
-      {`${(percent * 100).toFixed(0)}%`}
-    </text>
-  );
-};
 
 // ─── Style partagé pour Tooltip des graphiques ───────────────────────────────
 

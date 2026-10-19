@@ -5,44 +5,32 @@ import {
   ArrowDownRight,
   RefreshCw,
   Calculator,
-  BarChart3,
-  TrendingUp,
+  Sparkles,
 } from "lucide-react";
 import dynamic from "next/dynamic";
 import Badge from "@/components/ui/Badge";
-const PortfolioHistoryChart = dynamic(() => import("@/components/PortfolioHistoryChart"), { ssr: false });
 const BenchmarkChart = dynamic(() => import("@/components/widgets/BenchmarkChart"), {
   ssr: false,
   loading: () => <ChartSkeleton height={320} />,
-});
-const TaxSimulator = dynamic(() => import("@/components/widgets/TaxSimulator"), {
-  ssr: false,
-  loading: () => <ChartSkeleton height={200} />,
 });
 const RiskAnalysisPanel = dynamic(() => import("@/components/widgets/RiskAnalysisPanel"), {
   ssr: false,
   loading: () => <ChartSkeleton height={240} />,
 });
-const DCASimulator = dynamic(() => import("@/components/widgets/DCASimulator"), {
-  ssr: false,
-  loading: () => <ChartSkeleton height={320} />,
-});
 import AnimatedDonut from "@/components/ui/AnimatedDonut";
 import PositionSparklineCell from "@/components/ui/PositionSparklineCell";
-import { StatsCardSkeleton, ChartSkeleton } from "@/components/ui/Skeleton";
+import { ChartSkeleton } from "@/components/ui/Skeleton";
 import { usePortfolio } from "@/hooks/usePortfolio";
-import { formatEUR, formatPercent } from "@/lib/utils";
+import { formatEUR, formatPercent, getGeography } from "@/lib/utils";
 import { useSettingsStore } from "@/stores/useSettingsStore";
-import { useState } from "react";
+import { useMemo, useState } from "react";
 
 export default function PortfolioPage() {
   useSettingsStore();
-  const [chartView, setChartView] = useState<"history" | "benchmark">("history");
+  const [donutView, setDonutView] = useState<"Actions" | "Secteurs" | "Géographie">("Actions");
   const {
     positions,
-    filteredHistory,
-    timeRange,
-    setTimeRange,
+    history,
     loading,
     refreshing,
     refresh: loadData,
@@ -52,13 +40,25 @@ export default function PortfolioPage() {
     setRebalanceCash,
     targetAllocations,
     setTargetAllocations,
-    totalInvested,
     totalValue,
-    totalPV,
-    totalPerformance,
-    sectorData,
-    assetData,
   } = usePortfolio();
+
+  const donutData = useMemo(() => {
+    const groups = new Map<string, number>();
+    for (const p of positions) {
+      if (!(p.capitalValue > 0)) continue; // exclut aussi NaN
+      const name =
+        donutView === "Actions"
+          ? p.name || p.ticker
+          : donutView === "Secteurs"
+            ? p.sector || "Autre"
+            : getGeography(p.ticker);
+      groups.set(name, (groups.get(name) ?? 0) + p.capitalValue);
+    }
+    return Array.from(groups, ([name, value]) => ({ name, value })).sort(
+      (a, b) => b.value - a.value,
+    );
+  }, [positions, donutView]);
 
   // ── Loading state premium ────────────────────────────────────
   if (loading) {
@@ -71,16 +71,8 @@ export default function PortfolioPage() {
           </div>
           <div className="stats-card-skeleton h-9 w-28 rounded-xl" />
         </div>
-        <div className="grid gap-6 sm:grid-cols-3">
-          {[0, 1, 2].map((i) => (
-            <StatsCardSkeleton key={i} index={i} />
-          ))}
-        </div>
+        <ChartSkeleton height={320} />
         <ChartSkeleton height={300} />
-        <div className="grid gap-6 md:grid-cols-2">
-          <ChartSkeleton height={300} />
-          <ChartSkeleton height={300} />
-        </div>
       </div>
     );
   }
@@ -108,150 +100,49 @@ export default function PortfolioPage() {
         </button>
       </div>
 
-      {/* KPI Cards */}
-      <div className="grid grid-cols-2 gap-3 sm:gap-6 sm:grid-cols-3">
-        <div className="rounded-2xl border border-zinc-800 bg-zinc-900/50 p-4 sm:p-6 backdrop-blur">
-          <p className="text-xs sm:text-sm font-medium text-zinc-400">Valeur Totale</p>
-          <p className="mt-1 sm:mt-2 text-xl sm:text-3xl font-bold text-white">
-            {loading ? "..." : formatEUR(totalValue)}
-          </p>
-        </div>
-        <div className="rounded-2xl border border-zinc-800 bg-zinc-900/50 p-4 sm:p-6 backdrop-blur">
-          <p className="text-xs sm:text-sm font-medium text-zinc-400">Investissement</p>
-          <p className="mt-1 sm:mt-2 text-xl sm:text-3xl font-bold text-zinc-200">
-            {loading ? "..." : formatEUR(totalInvested)}
-          </p>
-        </div>
-        <div className="col-span-2 sm:col-span-1 rounded-2xl border border-zinc-800 bg-zinc-900/50 p-4 sm:p-6 backdrop-blur">
-          <p className="text-xs sm:text-sm font-medium text-zinc-400">Plus/Moins-Value</p>
-          <div className="mt-1 sm:mt-2 flex items-baseline gap-2">
-            <p
-              className={`text-2xl sm:text-3xl font-bold ${
-                totalPV >= 0 ? "text-emerald-400" : "text-rose-400"
-              }`}
-            >
-              {loading ? "..." : (totalPV > 0 ? "+" : "") + formatEUR(totalPV)}
-            </p>
-            <span
-              className={`text-xs sm:text-sm font-medium ${
-                totalPerformance >= 0 ? "text-emerald-500" : "text-rose-500"
-              }`}
-            >
-              ({loading ? "..." : formatPercent(totalPerformance)})
-            </span>
-          </div>
-        </div>
-      </div>
+      {/* Benchmark vs Indices */}
+      <BenchmarkChart portfolioHistory={history} />
 
-      {/* History & Benchmark Chart Section */}
-      <div className="space-y-4">
-        {/* Toggle Bar */}
-        <div className="flex items-center gap-2">
-          <button
-            onClick={() => setChartView("history")}
-            className={`flex items-center gap-2 rounded-xl px-4 py-2 text-sm font-semibold transition-all ${
-              chartView === "history"
-                ? "bg-violet-600/20 text-violet-400 ring-1 ring-violet-500/30"
-                : "text-zinc-400 hover:bg-zinc-900 hover:text-zinc-200"
-            }`}
-          >
-            <BarChart3 className="h-4 w-4" />
-            <span>Historique Portefeuille</span>
-          </button>
-          <button
-            onClick={() => setChartView("benchmark")}
-            className={`flex items-center gap-2 rounded-xl px-4 py-2 text-sm font-semibold transition-all ${
-              chartView === "benchmark"
-                ? "bg-violet-600/20 text-violet-400 ring-1 ring-violet-500/30"
-                : "text-zinc-400 hover:bg-zinc-900 hover:text-zinc-200"
-            }`}
-          >
-            <TrendingUp className="h-4 w-4" />
-            <span>Benchmark vs Indices</span>
-          </button>
-        </div>
-
-        {chartView === "benchmark" ? (
-          <BenchmarkChart
-            portfolioHistory={
-              filteredHistory as { date: string; total_value: number }[]
-            }
-          />
-        ) : (
-          <div className="rounded-2xl border border-zinc-800 bg-zinc-900/50 p-6 backdrop-blur">
-            <div className="mb-6 flex items-center justify-between">
-              <h3 className="text-lg font-semibold text-white">
-                Évolution du Portefeuille
-              </h3>
-              <div className="flex gap-1 rounded-lg bg-zinc-800/50 p-1">
-                {(["1W", "1M", "1Y", "Max"] as const).map((range) => (
-                  <button
-                    key={range}
-                    onClick={() => setTimeRange(range)}
-                    className={`rounded-md px-3 py-1 text-xs font-medium transition-colors ${
-                      timeRange === range
-                        ? "bg-violet-600 text-white shadow-sm"
-                        : "text-zinc-400 hover:text-zinc-200"
-                    }`}
-                  >
-                    {range}
-                  </button>
-                ))}
-              </div>
-            </div>
-
-            <div className="h-[300px] w-full">
-              <PortfolioHistoryChart filteredHistory={filteredHistory} />
-            </div>
-          </div>
-        )}
-      </div>
-
-      {/* Allocation Charts */}
+      {/* Répartition du capital (Actions / Secteurs / Géographie) */}
       {!loading && positions.length > 0 && (
-        <div className="grid gap-6 md:grid-cols-2">
-          {/* Sector Allocation — AnimatedDonut interactif */}
-          <div className="rounded-2xl border border-zinc-800 bg-zinc-900/50 p-6 backdrop-blur">
-            <h3 className="mb-4 text-lg font-semibold text-white">
-              Répartition Sectorielle
-            </h3>
-            <AnimatedDonut
-              data={sectorData}
-              height={300}
-              totalValue={sectorData.reduce((s, d) => s + d.value, 0)}
-              totalLabel="Secteurs"
-            />
-          </div>
+        <div className="rounded-2xl border border-zinc-800 bg-gradient-to-br from-zinc-900/60 to-black p-6">
+          <div className="mb-4 flex flex-col justify-between gap-4 sm:flex-row sm:items-center">
+            <div className="flex items-center gap-2">
+              <Sparkles className="h-4 w-4 text-violet-400" />
+              <h2 className="text-lg font-bold text-white">
+                Répartition du Capital
+              </h2>
+            </div>
 
-          {/* Asset Allocation — AnimatedDonut interactif */}
-          <div className="rounded-2xl border border-zinc-800 bg-zinc-900/50 p-6 backdrop-blur">
-            <h3 className="mb-4 text-lg font-semibold text-white">
-              Répartition par Actif
-            </h3>
-            <AnimatedDonut
-              data={assetData}
-              height={300}
-              totalValue={assetData.reduce((s, d) => s + d.value, 0)}
-              totalLabel="Actifs"
-            />
+            <div className="flex rounded-lg bg-zinc-800/50 p-1">
+              {(["Actions", "Secteurs", "Géographie"] as const).map((view) => (
+                <button
+                  key={view}
+                  onClick={() => setDonutView(view)}
+                  className={`rounded-md px-3 py-1 text-xs font-medium transition-all ${
+                    donutView === view
+                      ? "bg-zinc-700 text-white shadow-sm"
+                      : "text-zinc-400 hover:text-zinc-200"
+                  }`}
+                >
+                  {view}
+                </button>
+              ))}
+            </div>
           </div>
+          <AnimatedDonut data={donutData} totalLabel="Portefeuille" />
         </div>
       )}
 
       {/* Risk Analysis & Quantitative Health Panel */}
       {!loading && positions.length > 0 && (
         <div className="w-full">
-          <RiskAnalysisPanel
-            positions={positions}
-            history={filteredHistory as { total_value: number; date?: string }[]}
-            totalInvested={totalInvested}
-            totalValue={totalValue}
-          />
+          <RiskAnalysisPanel positions={positions} history={history} />
         </div>
       )}
 
       {/* Portfolio Rebalancing Tool */}
-      <div className="rounded-2xl border border-zinc-800 bg-gradient-to-br from-zinc-900/50 to-black p-6 backdrop-blur-sm shadow-[0_0_15px_rgba(139,92,246,0.1)]">
+      <div className="rounded-2xl border border-zinc-800 bg-gradient-to-br from-zinc-900/50 to-black p-6 shadow-[0_0_15px_rgba(139,92,246,0.1)]">
         <div
           className="flex cursor-pointer items-center justify-between"
           onClick={() => setIsRebalancingOpen(!isRebalancingOpen)}
@@ -323,7 +214,7 @@ export default function PortfolioPage() {
                           {formatEUR(currentVal)}
                         </td>
                         <td className="py-3 text-right">
-                          {currentPct.toFixed(1)}%
+                          {formatPercent(currentPct / 100)}
                         </td>
                         <td className="py-3 text-right">
                           <input
@@ -367,22 +258,6 @@ export default function PortfolioPage() {
         )}
       </div>
 
-      {/* Tax Simulator Tool */}
-      <div className="w-full">
-        <TaxSimulator
-          totalCapital={totalValue}
-          totalPlusValue={Math.max(0, totalPV)}
-          totalInvested={totalInvested}
-          totalDividends={positions.reduce((s, p) => s + (p.dividends || 0), 0)}
-          positions={positions}
-        />
-      </div>
-
-      {/* DCA & Compound Interest Projection Tool */}
-      <div className="w-full">
-        <DCASimulator currentPortfolioValue={totalValue} />
-      </div>
-
       {/* Positions Table */}
 
       {/* Mobile Positions */}
@@ -404,7 +279,7 @@ export default function PortfolioPage() {
               return (
                 <div
                   key={pos.ticker}
-                  className="rounded-2xl border border-zinc-800 bg-zinc-900/50 p-4 shadow-sm backdrop-blur-sm transition-colors hover:bg-zinc-800/30"
+                  className="rounded-2xl border border-zinc-800 bg-zinc-900/50 p-4 shadow-sm transition-colors hover:bg-zinc-800/30"
                 >
                   <div className="mb-3 flex items-start justify-between">
                     <div className="flex items-center gap-3">
@@ -412,7 +287,7 @@ export default function PortfolioPage() {
                         <p className="max-w-[150px] truncate font-bold text-white">
                           {pos.name}
                         </p>
-                        <p className="text-xs text-zinc-500">{pos.ticker}</p>
+                        <p className="text-xs text-zinc-400">{pos.ticker}</p>
                       </div>
                     </div>
                     <div className="flex items-center gap-2">
@@ -433,7 +308,7 @@ export default function PortfolioPage() {
 
                   <div className="grid grid-cols-2 gap-4 border-t border-zinc-800/50 pt-3">
                     <div>
-                      <p className="text-[10px] uppercase text-zinc-500">
+                      <p className="text-xs uppercase text-zinc-400">
                         Valeur
                       </p>
                       <p className="font-semibold text-white">
@@ -441,7 +316,7 @@ export default function PortfolioPage() {
                       </p>
                     </div>
                     <div className="text-right">
-                      <p className="text-[10px] uppercase text-zinc-500">
+                      <p className="text-xs uppercase text-zinc-400">
                         +/- Value
                       </p>
                       <p
@@ -453,13 +328,13 @@ export default function PortfolioPage() {
                       </p>
                     </div>
                     <div>
-                      <p className="text-[10px] uppercase text-zinc-500">Qté</p>
+                      <p className="text-xs uppercase text-zinc-400">Qté</p>
                       <p className="text-sm text-zinc-300">
                         {pos.totalQuantity.toFixed(4).replace(/\.?0+$/, "")}
                       </p>
                     </div>
                     <div className="text-right">
-                      <p className="text-[10px] uppercase text-zinc-500">PRU</p>
+                      <p className="text-xs uppercase text-zinc-400">PRU</p>
                       <p className="text-sm text-zinc-300">
                         {formatEUR(pos.pru)}
                       </p>
@@ -471,7 +346,7 @@ export default function PortfolioPage() {
       </div>
 
       {/* Desktop Table */}
-      <div className="hidden overflow-hidden rounded-2xl border border-zinc-800 bg-gradient-to-br from-zinc-900/50 to-black backdrop-blur-sm md:block">
+      <div className="hidden overflow-hidden rounded-2xl border border-zinc-800 bg-gradient-to-br from-zinc-900/50 to-black md:block">
         <div className="overflow-x-auto">
           <table className="w-full min-w-max text-sm">
             <thead>
@@ -544,7 +419,7 @@ export default function PortfolioPage() {
                         >
                           {pos.name}
                         </div>
-                        <div className="text-xs text-zinc-500">
+                        <div className="text-xs text-zinc-400">
                           {pos.ticker}
                         </div>
                       </td>

@@ -6,6 +6,9 @@
  * Uses Web Crypto API, compatible with Edge runtime and Node.js.
  */
 
+import { cookies } from "next/headers";
+import { NextResponse } from "next/server";
+
 export const AUTH_COOKIE_NAME = "access_token";
 export const SESSION_MAX_AGE_S = 60 * 60 * 24 * 7; // 7 days
 
@@ -37,4 +40,20 @@ export async function verifySessionToken(
   const [expiry, sig] = token.split(".");
   if (!expiry || !sig || !(Number(expiry) > now)) return false;
   return sig === (await sign(secret, expiry));
+}
+
+/** True when the cookie value is a valid session for the current ACCESS_PASSWORD. */
+export async function isValidSession(token: string | undefined): Promise<boolean> {
+  const secret = process.env.ACCESS_PASSWORD;
+  return Boolean(secret && token && (await verifySessionToken(secret, token)));
+}
+
+/**
+ * Session check for API routes: the proxy already does it, but Next.js has had
+ * several proxy-bypass CVEs, so every data route checks again.
+ * Returns the 401 response to send, or null when the session is valid.
+ */
+export async function requireSession(): Promise<NextResponse | null> {
+  if (await isValidSession((await cookies()).get(AUTH_COOKIE_NAME)?.value)) return null;
+  return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
 }

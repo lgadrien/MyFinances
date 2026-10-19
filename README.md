@@ -26,7 +26,7 @@ Application moderne de suivi et d'analyse de portefeuille boursier PEA, construi
 
 ## 🛠️ Prérequis
 
-- **Node.js** v18 ou supérieur
+- **Node.js** 20.9 ou supérieur (24 LTS recommandé, requis par Next.js 16)
 - Un compte **Supabase** gratuit → [supabase.com](https://supabase.com)
 - _(Optionnel)_ Un compte **Vercel** pour le déploiement en production et l'exécution du cron quotidien
 
@@ -162,9 +162,11 @@ MyFinances/
 │   └── proxy.ts                # Protection des routes (Next.js 16)
 │
 ├── tests/                      # Suite de tests unitaires (Vitest)
+│   ├── api-auth.test.ts        # Chaque route API refuse les requêtes sans session
 │   ├── auth.test.ts
 │   ├── calculations.test.ts
 │   ├── dca.test.ts
+│   ├── proxy.test.ts           # Routes publiques / protégées du proxy
 │   ├── risk-metrics.test.ts
 │   ├── tax.test.ts
 │   ├── technical-analysis.test.ts
@@ -214,8 +216,9 @@ MyFinances/
 - **Isolation Zero-Anon & RLS stricte** : Aucune interaction directe navigateur ↔ Supabase. Toutes les requêtes en base transitent par les API Routes Next.js avec `SUPABASE_SERVICE_ROLE_KEY`.
 - **Validation stricte des tickers** : Expression régulière stricte `^[A-Z0-9^.=-]{1,12}$` appliquée systématiquement sur `/api/stock`, `/api/stock/batch`, `/api/stock/history` et `/api/favorites` pour éliminer tout risque d'injection.
 - **Protection anti-bruteforce** : Rate limiting en mémoire (5 tentatives par tranche de 15 minutes par IP) sur `/api/auth/login`.
-- **Authentification par cookie HTTP-Only** : Jeton signé (HMAC-SHA256) avec expiration à 7 jours vérifiée côté serveur, inaccessible au JavaScript du navigateur.
-- **Headers HTTP durcis** : Content Security Policy (CSP), X-Frame-Options, X-Content-Type-Options configurés dans `next.config.ts`.
+- **Authentification par cookie HTTP-Only** : Jeton signé (HMAC-SHA256) avec expiration à 7 jours vérifiée côté serveur, inaccessible au JavaScript du navigateur. Bouton de déconnexion (`/api/auth/logout`).
+- **Double contrôle de session** : le proxy (`src/proxy.ts`) filtre les requêtes, et chaque route API revérifie la session (`requireSession`), au cas où le proxy serait contourné (Next.js a connu plusieurs failles de ce type).
+- **Headers HTTP durcis** : Content Security Policy (CSP, sans `unsafe-eval` en production, `connect-src 'self'`), X-Frame-Options, X-Content-Type-Options configurés dans `next.config.ts`.
 - **Protection obligatoire du Cron** : L'endpoint `/api/cron/snapshot` rejette systématiquement les requêtes si `CRON_SECRET` n'est pas configuré (503 Service Misconfigured) ou si le Bearer token est absent/invalide (401 Unauthorized).
 - **Assurance qualité & CI** : Pipeline GitHub Actions automatisé exécutant le linter, le contrôle de types TypeScript et la suite de tests Vitest avec couverture minimale garantie (> 80%).
 

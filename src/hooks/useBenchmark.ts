@@ -9,6 +9,7 @@
 import { useQuery } from "@tanstack/react-query";
 import { parseISO, format } from "date-fns";
 import { fr } from "date-fns/locale";
+import { twrIndex } from "@/lib/risk-metrics";
 
 export type BenchmarkRange = "1W" | "1M" | "1Y" | "Max";
 
@@ -71,15 +72,16 @@ export function useBenchmark(timeRange: BenchmarkRange) {
   });
 }
 
-/** Fusionne historique portefeuille + benchmark sur dates communes. */
+/** Fusionne historique portefeuille (hors apports) + benchmark sur dates communes, rebasés à 0 % à la première. */
 export function mergeBenchmarkData(
-  portfolioHistory: { date: string; total_value: number }[],
+  portfolioHistory: { date: string; total_value: number; total_invested: number }[],
   benchmarkData: { date: string; pct: number }[],
   benchmarkKey: "cac40" | "msciWorld",
 ): { date: string; portfolio: number; benchmark: number; label: string }[] {
   if (!portfolioHistory.length || !benchmarkData.length) return [];
 
-  const firstValue = portfolioHistory[0]?.total_value ?? 0;
+  const index = twrIndex(portfolioHistory);
+  let base: { portfolio: number; benchmark: number } | undefined;
   const benchMap = new Map(
     benchmarkData.map((d) => [d.date.slice(0, 10), d.pct]),
   );
@@ -91,19 +93,20 @@ export function mergeBenchmarkData(
     label: string;
   }[] = [];
 
-  for (const h of portfolioHistory) {
+  for (const [i, h] of portfolioHistory.entries()) {
     const dateKey = h.date.slice(0, 10);
     const bPct = benchMap.get(dateKey);
     if (bPct === undefined) continue;
 
-    const portfolioPct =
-      firstValue > 0 ? ((h.total_value - firstValue) / firstValue) * 100 : 0;
+    base ??= { portfolio: index[i], benchmark: 1 + bPct / 100 };
+    const portfolioPct = (index[i] / base.portfolio - 1) * 100;
+    const benchmarkPct = ((1 + bPct / 100) / base.benchmark - 1) * 100;
 
     result.push({
       date: dateKey,
       portfolio: Math.round(portfolioPct * 100) / 100,
-      [benchmarkKey]: Math.round(bPct * 100) / 100,
-      benchmark: Math.round(bPct * 100) / 100,
+      [benchmarkKey]: Math.round(benchmarkPct * 100) / 100,
+      benchmark: Math.round(benchmarkPct * 100) / 100,
       label: format(parseISO(dateKey), "d MMM yy", { locale: fr }),
     });
   }

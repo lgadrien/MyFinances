@@ -8,6 +8,7 @@ import {
   ArrowLeftRight,
   Wallet,
   Briefcase,
+  Calculator,
   ChevronLeft,
   Bell,
 } from "lucide-react";
@@ -19,6 +20,7 @@ const navItems = [
   { href: "/portefeuille", label: "Portefeuille", icon: Briefcase },
   { href: "/marche", label: "Marché", icon: TrendingUp },
   { href: "/transactions", label: "Transactions", icon: ArrowLeftRight },
+  { href: "/outils", label: "Outils", icon: Calculator },
 ];
 
 interface SidebarProps {
@@ -41,7 +43,7 @@ export default function Sidebar({
 
   return (
     <aside
-      className={`flex h-screen flex-col border-r border-zinc-800 bg-black backdrop-blur-xl transition-all duration-300 ${
+      className={`flex h-screen flex-col border-r border-zinc-800 bg-black transition-all duration-300 ${
         isCollapsed ? "w-20" : "w-64"
       } ${className}`}
     >
@@ -49,6 +51,7 @@ export default function Sidebar({
       {onToggle && (
         <button
           onClick={onToggle}
+          aria-label={isCollapsed ? "Déplier le menu" : "Replier le menu"}
           className="absolute -right-3 top-6 z-50 flex h-6 w-6 items-center justify-center rounded-full border border-zinc-700 bg-zinc-900 text-zinc-400 transition-colors hover:text-white"
         >
           <ChevronLeft
@@ -70,7 +73,7 @@ export default function Sidebar({
         {!isCollapsed && (
           <div className="overflow-hidden whitespace-nowrap transition-all duration-300">
             <h1 className="text-lg font-bold text-white">MyFinances</h1>
-            <p className="bg-gradient-to-r from-violet-400 to-fuchsia-400 bg-clip-text text-[10px] font-medium uppercase tracking-widest text-transparent">
+            <p className="bg-gradient-to-r from-violet-400 to-fuchsia-400 bg-clip-text text-xs font-medium uppercase tracking-widest text-transparent">
               PEA Tracker
             </p>
           </div>
@@ -128,7 +131,7 @@ export default function Sidebar({
             <div className="relative">
               <Bell className={`shrink-0 ${isCollapsed ? "h-6 w-6" : "h-5 w-5"}`} />
               {unreadCount > 0 && (
-                <span className="absolute -top-1 -right-1 flex h-3.5 w-3.5 items-center justify-center rounded-full bg-violet-600 text-[9px] font-bold text-white ring-2 ring-black">
+                <span className="absolute -top-1 -right-1 flex h-3.5 w-3.5 items-center justify-center rounded-full bg-violet-600 text-xs font-bold text-white ring-2 ring-black">
                   {unreadCount}
                 </span>
               )}
@@ -137,7 +140,7 @@ export default function Sidebar({
               <>
                 <span className="whitespace-nowrap">Alertes</span>
                 {alerts.length > 0 && (
-                  <span className="ml-auto rounded-full bg-zinc-800 px-2 py-0.5 text-[10px] text-zinc-400">
+                  <span className="ml-auto rounded-full bg-zinc-800 px-2 py-0.5 text-xs text-zinc-400">
                     {alerts.length}
                   </span>
                 )}

@@ -5,6 +5,7 @@ import {
   bollingerBands,
   sma,
   ema,
+  atr,
   computeTrendScore,
   type OHLCV,
 } from "@/lib/technical-analysis";
@@ -54,12 +55,35 @@ describe("Technical Analysis Engine", () => {
   });
 
   it("computes MACD line and histogram", () => {
+    // On a +2/day ramp an EMA(n) lags the price by 2 × (n - 1) / 2: MACD = 25 - 11 = 14
     const prices = Array.from({ length: 40 }, (_, i) => 100 + i * 2);
     const macdSeries = macd(prices);
+    expect(macdSeries[24].macd).toBeNull(); // slow EMA(26) not ready yet
+    expect(macdSeries[25].macd).toBeCloseTo(14, 8);
+    expect(macdSeries[32].signal).toBeNull(); // signal needs 9 MACD points
+    expect(macdSeries[33].signal).toBeCloseTo(14, 8);
     const last = macdSeries[macdSeries.length - 1];
-    expect(last.macd).toBeDefined();
-    expect(last.signal).toBeDefined();
-    expect(last.histogram).toBeDefined();
+    expect(last.macd).toBeCloseTo(14, 8);
+    expect(last.signal).toBeCloseTo(14, 8);
+    expect(last.histogram).toBeCloseTo(0, 8);
+  });
+
+  it("returns a neutral RSI of 50 on a flat price series", () => {
+    const flat = rsi(Array(20).fill(100), 14);
+    expect(flat[14]).toBe(50);
+    expect(flat[19]).toBe(50);
+  });
+
+  it("returns an all-null ATR when there are fewer bars than the period", () => {
+    const bars: OHLCV[] = Array.from({ length: 5 }, (_, i) => ({
+      date: `2025-01-0${i + 1}`,
+      open: 100,
+      high: 102,
+      low: 98,
+      close: 100,
+      volume: 1000,
+    }));
+    expect(atr(bars, 14)).toEqual([null, null, null, null, null]);
   });
 
   it("computes Bollinger Bands with upper >= middle >= lower", () => {

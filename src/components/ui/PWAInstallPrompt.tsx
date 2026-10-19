@@ -1,6 +1,6 @@
 "use client";
 
-import { useState, useEffect } from "react";
+import { useState, useEffect, useSyncExternalStore } from "react";
 import { Download, X, Share, PlusSquare, Smartphone } from "lucide-react";
 
 interface BeforeInstallPromptEvent extends Event {
@@ -8,34 +8,24 @@ interface BeforeInstallPromptEvent extends Event {
   userChoice: Promise<{ outcome: "accepted" | "dismissed" }>;
 }
 
+const DISMISSED_KEY = "myfinances_pwa_dismissed";
+const noSubscribe = () => () => {};
+
 export default function PWAInstallPrompt() {
   const [deferredPrompt, setDeferredPrompt] =
     useState<BeforeInstallPromptEvent | null>(null);
-
-  const [isStandalone] = useState<boolean>(() => {
-    if (typeof window === "undefined") return true;
-    return (
-      window.matchMedia("(display-mode: standalone)").matches ||
-      // eslint-disable-next-line @typescript-eslint/no-explicit-any
-      (window.navigator as any).standalone === true
-    );
-  });
-
-  const [isIOS] = useState<boolean>(() => {
-    if (typeof window === "undefined") return false;
-    return /iphone|ipad|ipod/.test(window.navigator.userAgent.toLowerCase());
-  });
-
-  const [isDismissed, setIsDismissed] = useState<boolean>(() => {
-    if (typeof window === "undefined") return true;
-    return Boolean(sessionStorage.getItem("myfinances_pwa_dismissed"));
-  });
-
+  const [isDismissed, setIsDismissed] = useState(false);
   const [showIOSTip, setShowIOSTip] = useState(false);
 
-  useEffect(() => {
-    if (isStandalone) return;
+  // false on the server and during hydration: browser-only checks must not change the first render
+  const isClient = useSyncExternalStore(noSubscribe, () => true, () => false);
+  const isStandalone =
+    isClient &&
+    (window.matchMedia("(display-mode: standalone)").matches ||
+      (navigator as Navigator & { standalone?: boolean }).standalone === true);
+  const isIOS = isClient && /iphone|ipad|ipod/.test(navigator.userAgent.toLowerCase());
 
+  useEffect(() => {
     // Listen for beforeinstallprompt event (Android / Chrome)
     const handleBeforeInstall = (e: Event) => {
       e.preventDefault();
@@ -46,9 +36,18 @@ export default function PWAInstallPrompt() {
     return () => {
       window.removeEventListener("beforeinstallprompt", handleBeforeInstall);
     };
-  }, [isStandalone]);
+  }, []);
 
-  if (isStandalone || isDismissed) return null;
+  // Only offer an install that can happen: Chrome's prompt, or the iOS "Add to Home Screen" tip
+  if (
+    !isClient ||
+    isStandalone ||
+    isDismissed ||
+    sessionStorage.getItem(DISMISSED_KEY) ||
+    !(deferredPrompt || isIOS)
+  ) {
+    return null;
+  }
 
   const handleInstallClick = async () => {
     if (deferredPrompt) {
@@ -65,7 +64,7 @@ export default function PWAInstallPrompt() {
 
   const handleDismiss = () => {
     setIsDismissed(true);
-    sessionStorage.setItem("myfinances_pwa_dismissed", "true");
+    sessionStorage.setItem(DISMISSED_KEY, "true");
   };
 
   return (
@@ -88,6 +87,7 @@ export default function PWAInstallPrompt() {
           <button
             onClick={handleDismiss}
             className="rounded-lg p-1 text-zinc-400 hover:text-white"
+            aria-label="Fermer"
           >
             <X className="h-4 w-4" />
           </button>
@@ -122,19 +122,19 @@ export default function PWAInstallPrompt() {
             </h3>
             <div className="text-xs text-zinc-300 space-y-3 mt-4 text-left">
               <p className="flex items-center gap-2">
-                <span className="flex h-5 w-5 shrink-0 items-center justify-center rounded-full bg-zinc-800 text-[10px] font-bold text-violet-400">
+                <span className="flex h-5 w-5 shrink-0 items-center justify-center rounded-full bg-zinc-800 text-xs font-bold text-violet-400">
                   1
                 </span>
                 <span>Appuyez sur le bouton <strong>Partager</strong> <Share className="inline h-3.5 w-3.5 text-violet-400" /> dans Safari.</span>
               </p>
               <p className="flex items-center gap-2">
-                <span className="flex h-5 w-5 shrink-0 items-center justify-center rounded-full bg-zinc-800 text-[10px] font-bold text-violet-400">
+                <span className="flex h-5 w-5 shrink-0 items-center justify-center rounded-full bg-zinc-800 text-xs font-bold text-violet-400">
                   2
                 </span>
                 <span>Faites défiler vers le bas et sélectionnez <strong>Sur l&apos;écran d&apos;accueil</strong> <PlusSquare className="inline h-3.5 w-3.5 text-violet-400" />.</span>
               </p>
               <p className="flex items-center gap-2">
-                <span className="flex h-5 w-5 shrink-0 items-center justify-center rounded-full bg-zinc-800 text-[10px] font-bold text-violet-400">
+                <span className="flex h-5 w-5 shrink-0 items-center justify-center rounded-full bg-zinc-800 text-xs font-bold text-violet-400">
                   3
                 </span>
                 <span>Appuyez sur <strong>Ajouter</strong> en haut à droite.</span>

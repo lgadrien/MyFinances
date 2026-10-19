@@ -1,10 +1,12 @@
 import { NextRequest, NextResponse } from "next/server";
 import { supabaseAdmin } from "@/lib/supabase-server";
 import { sanitizeTicker } from "@/lib/validation";
+import { requireSession } from "@/lib/auth";
 
 // ── GET /api/favorites ────────────────────────────────────────────────────────
 
 export async function GET() {
+  const denied = await requireSession(); if (denied) return denied;
   try {
     const { data, error } = await supabaseAdmin
       .from("favorites")
@@ -24,6 +26,7 @@ export async function GET() {
 // ── POST /api/favorites ───────────────────────────────────────────────────────
 
 export async function POST(req: NextRequest) {
+  const denied = await requireSession(); if (denied) return denied;
   try {
     const body = await req.json().catch(() => null);
     const ticker = sanitizeTicker(body?.ticker);
@@ -56,6 +59,7 @@ export async function POST(req: NextRequest) {
 // ── DELETE /api/favorites?ticker=XXX ─────────────────────────────────────────
 
 export async function DELETE(req: NextRequest) {
+  const denied = await requireSession(); if (denied) return denied;
   try {
     const raw = new URL(req.url).searchParams.get("ticker");
     const ticker = sanitizeTicker(raw);

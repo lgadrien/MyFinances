@@ -1,6 +1,8 @@
 import { NextRequest, NextResponse } from "next/server";
 import { unstable_cache } from "next/cache";
 import { sanitizeTicker } from "@/lib/validation";
+import { FETCH_TIMEOUT_MS } from "@/lib/stocks";
+import { requireSession } from "@/lib/auth";
 
 /**
  * Maps our interval labels to Yahoo Finance range/interval params.
@@ -24,6 +26,7 @@ const getHistory = unstable_cache(
 
     const response = await fetch(url, {
       headers: { "User-Agent": "Mozilla/5.0" },
+      signal: AbortSignal.timeout(FETCH_TIMEOUT_MS),
     });
     if (!response.ok) throw new Error(`Yahoo history ${response.status} for ${t}`);
 
@@ -69,6 +72,7 @@ const getHistory = unstable_cache(
 );
 
 export async function GET(req: NextRequest) {
+  const denied = await requireSession(); if (denied) return denied;
   const { searchParams } = req.nextUrl;
   const ticker = sanitizeTicker(searchParams.get("ticker"));
   const interval = searchParams.get("interval") || "daily";

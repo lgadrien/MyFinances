@@ -46,7 +46,7 @@ export default function NotFound() {
         </div>
 
         {/* Nav links */}
-        <div className="mt-2 flex flex-wrap justify-center gap-x-6 gap-y-2 text-xs text-zinc-600">
+        <div className="mt-2 flex flex-wrap justify-center gap-x-6 gap-y-2 text-xs text-zinc-400">
           {[
             { href: "/transactions", label: "Transactions" },
             { href: "/portefeuille", label: "Portefeuille" },

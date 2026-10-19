@@ -1,9 +1,11 @@
 import { NextRequest, NextResponse } from "next/server";
 import { supabaseAdmin } from "@/lib/supabase-server";
+import { requireSession } from "@/lib/auth";
 
 // ── GET /api/settings ─────────────────────────────────────────────────────────
 
 export async function GET() {
+  const denied = await requireSession(); if (denied) return denied;
   try {
     const { data, error } = await supabaseAdmin
       .from("settings")
@@ -28,6 +30,7 @@ export async function GET() {
 // ── PUT /api/settings ─────────────────────────────────────────────────────────
 
 export async function PUT(req: NextRequest) {
+  const denied = await requireSession(); if (denied) return denied;
   try {
     const body = await req.json().catch(() => null);
     if (!body) return NextResponse.json({ error: "Corps invalide" }, { status: 400 });

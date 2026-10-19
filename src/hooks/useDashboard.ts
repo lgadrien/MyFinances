@@ -5,35 +5,36 @@
  * La page `app/page.tsx` n'a plus qu'à appeler ce hook et s'occuper du rendu.
  */
 
-import { useEffect, useState } from "react";
+import { useEffect, useMemo, useState } from "react";
+import { parseISO, subDays, subMonths, subYears } from "date-fns";
 import {
   fetchBatchStockPrices,
   fetchSettings,
   updateSettings,
 } from "@/lib/data";
 import { useTransactions } from "@/hooks/useTransactions";
+import type { HistoryPoint } from "@/hooks/usePortfolio";
 import {
-  calculateTotalInvested,
-  calculateDividends,
+  calculateDailyChange,
   calculatePortfolioPositions,
+  enrichPositions,
   groupDividendsByMonth,
-  type PortfolioPosition,
+  type EnrichedPortfolioPosition,
 } from "@/lib/calculations";
 import { FRENCH_INSTRUMENTS } from "@/lib/french-instruments";
 import toast from "react-hot-toast";
 
-export interface EnrichedPosition extends PortfolioPosition {
-  currentPrice: number;
-  plusValue: number;
-  capitalValue: number;
-}
+export type TimeRange = "1W" | "1M" | "1Y" | "Max";
 
 export interface DashboardData {
-  positions: EnrichedPosition[];
+  positions: EnrichedPortfolioPosition[];
   dividendHistory: { month: string; amount: number }[];
   projectedDividends: { month: string; amount: number }[];
+  filteredHistory: HistoryPoint[];
+  timeRange: TimeRange;
+  setTimeRange: (r: TimeRange) => void;
+  dailyChange: { amount: number; percent: number };
   totalInvested: number;
-  totalDividends: number;
   totalPlusValue: number;
   totalCapital: number;
   cashBalance: number;
@@ -48,19 +49,22 @@ export interface DashboardData {
 }
 
 export function useDashboard(): DashboardData {
-  const [positions, setPositions] = useState<EnrichedPosition[]>([]);
+  const [positions, setPositions] = useState<EnrichedPortfolioPosition[]>([]);
   const [dividendHistory, setDividendHistory] = useState<
     { month: string; amount: number }[]
   >([]);
   const [projectedDividends, setProjectedDividends] = useState<
     { month: string; amount: number }[]
   >([]);
+  const [history, setHistory] = useState<HistoryPoint[]>([]);
+  const [timeRange, setTimeRange] = useState<TimeRange>("1M");
+  const [dailyChange, setDailyChange] = useState({ amount: 0, percent: 0 });
   const [totalInvested, setTotalInvested] = useState(0);
-  const [totalDividends, setTotalDividends] = useState(0);
   const [totalPlusValue, setTotalPlusValue] = useState(0);
   const [totalCapital, setTotalCapital] = useState(0);
   const [cashBalance, setCashBalance] = useState(0);
   const [targetCapital, setTargetCapital] = useState(10000);
+  const [settingsLoaded, setSettingsLoaded] = useState(false);
   const [loading, setLoading] = useState(true);
   const [savingSettings, setSavingSettings] = useState(false);
   const [isSettingsOpen, setIsSettingsOpen] = useState(false);
@@ -71,14 +75,14 @@ export function useDashboard(): DashboardData {
     async function load() {
       // Si les transactions chargent, on attend
       if (isTxLoading) return;
-      
-      setLoading(true);
+
       try {
         // Paramètres utilisateur
         const settings = await fetchSettings();
         if (settings) {
           setCashBalance(settings.cash_balance);
           setTargetCapital(settings.target_capital);
+          setSettingsLoaded(true);
         }
 
         // Lookup table pour enrichir les positions avec nom/secteur
@@ -91,22 +95,22 @@ export function useDashboard(): DashboardData {
 
         const pos = calculatePortfolioPositions(transactions, instrumentLookup);
 
-        // Prix live via un seul appel batch (1 requête HTTP au lieu de N)
-        const quotes = await fetchBatchStockPrices(pos.map((p) => p.ticker));
+        // Prix live via un seul appel batch (1 requête HTTP au lieu de N), en parallèle de l'historique
+        const [quotes, historyData] = await Promise.all([
+          fetchBatchStockPrices(pos.map((p) => p.ticker)),
+          fetch("/api/portfolio/history").then((r) => r.json()).catch(() => []),
+        ]);
+        const missing = pos.filter((p) => !quotes[p.ticker]).map((p) => p.ticker);
+        if (missing.length) {
+          toast.error(`Cours indisponible, valorisé au PRU : ${missing.join(", ")}`, { id: "missing-quotes" });
+        }
 
-        const enriched: EnrichedPosition[] = pos.map((p) => {
-          const currentPrice = quotes[p.ticker]?.price ?? p.pru;
-          return {
-            ...p,
-            currentPrice,
-            plusValue: (currentPrice - p.pru) * p.totalQuantity,
-            capitalValue: currentPrice * p.totalQuantity,
-          };
-        });
+        const enriched = enrichPositions(pos, quotes);
 
         setPositions(enriched);
-        setTotalInvested(calculateTotalInvested(transactions));
-        setTotalDividends(calculateDividends(transactions));
+        setHistory(Array.isArray(historyData) ? historyData : []);
+        setDailyChange(calculateDailyChange(enriched, quotes));
+        setTotalInvested(enriched.reduce((s, p) => s + p.totalInvested, 0));
         setTotalPlusValue(enriched.reduce((s, p) => s + (p.plusValue || 0), 0));
         setTotalCapital(enriched.reduce((s, p) => s + (p.capitalValue || 0), 0));
         setDividendHistory(groupDividendsByMonth(transactions));
@@ -140,8 +144,7 @@ export function useDashboard(): DashboardData {
           Array.from(projectedMap.entries())
             .filter(([m]) => m >= new Date().toISOString().substring(0, 7))
             .sort(([a], [b]) => a.localeCompare(b))
-            .map(([month, amount]) => ({ month, amount }))
-            .slice(0, 4),
+            .map(([month, amount]) => ({ month, amount })),
         );
       } catch (err) {
         console.error("Error loading dashboard data:", err);
@@ -153,7 +156,24 @@ export function useDashboard(): DashboardData {
     load();
   }, [transactions, isTxLoading]);
 
+  // Filtrage de l'historique selon la période sélectionnée
+  const filteredHistory = useMemo(() => {
+    const now = new Date();
+    if (timeRange === "1W")
+      return history.filter((d) => parseISO(d.date) >= subDays(now, 7));
+    if (timeRange === "1M")
+      return history.filter((d) => parseISO(d.date) >= subMonths(now, 1));
+    if (timeRange === "1Y")
+      return history.filter((d) => parseISO(d.date) >= subYears(now, 1));
+    return history;
+  }, [history, timeRange]);
+
   const handleSaveSettings = async () => {
+    // Paramètres jamais chargés : sauvegarder écraserait le vrai solde par les valeurs par défaut
+    if (!settingsLoaded) {
+      toast.error("Paramètres non chargés : sauvegarde bloquée pour ne pas écraser vos valeurs.");
+      return;
+    }
     setSavingSettings(true);
     const ok = await updateSettings(cashBalance, targetCapital);
     if (ok) {
@@ -169,8 +189,11 @@ export function useDashboard(): DashboardData {
     positions,
     dividendHistory,
     projectedDividends,
+    filteredHistory,
+    timeRange,
+    setTimeRange,
+    dailyChange,
     totalInvested,
-    totalDividends,
     totalPlusValue,
     totalCapital,
     cashBalance,

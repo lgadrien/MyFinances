@@ -12,13 +12,11 @@ interface CountUpOptions {
   duration?: number;
   /** Délai avant le démarrage en ms (défaut: 0) */
   delay?: number;
-  /** Si true, ne rejoue pas l'animation quand `target` change légèrement */
-  skipSmallChanges?: boolean;
 }
 
 export function useCountUp(
   target: number,
-  { duration = 1000, delay = 0, skipSmallChanges = false }: CountUpOptions = {},
+  { duration = 1000, delay = 0 }: CountUpOptions = {},
 ): number {
   const safeTarget = typeof target === "number" && !Number.isNaN(target) ? target : 0;
   const [current, setCurrent] = useState<number>(() => safeTarget);
@@ -27,15 +25,6 @@ export function useCountUp(
   const timeoutRef = useRef<ReturnType<typeof setTimeout> | null>(null);
 
   useEffect(() => {
-    // Ignore les changements inférieurs à 1% si skipSmallChanges
-    if (
-      skipSmallChanges &&
-      previousTarget.current !== 0 &&
-      Math.abs(safeTarget - previousTarget.current) / previousTarget.current < 0.01
-    ) {
-      return;
-    }
-
     const startValue = previousTarget.current;
     previousTarget.current = safeTarget;
 
@@ -67,7 +56,7 @@ export function useCountUp(
       if (frameRef.current) cancelAnimationFrame(frameRef.current);
       if (timeoutRef.current) clearTimeout(timeoutRef.current);
     };
-  }, [safeTarget, duration, delay, skipSmallChanges]);
+  }, [safeTarget, duration, delay]);
 
   return current;
 }

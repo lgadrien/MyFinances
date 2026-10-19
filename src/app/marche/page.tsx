@@ -27,8 +27,8 @@ import {
   type MarketCategory,
 } from "@/lib/french-instruments";
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
-import { SIGNAL_CONFIG, type TrendSignal } from "@/lib/technical-analysis";
-import { formatEUR, formatPrice } from "@/lib/utils";
+import { SIGNAL_CONFIG, rsi, type TrendSignal } from "@/lib/technical-analysis";
+import { formatPercent, formatQuote } from "@/lib/utils";
 import { useAlerts } from "@/hooks/useAlerts";
 
 interface MarketRow {
@@ -57,10 +57,15 @@ import { useSettingsStore } from "@/stores/useSettingsStore";
 type SortKey = "name" | "sector" | "price" | "changePercent";
 type SortDir = "asc" | "desc" | null;
 
+// Stable fallbacks: a new [] or Map on every render re-ran the effects below in a loop while loading
+const NO_FAVORITES: string[] = [];
+const NO_PRICES = new Map<string, { price: number; change: number; changePercent: number }>();
+const NO_RSI: Record<string, number | undefined> = {};
+
 export default function MarchePage() {
   useSettingsStore();
   const queryClient = useQueryClient();
-  const { checkAlerts } = useAlerts();
+  const { alerts, checkAlerts } = useAlerts();
   const [search, setSearch] = useState("");
   const [categoryFilter, setCategoryFilter] = useState<"Tous" | MarketCategory>(
     "Tous",
@@ -68,19 +73,13 @@ export default function MarchePage() {
   const [sortKey, setSortKey] = useState<SortKey | null>(null);
   const [sortDir, setSortDir] = useState<SortDir>(null);
   const [selectedTicker, setSelectedTicker] = useState<string | null>(null);
-  const [favorites, setFavorites] = useState<string[]>([]);
   const [showFavorites, setShowFavorites] = useState(false);
 
   // Tanstack Query - Load Favorites
-  const { data: serverFavorites = [] } = useQuery({
+  const { data: favorites = NO_FAVORITES } = useQuery({
     queryKey: ["favorites"],
     queryFn: fetchFavorites,
   });
-
-  // Sync favorites state
-  useEffect(() => {
-    setFavorites(serverFavorites);
-  }, [serverFavorites]);
 
   // Load Transactions with hook (shares cache & filters by active environment)
   const { transactions } = useTransactions();
@@ -113,7 +112,7 @@ export default function MarchePage() {
     });
 
     // Inject favorites
-    serverFavorites.forEach((ticker) => {
+    favorites.forEach((ticker) => {
       if (!rowsMap.has(ticker)) {
         rowsMap.set(ticker, {
           ticker,
@@ -147,7 +146,7 @@ export default function MarchePage() {
     });
 
     return Array.from(rowsMap.values());
-  }, [ownedTickers, serverFavorites]);
+  }, [ownedTickers, favorites]);
 
   // Dynamic Row State because search can add items
   const [dynamicRows, setDynamicRows] = useState<MarketRow[]>([]);
@@ -165,7 +164,7 @@ export default function MarchePage() {
 
   // Tanstack Query - Batch Market Prices (fast 1-request loading)
   const {
-    data: pricesMap = new Map<string, { price: number; change: number; changePercent: number }>(),
+    data: pricesMap = NO_PRICES,
     isLoading: loading,
     isRefetching: refreshing,
   } = useQuery({
@@ -219,16 +218,44 @@ export default function MarchePage() {
     });
   }, [allRows, pricesMap]);
 
+  // RSI alerts need daily closes: fetch them only for tickers with an active RSI alert
+  const rsiTickers = useMemo(
+    () =>
+      [
+        ...new Set(
+          alerts
+            .filter((a) => a.status === "ACTIVE" && a.type.startsWith("RSI"))
+            .map((a) => a.ticker),
+        ),
+      ].sort(),
+    [alerts],
+  );
+  const { data: rsiByTicker = NO_RSI } = useQuery({
+    queryKey: ["alert-rsi", rsiTickers.join(",")],
+    enabled: rsiTickers.length > 0,
+    staleTime: 10 * 60_000,
+    queryFn: async () => {
+      const entries = await Promise.all(
+        rsiTickers.map(async (t) => {
+          const res = await fetch(`/api/stock/history?ticker=${encodeURIComponent(t)}&interval=daily`);
+          const history: { close: number }[] = res.ok ? (await res.json()).data : [];
+          return [t, rsi(history.map((d) => d.close)).at(-1) ?? undefined] as const;
+        }),
+      );
+      return Object.fromEntries(entries);
+    },
+  });
+
   // Check alerts against live batch prices
   useEffect(() => {
     if (pricesMap.size > 0) {
-      const quotesObj: Record<string, { price: number }> = {};
+      const quotesObj: Record<string, { price: number; rsi?: number }> = {};
       pricesMap.forEach((val, key) => {
-        quotesObj[key] = { price: val.price };
+        quotesObj[key] = { price: val.price, rsi: rsiByTicker[key] };
       });
       checkAlerts(quotesObj);
     }
-  }, [pricesMap, checkAlerts]);
+  }, [pricesMap, rsiByTicker, checkAlerts]);
 
   // New search state
   interface TickerResult {
@@ -250,8 +277,9 @@ export default function MarchePage() {
       ticker: string;
       isFav: boolean;
     }) => {
-      if (isFav) return removeFavorite(ticker);
-      return addFavorite(ticker);
+      const ok = isFav ? await removeFavorite(ticker) : await addFavorite(ticker);
+      // The helpers return false on failure: throw so onError rolls the star back
+      if (!ok) throw new Error("Favori non enregistré");
     },
     onMutate: async ({ ticker, isFav }) => {
       await queryClient.cancelQueries({ queryKey: ["favorites"] });
@@ -266,6 +294,7 @@ export default function MarchePage() {
         queryClient.setQueryData(["favorites"], context.previous);
       }
     },
+    onSettled: () => queryClient.invalidateQueries({ queryKey: ["favorites"] }),
   });
 
   async function handleToggleFavorite(e: React.MouseEvent, ticker: string) {
@@ -273,6 +302,9 @@ export default function MarchePage() {
     const isFav = favorites.includes(ticker);
     toggleFavMutation.mutate({ ticker, isFav });
   }
+
+  const ariaSort = (key: SortKey) =>
+    sortKey !== key ? "none" : sortDir === "asc" ? "ascending" : "descending";
 
   function handleSort(key: SortKey) {
     if (sortKey !== key) {
@@ -288,10 +320,7 @@ export default function MarchePage() {
 
   // Debounced search effect
   useEffect(() => {
-    if (search.length < 2) {
-      setSearchResults([]);
-      return;
-    }
+    if (search.length < 2) return;
 
     const timer = setTimeout(async () => {
       setIsSearching(true);
@@ -300,12 +329,7 @@ export default function MarchePage() {
           `/api/stock/search?q=${encodeURIComponent(search)}`,
         );
         const data = await res.json();
-        // Filter out tickers already in the list
-        const existingTickers = new Set(rows.map((r) => r.ticker));
-        const newResults = (data.results || []).filter(
-          (r: TickerResult) => !existingTickers.has(r.ticker),
-        );
-        setSearchResults(newResults);
+        setSearchResults(data.results || []);
       } catch (e) {
         console.error("Search failed", e);
       } finally {
@@ -314,7 +338,7 @@ export default function MarchePage() {
     }, 500);
 
     return () => clearTimeout(timer);
-  }, [search, rows]);
+  }, [search]);
 
   async function handleAddTicker(item: {
     ticker: string;
@@ -375,6 +399,11 @@ export default function MarchePage() {
         }
         return sortDir === "desc" ? -cmp : cmp;
       });
+    } else {
+      // Default order: owned, then favorites, then the rest (stable sort keeps the current order inside each group)
+      const rank = (r: MarketRow) =>
+        r.owned ? 0 : favorites.includes(r.ticker) ? 1 : 2;
+      result.sort((a, b) => rank(a) - rank(b));
     }
 
     return result;
@@ -394,7 +423,7 @@ export default function MarchePage() {
     indices: rows.filter((r) => r.category === "Indice").length,
   };
 
-  function SortIcon({ column }: { column: SortKey }) {
+  function sortIcon(column: SortKey) {
     if (sortKey !== column) {
       return <ChevronsUpDown className="h-3.5 w-3.5 text-zinc-600" />;
     }
@@ -403,6 +432,10 @@ export default function MarchePage() {
     }
     return <ChevronDown className="h-3.5 w-3.5 text-emerald-400" />;
   }
+
+  // Hits not listed yet (filtered here, not in the effect, so price updates don't re-run the search)
+  const addableResults =
+    search.length < 2 ? [] : searchResults.filter((r) => !rows.some((x) => x.ticker === r.ticker));
 
   return (
     <div className="animate-fade-in max-w-full space-y-6 overflow-x-hidden">
@@ -499,6 +532,7 @@ export default function MarchePage() {
           <input
             type="text"
             placeholder="Rechercher par nom, ticker ou secteur..."
+            aria-label="Rechercher une action ou un indice"
             value={search}
             onChange={(e) => setSearch(e.target.value)}
             onFocus={() => setSearchFocused(true)}
@@ -508,18 +542,18 @@ export default function MarchePage() {
 
           {/* Search Results Dropdown */}
           {searchFocused &&
-            (search.length >= 2 || searchResults.length > 0) && (
+            (search.length >= 2 || addableResults.length > 0) && (
               <div className="absolute left-0 right-0 top-full z-50 mt-2 max-h-60 overflow-y-auto rounded-xl border border-zinc-700 bg-zinc-900 shadow-xl">
                 {isSearching ? (
-                  <div className="p-4 text-center text-xs text-zinc-500">
+                  <div className="p-4 text-center text-xs text-zinc-400">
                     Recherche en cours...
                   </div>
-                ) : searchResults.length > 0 ? (
+                ) : addableResults.length > 0 ? (
                   <div className="divide-y divide-zinc-800">
                     <div className="bg-zinc-800/50 px-3 py-2 text-xs font-semibold text-zinc-400">
                       Ajouter à la liste
                     </div>
-                    {searchResults.map((result) => (
+                    {addableResults.map((result) => (
                       <button
                         key={result.ticker}
                         onClick={() => handleAddTicker(result)}
@@ -540,7 +574,7 @@ export default function MarchePage() {
                     ))}
                   </div>
                 ) : search.length >= 2 ? (
-                  <div className="p-4 text-center text-xs text-zinc-500">
+                  <div className="p-4 text-center text-xs text-zinc-400">
                     Aucun résultat trouvé sur les marchés
                   </div>
                 ) : null}
@@ -550,7 +584,7 @@ export default function MarchePage() {
       </div>
 
       {/* Results count */}
-      <p className="text-xs text-slate-500">
+      <p className="text-xs text-slate-400">
         {filteredAndSorted.length} résultat(s)
       </p>
 
@@ -569,12 +603,12 @@ export default function MarchePage() {
       {/* Market Data */}
 
       {/* Mobile Feed */}
-      <div className="space-y-3 md:hidden">
+      <div className="space-y-2 xl:hidden">
         {allRows.length === 0 && (loading || refreshing)
           ? Array.from({ length: 5 }).map((_, i) => (
               <div
                 key={i}
-                className="h-24 w-full animate-pulse rounded-2xl bg-zinc-900"
+                className="h-14 w-full animate-pulse rounded-xl bg-zinc-900"
               />
             ))
           : filteredAndSorted.map((row) => {
@@ -587,47 +621,31 @@ export default function MarchePage() {
                       selectedTicker === row.ticker ? null : row.ticker,
                     )
                   }
-                  className={`relative rounded-2xl border bg-zinc-900/50 p-4 shadow-sm backdrop-blur-sm transition-all active:scale-[0.98] ${
+                  className={`flex min-h-14 items-center gap-3 rounded-xl border bg-zinc-900/50 pl-3 pr-1 transition-all active:scale-[0.98] ${
                     selectedTicker === row.ticker
                       ? "border-emerald-500/50 ring-1 ring-emerald-500/20"
                       : "border-zinc-800"
                   }`}
                 >
-                  <div className="mb-3 flex items-start justify-between">
-                    <div className="flex items-center gap-3">
-                      <div
-                        className={`flex h-10 w-10 items-center justify-center rounded-xl bg-gradient-to-br ${
-                          isIndex
-                            ? "from-blue-500/20 to-blue-600/10"
-                            : "from-zinc-700/50 to-zinc-800/50"
-                        }`}
-                      >
-                        {isIndex ? (
-                          <BarChart3 className="h-5 w-5 text-blue-400" />
-                        ) : row.changePercent >= 0 ? (
-                          <TrendingUp className="h-5 w-5 text-emerald-400" />
-                        ) : (
-                          <TrendingDown className="h-5 w-5 text-rose-400" />
-                        )}
-                      </div>
-                      <div>
-                        <p className="max-w-[140px] truncate font-bold text-white">
-                          {row.name}
-                        </p>
-                        <div className="flex items-center gap-2">
-                          <p className="text-xs text-zinc-500">{row.ticker}</p>
-                          {isIndex && (
-                            <span className="rounded-md bg-blue-500/10 px-1.5 py-0.5 text-[10px] font-medium text-blue-400">
-                              INDICE
-                            </span>
-                          )}
-                        </div>
-                      </div>
+                  <div className="min-w-0 flex-1">
+                    <button type="button" className="block max-w-full truncate text-left text-sm font-bold text-white">
+                      {row.name}
+                    </button>
+                    <div className="flex items-center gap-2">
+                      <p className="text-xs text-zinc-400">{row.ticker}</p>
+                      {isIndex && (
+                        <span className="rounded-md bg-blue-500/10 px-1.5 py-0.5 text-xs font-medium text-blue-400">
+                          INDICE
+                        </span>
+                      )}
                     </div>
-                    <div className="text-right">
-                      <p className="font-bold text-white">
-                        {row.price > 0 ? formatPrice(row.price) : "—"}
-                      </p>
+                  </div>
+                  <div className="shrink-0 text-right">
+                    <p className="text-sm font-bold text-white">
+                      {row.price > 0 ? formatQuote(row.price, row.ticker) : "—"}
+                    </p>
+                    {/* No change shown until the quote has loaded (it would read "+0,00 %") */}
+                    {row.price > 0 && (
                       <p
                         className={`text-xs font-semibold ${
                           row.changePercent >= 0
@@ -636,76 +654,72 @@ export default function MarchePage() {
                         }`}
                       >
                         {row.changePercent >= 0 ? "+" : ""}
-                        {row.changePercent.toFixed(2)}%
+                        {formatPercent(row.changePercent / 100)}
                       </p>
-                    </div>
+                    )}
                   </div>
-
-                  <div className="flex items-center justify-between border-t border-zinc-800/50 pt-3">
-                    <span className="text-xs text-zinc-500">{row.sector}</span>
-                    <button
-                      onClick={(e) => handleToggleFavorite(e, row.ticker)}
-                      aria-label={
+                  <button
+                    onClick={(e) => handleToggleFavorite(e, row.ticker)}
+                    aria-label={
+                      favorites.includes(row.ticker)
+                        ? `Retirer ${row.ticker} des favoris`
+                        : `Ajouter ${row.ticker} aux favoris`
+                    }
+                    className="flex h-11 w-11 shrink-0 items-center justify-center"
+                  >
+                    <Star
+                      className={`h-4 w-4 ${
                         favorites.includes(row.ticker)
-                          ? `Retirer ${row.ticker} des favoris`
-                          : `Ajouter ${row.ticker} aux favoris`
-                      }
-                      className="p-1"
-                    >
-                      <Star
-                        className={`h-4 w-4 ${
-                          favorites.includes(row.ticker)
-                            ? "fill-amber-400 text-amber-400"
-                            : "text-zinc-600"
-                        }`}
-                      />
-                    </button>
-                  </div>
+                          ? "fill-amber-400 text-amber-400"
+                          : "text-zinc-600"
+                      }`}
+                    />
+                  </button>
                 </div>
               );
             })}
       </div>
 
       {/* Desktop Table */}
-      <div className="hidden overflow-hidden rounded-2xl border border-zinc-800 bg-gradient-to-br from-zinc-900/50 to-black backdrop-blur-sm md:block">
+      <div className="hidden overflow-x-auto rounded-2xl border border-zinc-800 bg-gradient-to-br from-zinc-900/50 to-black xl:block">
         <table className="w-full text-sm">
           <thead>
             <tr className="border-b border-zinc-800">
               <th
-                onClick={() => handleSort("name")}
-                className="cursor-pointer select-none px-6 py-4 text-left font-semibold text-zinc-400 transition-colors hover:text-white"
+                aria-sort={ariaSort("name")}
+                className="select-none px-6 py-4 text-left font-semibold text-zinc-400 transition-colors hover:text-white"
               >
-                <div className="flex items-center gap-1.5">
+                <button type="button" onClick={() => handleSort("name")} className="flex items-center gap-1.5">
                   Action / Indice
-                  <SortIcon column="name" />
-                </div>
+                  {sortIcon("name")}
+                </button>
               </th>
               <th
-                onClick={() => handleSort("sector")}
-                className="cursor-pointer select-none px-6 py-4 text-left font-semibold text-zinc-400 transition-colors hover:text-white"
+                aria-sort={ariaSort("sector")}
+                className="select-none px-6 py-4 text-left font-semibold text-zinc-400 transition-colors hover:text-white"
               >
-                <div className="flex items-center gap-1.5">
+                <button type="button" onClick={() => handleSort("sector")} className="flex items-center gap-1.5">
                   Secteur
-                  <SortIcon column="sector" />
-                </div>
+                  {sortIcon("sector")}
+                </button>
               </th>
               <th
-                onClick={() => handleSort("price")}
-                className="cursor-pointer select-none px-6 py-4 text-right font-semibold text-zinc-400 transition-colors hover:text-white"
+                aria-sort={ariaSort("price")}
+                className="select-none px-6 py-4 text-right font-semibold text-zinc-400 transition-colors hover:text-white"
               >
-                <div className="flex items-center justify-end gap-1.5">
+                <button type="button" onClick={() => handleSort("price")} className="flex w-full items-center justify-end gap-1.5">
                   Prix Live
-                  <SortIcon column="price" />
-                </div>
+                  {sortIcon("price")}
+                </button>
               </th>
               <th
-                onClick={() => handleSort("changePercent")}
-                className="cursor-pointer select-none px-6 py-4 text-right font-semibold text-zinc-400 transition-colors hover:text-white"
+                aria-sort={ariaSort("changePercent")}
+                className="select-none px-6 py-4 text-right font-semibold text-zinc-400 transition-colors hover:text-white"
               >
-                <div className="flex items-center justify-end gap-1.5">
+                <button type="button" onClick={() => handleSort("changePercent")} className="flex w-full items-center justify-end gap-1.5">
                   Var (24h)
-                  <SortIcon column="changePercent" />
-                </div>
+                  {sortIcon("changePercent")}
+                </button>
               </th>
               <th className="px-6 py-4 text-center font-semibold text-zinc-400">
                 <Star className="mx-auto h-4 w-4" />
@@ -762,15 +776,16 @@ export default function MarchePage() {
                             )}
                           </div>
                           <div>
-                            <p className="font-semibold text-white">
+                            {/* Keyboard access to the chart: the click bubbles to the row */}
+                            <button type="button" className="block text-left font-semibold text-white">
                               {row.name}
-                            </p>
+                            </button>
                             <div className="flex items-center gap-2">
-                              <p className="text-xs text-zinc-500">
+                              <p className="text-xs text-zinc-400">
                                 {row.ticker}
                               </p>
                               {isIndex && (
-                                <span className="rounded-md bg-blue-500/10 px-1.5 py-0.5 text-[10px] font-medium text-blue-400">
+                                <span className="rounded-md bg-blue-500/10 px-1.5 py-0.5 text-xs font-medium text-blue-400">
                                   INDICE
                                 </span>
                               )}
@@ -785,10 +800,10 @@ export default function MarchePage() {
                         {row.loaded ? (
                           row.price > 0 ? (
                             <span className="font-semibold text-white">
-                              {formatPrice(row.price)}
+                              {formatQuote(row.price, row.ticker)}
                             </span>
                           ) : (
-                            <span className="text-xs text-zinc-600">—</span>
+                            <span className="text-xs text-zinc-400">—</span>
                           )
                         ) : (
                           <div className="ml-auto h-4 w-20 animate-pulse rounded bg-zinc-700" />
@@ -806,7 +821,7 @@ export default function MarchePage() {
                                 }`}
                               >
                                 {row.changePercent >= 0 ? "+" : ""}
-                                {formatEUR(row.change)}
+                                {formatQuote(row.change, row.ticker)}
                               </span>
                               <br />
                               <span
@@ -817,11 +832,11 @@ export default function MarchePage() {
                                 }`}
                               >
                                 {row.changePercent >= 0 ? "+" : ""}
-                                {row.changePercent.toFixed(2)}%
+                                {formatPercent(row.changePercent / 100)}
                               </span>
                             </div>
                           ) : (
-                            <span className="text-xs text-zinc-600">—</span>
+                            <span className="text-xs text-zinc-400">—</span>
                           )
                         ) : (
                           <div className="ml-auto h-4 w-16 animate-pulse rounded bg-zinc-700" />
@@ -859,7 +874,7 @@ export default function MarchePage() {
                             {trendCfg.emoji} {trendCfg.label}
                           </span>
                         ) : row.loaded ? (
-                          <span className="text-xs text-zinc-600">—</span>
+                          <span className="text-xs text-zinc-400">—</span>
                         ) : (
                           <div className="mx-auto h-4 w-16 animate-pulse rounded bg-zinc-700" />
                         )}

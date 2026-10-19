@@ -1,4 +1,6 @@
 import { NextRequest, NextResponse } from "next/server";
+import { FETCH_TIMEOUT_MS } from "@/lib/stocks";
+import { requireSession } from "@/lib/auth";
 
 interface SearchResult {
   ticker: string;
@@ -12,6 +14,7 @@ interface SearchResult {
  * Searches for tickers by name or symbol.
  */
 export async function GET(req: NextRequest) {
+  const denied = await requireSession(); if (denied) return denied;
   const query = req.nextUrl.searchParams.get("q");
 
   if (!query || query.length < 2) {
@@ -22,6 +25,7 @@ export async function GET(req: NextRequest) {
     const url = `https://query1.finance.yahoo.com/v1/finance/search?q=${encodeURIComponent(query)}&lang=fr-FR&region=FR&quotesCount=10&newsCount=0&listsCount=0`;
     const res = await fetch(url, {
       headers: { "User-Agent": "Mozilla/5.0" },
+      signal: AbortSignal.timeout(FETCH_TIMEOUT_MS),
     });
 
     if (!res.ok) {

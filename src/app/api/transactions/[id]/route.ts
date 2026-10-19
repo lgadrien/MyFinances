@@ -1,6 +1,7 @@
 import { NextRequest, NextResponse } from "next/server";
 import { supabaseAdmin } from "@/lib/supabase-server";
 import { mapTransactionRow, parseTransaction } from "@/lib/validation";
+import { requireSession } from "@/lib/auth";
 
 // ── PUT /api/transactions/[id] ────────────────────────────────────────────────
 
@@ -8,6 +9,7 @@ export async function PUT(
   req: NextRequest,
   { params }: { params: Promise<{ id: string }> },
 ) {
+  const denied = await requireSession(); if (denied) return denied;
   const { id } = await params;
   if (!id) return NextResponse.json({ error: "ID manquant" }, { status: 400 });
 
@@ -43,6 +45,7 @@ export async function DELETE(
   _req: NextRequest,
   { params }: { params: Promise<{ id: string }> },
 ) {
+  const denied = await requireSession(); if (denied) return denied;
   const { id } = await params;
   if (!id) return NextResponse.json({ error: "ID manquant" }, { status: 400 });
 

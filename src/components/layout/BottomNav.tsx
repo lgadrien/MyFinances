@@ -7,6 +7,7 @@ import {
   TrendingUp,
   ArrowLeftRight,
   Briefcase,
+  Calculator,
 } from "lucide-react";
 
 export default function BottomNav() {
@@ -17,6 +18,7 @@ export default function BottomNav() {
     { href: "/portefeuille", label: "Portefeuille", icon: Briefcase },
     { href: "/marche", label: "Marché", icon: TrendingUp },
     { href: "/transactions", label: "Transactions", icon: ArrowLeftRight },
+    { href: "/outils", label: "Outils", icon: Calculator },
   ];
 
   return (

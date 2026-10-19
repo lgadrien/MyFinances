@@ -1,10 +1,12 @@
 import { NextRequest, NextResponse } from "next/server";
 import { getBatchStockQuotes } from "@/lib/stocks";
 import { sanitizeTicker } from "@/lib/validation";
+import { requireSession } from "@/lib/auth";
 
 export const dynamic = "force-dynamic";
 
 export async function GET(request: NextRequest) {
+  const denied = await requireSession(); if (denied) return denied;
   const tickersParam = request.nextUrl.searchParams.get("tickers");
 
   if (!tickersParam) {
@@ -28,6 +30,7 @@ export async function GET(request: NextRequest) {
 }
 
 export async function POST(request: NextRequest) {
+  const denied = await requireSession(); if (denied) return denied;
   try {
     const body = await request.json();
     const rawTickers: unknown[] = Array.isArray(body?.tickers) ? body.tickers : [];

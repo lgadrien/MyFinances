@@ -8,19 +8,16 @@
 
 export type {
   Transaction,
-  Asset,
   PortfolioPosition,
   EnrichedPortfolioPosition,
   TransactionType,
 } from "@/lib/types";
 
-import type { Transaction, PortfolioPosition } from "@/lib/types";
-
-/** Calcule le montant total investi net actuel du portefeuille */
-export function calculateTotalInvested(transactions: Transaction[]): number {
-  const positions = calculatePortfolioPositions(transactions);
-  return positions.reduce((sum, p) => sum + (p.totalInvested || 0), 0);
-}
+import type {
+  Transaction,
+  PortfolioPosition,
+  EnrichedPortfolioPosition,
+} from "@/lib/types";
 
 /** Calcule les dividendes cumulés nets : Σ (total_amount - fees) pour type = Dividende */
 export function calculateDividends(transactions: Transaction[]): number {
@@ -33,8 +30,61 @@ export function calculateDividends(transactions: Transaction[]): number {
   return total;
 }
 
+/** Base taxable du PEA = valeur des titres − achats et frais + ventes et dividendes nets (le cash s'annule). */
+export function calculatePlanGain(
+  transactions: Transaction[],
+  currentValue: number,
+): number {
+  let gain = currentValue;
+  for (const t of transactions) {
+    const amount = Number(t.total_amount) || 0;
+    const fees = Number(t.fees) || 0;
+    if (t.type === "Achat") {
+      gain -= ((Number(t.quantity) || 0) * (Number(t.unit_price) || 0) || amount) + fees;
+    } else {
+      gain += amount - fees;
+    }
+  }
+  return gain;
+}
+
+/** Taux d'imposition du gain d'un PEA au retrait (dates "YYYY-MM-DD"). */
+export function peaTaxRate(firstDate: string, today: string): number {
+  // LFSS 2026 : prélèvements sociaux 18,6 % (au lieu de 17,2 %) ; avant 5 ans le retrait clôture le plan et ajoute 12,8 % d'IR
+  // shortcut: gains made before 2026 may keep their historical social-charge rates; the first transaction date stands in for the PEA opening date (may be later than the real one) — add a setting if that matters
+  const fifthAnniversary = `${Number(firstDate.slice(0, 4)) + 5}${firstDate.slice(4, 10)}`;
+  return today < fifthAnniversary ? 0.314 : 0.186;
+}
+
+/** Valorise les positions au cours live, ou au PRU quand le cours manque. */
+export function enrichPositions(
+  positions: PortfolioPosition[],
+  quotes: Record<string, { price: number }>,
+): EnrichedPortfolioPosition[] {
+  return positions.map((p) => {
+    const currentPrice = quotes[p.ticker]?.price ?? p.pru;
+    const capitalValue = currentPrice * p.totalQuantity;
+    return { ...p, currentPrice, capitalValue, plusValue: capitalValue - p.totalInvested };
+  });
+}
+
+/** Variation du jour : Σ (variation du cours en € × quantité) des positions ouvertes, et son % de la valeur de la veille. */
+export function calculateDailyChange(
+  positions: EnrichedPortfolioPosition[],
+  quotes: Record<string, { change: number }>,
+): { amount: number; percent: number } {
+  let amount = 0;
+  let value = 0;
+  for (const p of positions) {
+    amount += (quotes[p.ticker]?.change ?? 0) * p.totalQuantity;
+    value += p.capitalValue;
+  }
+  const previousValue = value - amount;
+  return { amount, percent: previousValue > 0 ? amount / previousValue : 0 };
+}
+
 /**
- * Calcule les positions du portefeuille avec PRU chronologique, dividendes et frais.
+ * Calcule les positions du portefeuille avec PRU chronologique et dividendes.
  */
 export function calculatePortfolioPositions(
   transactions: Transaction[],
@@ -64,7 +114,6 @@ export function calculatePortfolioPositions(
 
     let currentQty = 0;
     let currentPRU = 0;
-    let totalFees = 0;
     let dividends = 0;
 
     for (const t of sorted) {
@@ -73,11 +122,10 @@ export function calculatePortfolioPositions(
       const fees = Number(t.fees) || 0;
       const totalAmount = Number(t.total_amount) || 0;
 
-      totalFees += fees;
-
       if (t.type === "Achat" && qty > 0) {
         const newQty = currentQty + qty;
-        const totalCost = currentQty * currentPRU + qty * price + fees;
+        // L'import CSV laisse unit_price à 0 et ne renseigne que total_amount
+        const totalCost = currentQty * currentPRU + (qty * price || totalAmount) + fees;
         currentPRU = newQty > 0 ? totalCost / newQty : 0;
         currentQty = newQty;
       } else if (t.type === "Vente" && qty > 0) {
@@ -90,18 +138,16 @@ export function calculatePortfolioPositions(
       }
     }
 
-    // Si on a des actions restantes ou des dividendes historiques
-    if (currentQty > 0.0001 || dividends > 0) {
+    // Position soldée : exclue ici, ses dividendes restent comptés par calculateDividends
+    if (currentQty > 0.0001) {
       const info = instrumentLookup?.get(ticker);
-      const totalInvested = currentQty > 0 ? currentPRU * currentQty : 0;
 
       positions.push({
         ticker,
         name: info?.name ?? ticker,
         sector: info?.sector ?? null,
         totalQuantity: currentQty,
-        totalInvested,
-        totalFees,
+        totalInvested: currentPRU * currentQty,
         pru: currentPRU,
         dividends,
       });

@@ -8,24 +8,22 @@
  *   - Animation d'entrée en stagger (chaque tranche après l'autre)
  *   - Hover : tranche active scale(1.05) + glow, autres à 40% opacité
  *   - Centre dynamique : label + montant changent au hover d'une tranche
- *   - Légende interactive cliquable
+ *   - Légende interactive : nom, montant et part de chaque tranche
+ *   - Une seule tranche : pas de donut, une ligne "100 % · nom · montant"
  */
 
 "use client";
 
 import { useState } from "react";
-import { CHART_COLORS, formatEUR } from "@/lib/utils";
+import { CHART_COLORS, formatEUR, formatPercent } from "@/lib/utils";
 
 interface DonutSlice {
   name: string;
   value: number;
-  percent?: number;
 }
 
 interface AnimatedDonutProps {
   data: DonutSlice[];
-  height?: number;
-  totalValue?: number;
   totalLabel?: string;
   showLegend?: boolean;
 }
@@ -67,15 +65,13 @@ function describeArc(
 
 export default function AnimatedDonut({
   data,
-  height = 300,
-  totalValue,
   totalLabel = "Total",
   showLegend = true,
 }: AnimatedDonutProps) {
   const [activeIndex, setActiveIndex] = useState<number | null>(null);
 
   // Dimensions SVG fixes (pas de ResponsiveContainer → pas de délai de mesure)
-  const svgSize = Math.min(height - (showLegend ? 72 : 0), 240);
+  const svgSize = 240;
   const cx = svgSize / 2;
   const cy = svgSize / 2;
   const outerR = svgSize / 2 - 8;
@@ -89,7 +85,7 @@ export default function AnimatedDonut({
     list: {
       name: string;
       value: number;
-      percent?: number;
+      share: number;
       startAngle: number;
       endAngle: number;
       color: string;
@@ -98,11 +94,13 @@ export default function AnimatedDonut({
     cursor: number;
   }>(
     (acc, d, i) => {
-      const sweep = total > 0 ? (d.value / total) * 360 : 0;
+      const share = total > 0 ? d.value / total : 0;
+      const sweep = share * 360;
       const start = acc.cursor + gap / 2;
       const end = acc.cursor + sweep - gap / 2;
       acc.list.push({
         ...d,
+        share,
         startAngle: start,
         endAngle: Math.max(end, start + 0.1),
         color: CHART_COLORS[i % CHART_COLORS.length],
@@ -115,16 +113,23 @@ export default function AnimatedDonut({
   ).list;
 
   const displayValue =
-    activeIndex !== null
-      ? (data[activeIndex]?.value ?? 0)
-      : (totalValue ?? total);
+    activeIndex !== null ? (data[activeIndex]?.value ?? 0) : total;
   const displayLabel =
     activeIndex !== null ? (data[activeIndex]?.name ?? totalLabel) : totalLabel;
 
   if (!data.length) return null;
 
+  // Une seule tranche : un donut plein n'apprend rien, une ligne suffit
+  if (data.length === 1) {
+    return (
+      <p className="py-8 text-center text-sm font-medium text-zinc-200">
+        100 % · {data[0].name} · {formatEUR(data[0].value)}
+      </p>
+    );
+  }
+
   return (
-    <div style={{ height }} className="flex flex-col items-center">
+    <div className="flex flex-col items-center gap-4 lg:flex-row lg:justify-center lg:gap-10">
       {/* ── SVG Donut ───────────────────────────────────────── */}
       <div
         className="relative flex-shrink-0"
@@ -181,7 +186,7 @@ export default function AnimatedDonut({
 
         {/* ── Centre dynamique ─────────────────────────────── */}
         <div className="pointer-events-none absolute inset-0 flex flex-col items-center justify-center text-center">
-          <p className="w-full text-center text-[9px] font-bold uppercase tracking-widest text-zinc-500 transition-all duration-200">
+          <p className="w-full text-center text-xs font-bold uppercase tracking-widest text-zinc-400 transition-all duration-200">
             {displayLabel}
           </p>
           <p className="w-full text-center text-[15px] font-bold tabular-nums text-white transition-all duration-200">
@@ -190,29 +195,35 @@ export default function AnimatedDonut({
         </div>
       </div>
 
-      {/* ── Légende ─────────────────────────────────────────── */}
+      {/* ── Légende : nom, montant et part ───────────────────── */}
       {showLegend && (
-        <div className="mt-3 flex flex-wrap justify-center gap-x-4 gap-y-1.5 px-2">
+        <ul className="w-full max-w-md space-y-1.5 lg:flex-1">
           {segments.map((seg, i) => (
-            <div
+            <li
               key={i}
-              className="flex cursor-pointer items-center gap-1.5 transition-opacity duration-150"
+              className="flex cursor-pointer items-center gap-2 text-xs transition-opacity duration-150"
               style={{
                 opacity: activeIndex !== null && activeIndex !== i ? 0.4 : 1,
               }}
               onMouseEnter={() => setActiveIndex(i)}
               onMouseLeave={() => setActiveIndex(null)}
             >
-              <div
-                className="h-2 w-2 flex-shrink-0 rounded-full"
+              <span
+                className="h-2 w-2 shrink-0 rounded-full"
                 style={{ backgroundColor: seg.color }}
               />
-              <span className="max-w-[90px] truncate text-[11px] text-zinc-400">
+              <span className="min-w-0 flex-1 truncate text-zinc-200">
                 {seg.name}
               </span>
-            </div>
+              <span className="tabular-nums text-zinc-400">
+                {formatEUR(seg.value)}
+              </span>
+              <span className="w-16 text-right tabular-nums text-zinc-400">
+                {formatPercent(seg.share)}
+              </span>
+            </li>
           ))}
-        </div>
+        </ul>
       )}
     </div>
   );

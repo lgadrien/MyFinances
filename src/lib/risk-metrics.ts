@@ -19,7 +19,7 @@ export interface DiversificationAnalysis {
 
 export interface MaxDrawdownResult {
   maxDrawdownPct: number; // 0 to 1 (e.g. 0.15 for -15%)
-  maxDrawdownAmount: number; // in €
+  maxDrawdownAmount: number; // in the series' unit (index points for computePortfolioRiskMetrics)
   peakValue: number;
   troughValue: number;
 }
@@ -30,6 +30,28 @@ export interface PortfolioRiskMetrics {
   maxDrawdown: MaxDrawdownResult;
   diversification: DiversificationAnalysis;
   annualizedReturn: number;
+}
+
+/**
+ * Time-weighted performance index (base 1): the change in total_invested between two
+ * snapshots is a deposit/withdrawal, not performance.
+ */
+export function twrIndex(
+  history: { total_value: number; total_invested: number }[],
+): number[] {
+  // shortcut: a sale books its realised P&L as that day's move because Δtotal_invested is cost, not proceeds — snapshot the cash balance if that matters
+  const index = history.length ? [1] : [];
+  for (let i = 1; i < history.length; i++) {
+    const prev = Number(history[i - 1].total_value) || 0;
+    const flow =
+      (Number(history[i].total_invested) || 0) -
+      (Number(history[i - 1].total_invested) || 0);
+    // Deposit counted from the start of the day, withdrawal at its end: the base stays > 0 even on a full sale
+    const base = prev + Math.max(0, flow);
+    const r = base > 0 ? ((Number(history[i].total_value) || 0) - prev - flow) / base : 0;
+    index.push(index[i - 1] * (1 + r));
+  }
+  return index;
 }
 
 /**
@@ -199,24 +221,21 @@ export function calculateDiversificationScore(
 }
 
 /**
- * Calculates full risk metrics from history and current positions.
+ * Calculates full risk metrics from the full snapshot history and current positions.
  */
 export function computePortfolioRiskMetrics(
-  history: { total_value: number; date?: string }[],
+  history: { total_value: number; total_invested: number }[],
   positions: { capitalValue?: number; sector?: string | null }[],
-  totalInvested = 0,
-  totalCurrentValue = 0,
 ): PortfolioRiskMetrics {
-  const values = history.map((h) => Number(h.total_value) || 0).filter((v) => v > 0);
-  const dailyReturns = calculateDailyReturns(values);
+  const index = twrIndex(history);
+  const dailyReturns = calculateDailyReturns(index);
   const annualizedVolatility = calculateVolatility(dailyReturns);
-
-  // Simple annualized return proxy
-  const totalReturn = totalInvested > 0 ? (totalCurrentValue - totalInvested) / totalInvested : 0;
-  const annualizedReturn = totalReturn; // Default simple return
+  const annualizedReturn = dailyReturns.length
+    ? (dailyReturns.reduce((a, b) => a + b, 0) / dailyReturns.length) * 252
+    : 0;
 
   const sharpeRatio = calculateSharpeRatio(annualizedReturn, annualizedVolatility);
-  const maxDrawdown = calculateMaxDrawdown(values);
+  const maxDrawdown = calculateMaxDrawdown(index);
   const diversification = calculateDiversificationScore(positions);
 
   return {

@@ -1,10 +1,12 @@
 import { NextRequest, NextResponse } from "next/server";
 import { supabaseAdmin } from "@/lib/supabase-server";
 import { mapTransactionRow, parseTransaction } from "@/lib/validation";
+import { requireSession } from "@/lib/auth";
 
 // ── GET /api/transactions ─────────────────────────────────────────────────────
 
 export async function GET() {
+  const denied = await requireSession(); if (denied) return denied;
   try {
     const { data, error } = await supabaseAdmin
       .from("transactions")
@@ -27,6 +29,7 @@ export async function GET() {
 // Body: one transaction, or an array of transactions (CSV import, inserted atomically).
 
 export async function POST(req: NextRequest) {
+  const denied = await requireSession(); if (denied) return denied;
   try {
     const body = await req.json().catch(() => null);
     if (!body) return NextResponse.json({ error: "Corps invalide" }, { status: 400 });

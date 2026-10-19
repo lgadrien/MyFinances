@@ -1,5 +1,6 @@
 import { TrendingUp, TrendingDown, X, Bell } from "lucide-react";
 import { type TrendSignal, SIGNAL_CONFIG } from "@/lib/technical-analysis";
+import { formatPercent, formatQuote } from "@/lib/utils";
 
 interface StockChartHeaderProps {
   ticker: string;
@@ -43,7 +44,7 @@ export function StockChartHeader({
         {displayPoint && (
           <div className="mt-1 flex items-center gap-3">
             <span className="text-2xl font-extrabold text-white">
-              {displayPoint.close.toFixed(2)} €
+              {formatQuote(displayPoint.close, ticker)}
             </span>
             <div
               className={`flex items-center gap-1 rounded-lg px-2 py-0.5 text-sm font-semibold ${
@@ -58,8 +59,8 @@ export function StockChartHeader({
                 <TrendingDown className="h-3.5 w-3.5" />
               )}
               {isPositive ? "+" : ""}
-              {periodChange.toFixed(2)} ({isPositive ? "+" : ""}
-              {periodChangePercent.toFixed(2)}%)
+              {formatQuote(periodChange, ticker)} ({isPositive ? "+" : ""}
+              {formatPercent(periodChangePercent / 100)})
             </div>
           </div>
         )}

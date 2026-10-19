@@ -9,6 +9,7 @@ import {
   ReferenceLine,
 } from "recharts";
 import { type ReactNode } from "react";
+import { formatQuote } from "@/lib/utils";
 
 export interface HistoryPoint {
   date: string;
@@ -20,6 +21,7 @@ export interface HistoryPoint {
 }
 
 interface MainPriceChartProps {
+  ticker: string;
   data: HistoryPoint[];
   minPrice: number;
   maxPrice: number;
@@ -32,6 +34,7 @@ interface MainPriceChartProps {
 }
 
 export function MainPriceChart({
+  ticker,
   data,
   minPrice,
   maxPrice,
@@ -79,7 +82,7 @@ export function MainPriceChart({
             tick={{ fill: "#64748b", fontSize: 10 }}
             tickLine={false}
             axisLine={false}
-            tickFormatter={(v: number) => `${v.toFixed(0)}€`}
+            tickFormatter={(v: number) => `${Math.round(v).toLocaleString("fr-FR")}${ticker.startsWith("^") ? "" : " €"}`}
             width={55}
           />
           <Tooltip
@@ -101,7 +104,7 @@ export function MainPriceChart({
               fontWeight: 600,
             }}
             formatter={(value: number | string | undefined) => [
-              `${Number(value).toFixed(2)} €`,
+              formatQuote(Number(value), ticker),
               "Clôture",
             ]}
             labelFormatter={(label: ReactNode) => {
@@ -133,7 +136,7 @@ export function MainPriceChart({
             stroke="#475569"
             strokeDasharray="6 4"
             label={{
-              value: `Moy: ${avgPrice.toFixed(0)}€`,
+              value: `Moy: ${formatQuote(avgPrice, ticker)}`,
               fill: "#64748b",
               fontSize: 10,
               position: "right",

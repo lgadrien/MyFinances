@@ -1,9 +1,11 @@
 import { NextResponse } from "next/server";
 import { supabaseAdmin } from "@/lib/supabase-server";
+import { requireSession } from "@/lib/auth";
 
 export const dynamic = "force-dynamic";
 
 export async function GET() {
+  const denied = await requireSession(); if (denied) return denied;
   try {
     const { data, error } = await supabaseAdmin
       .from("portfolio_history")

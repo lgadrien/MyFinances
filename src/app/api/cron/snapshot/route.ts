@@ -47,8 +47,7 @@ export async function GET(request: Request) {
     });
 
     // 3. Calculate positions
-    const positions = calculatePortfolioPositions(transactions, instrumentMap);
-    const activePositions = positions.filter((p) => p.totalQuantity > 0.0001);
+    const activePositions = calculatePortfolioPositions(transactions, instrumentMap);
 
     // 4. Get live prices — a single missing quote aborts the snapshot,
     //    otherwise a Yahoo outage would be stored forever as a fake drop.

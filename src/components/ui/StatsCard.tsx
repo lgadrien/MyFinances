@@ -59,6 +59,12 @@ const colorMap: Record<
     glow: "hover:shadow-amber-500/10",
     iconBg: "bg-amber-500/10",
   },
+  red: {
+    bg: "from-red-500/10 to-red-600/5",
+    icon: "text-red-400",
+    glow: "hover:shadow-red-500/10",
+    iconBg: "bg-red-500/10",
+  },
   violet: {
     bg: "from-violet-500/10 to-violet-600/5",
     icon: "text-violet-400",
@@ -89,7 +95,6 @@ export default function StatsCard({
   const animated = useCountUp(rawValue ?? 0, {
     duration: 1000,
     delay: index * 120, // stagger : chaque carte démarre 120ms après la précédente
-    skipSmallChanges: true,
   });
 
   const displayValue =
@@ -100,7 +105,7 @@ export default function StatsCard({
       className={`
         h-full group relative overflow-hidden rounded-2xl border border-zinc-800/80
         bg-gradient-to-br ${colors.bg}
-        p-5 backdrop-blur-sm
+        p-4 sm:p-5
         transition-all duration-300 ease-out
         hover:-translate-y-0.5 hover:border-zinc-700/60
         hover:shadow-xl ${colors.glow}
@@ -130,16 +135,16 @@ export default function StatsCard({
 
       <div className="relative flex items-start justify-between">
         <div className="space-y-1.5 min-w-0 flex-1 pr-3">
-          <p className="text-[10px] font-semibold uppercase tracking-widest text-zinc-500">
+          <p className="text-xs font-semibold uppercase tracking-widest text-zinc-400">
             {label}
           </p>
-          <p className="truncate text-2xl font-bold tracking-tight text-white tabular-nums">
+          <p className="truncate text-xl font-bold tracking-tight text-white tabular-nums sm:text-2xl">
             {displayValue}
           </p>
           {trend && (
             <div className="flex items-center gap-1.5">
               <div
-                className={`flex h-4 w-4 items-center justify-center rounded-full text-[9px] font-bold
+                className={`flex h-4 w-4 items-center justify-center rounded-full text-xs font-bold
                   ${
                     trend.positive
                       ? "bg-emerald-500/20 text-emerald-400"
@@ -159,10 +164,10 @@ export default function StatsCard({
           )}
         </div>
 
-        {/* Icône avec fond coloré */}
+        {/* Icône avec fond coloré (masquée sur téléphone : elle prenait la place du montant) */}
         <div
           className={`
-            flex h-11 w-11 shrink-0 items-center justify-center rounded-xl
+            hidden h-11 w-11 shrink-0 items-center justify-center rounded-xl sm:flex
             ${colors.iconBg} ring-1 ring-white/5
             transition-transform duration-300 group-hover:scale-110
           `}

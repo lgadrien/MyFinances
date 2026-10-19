@@ -1,6 +1,6 @@
 "use client";
 
-import { useEffect, useState, useRef } from "react";
+import { useEffect, useEffectEvent, useState, useRef } from "react";
 import { createPortal } from "react-dom";
 import { X } from "lucide-react";
 
@@ -27,9 +27,12 @@ export default function Modal({
     return () => setMounted(false);
   }, []);
 
+  // Parents pass a new inline onClose on every render: re-running the effect would steal focus after each keystroke
+  const close = useEffectEvent(() => onClose());
+
   useEffect(() => {
     const handleKeyDown = (e: KeyboardEvent) => {
-      if (e.key === "Escape") onClose();
+      if (e.key === "Escape") close();
 
       if (e.key === "Tab" && modalRef.current) {
         const focusableElements = modalRef.current.querySelectorAll(
@@ -56,12 +59,12 @@ export default function Modal({
     if (isOpen) {
       document.addEventListener("keydown", handleKeyDown);
       document.body.style.overflow = "hidden";
-      // Auto-focus the modal or first element on open
+      // Auto-focus the first field on open (the header's close button comes first in the DOM)
       setTimeout(() => {
-        if (modalRef.current) {
-          const firstInput = modalRef.current.querySelector("input, button");
-          if (firstInput) (firstInput as HTMLElement).focus();
-        }
+        const first =
+          modalRef.current?.querySelector<HTMLElement>("input, select, textarea") ??
+          modalRef.current?.querySelector<HTMLElement>("button");
+        first?.focus();
       }, 50);
     }
 
@@ -69,7 +72,7 @@ export default function Modal({
       document.removeEventListener("keydown", handleKeyDown);
       document.body.style.overflow = "";
     };
-  }, [isOpen, onClose]);
+  }, [isOpen]);
 
   if (!isOpen || !mounted) return null;
 

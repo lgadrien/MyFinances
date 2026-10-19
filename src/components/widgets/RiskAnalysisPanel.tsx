@@ -13,30 +13,21 @@ import {
   computePortfolioRiskMetrics,
   type PortfolioRiskMetrics,
 } from "@/lib/risk-metrics";
-import type { EnrichedPortfolioPosition } from "@/hooks/usePortfolio";
-import { formatEUR, formatPercent } from "@/lib/utils";
+import type { EnrichedPortfolioPosition } from "@/lib/types";
+import { formatPercent } from "@/lib/utils";
 
 interface RiskAnalysisPanelProps {
   positions: EnrichedPortfolioPosition[];
-  history: { total_value: number; date?: string }[];
-  totalInvested: number;
-  totalValue: number;
+  history: { total_value: number; total_invested: number }[];
 }
 
 export default function RiskAnalysisPanel({
   positions,
   history,
-  totalInvested,
-  totalValue,
 }: RiskAnalysisPanelProps) {
   const metrics: PortfolioRiskMetrics = useMemo(() => {
-    return computePortfolioRiskMetrics(
-      history,
-      positions,
-      totalInvested,
-      totalValue,
-    );
-  }, [history, positions, totalInvested, totalValue]);
+    return computePortfolioRiskMetrics(history, positions);
+  }, [history, positions]);
 
   const { diversification, sharpeRatio, annualizedVolatility, maxDrawdown } =
     metrics;
@@ -57,7 +48,7 @@ export default function RiskAnalysisPanel({
   const sharpeBadge = getSharpeBadge(sharpeRatio);
 
   return (
-    <div className="rounded-2xl border border-zinc-800 bg-gradient-to-br from-zinc-900/60 to-black p-6 backdrop-blur-sm shadow-[0_0_20px_rgba(139,92,246,0.06)]">
+    <div className="rounded-2xl border border-zinc-800 bg-gradient-to-br from-zinc-900/60 to-black p-6 shadow-[0_0_20px_rgba(139,92,246,0.06)]">
       {/* Header */}
       <div className="flex flex-wrap items-center justify-between gap-4 mb-6">
         <div className="flex items-center gap-3">
@@ -99,7 +90,7 @@ export default function RiskAnalysisPanel({
           <div className="flex items-center justify-between text-xs text-zinc-400 mb-1">
             <span>Ratio de Sharpe</span>
             <span
-              className={`rounded-md px-1.5 py-0.5 text-[10px] font-semibold ${sharpeBadge.color}`}
+              className={`rounded-md px-1.5 py-0.5 text-xs font-semibold ${sharpeBadge.color}`}
             >
               {sharpeBadge.text}
             </span>
@@ -107,7 +98,7 @@ export default function RiskAnalysisPanel({
           <p className="text-xl font-bold text-white">
             {sharpeRatio.toFixed(2)}
           </p>
-          <p className="text-[10px] text-zinc-500 mt-1">
+          <p className="text-xs text-zinc-400 mt-1">
             Rendement excédentaire par unité de risque (taux sans risque 3%)
           </p>
         </div>
@@ -121,7 +112,7 @@ export default function RiskAnalysisPanel({
           <p className="text-xl font-bold text-white">
             {formatPercent(annualizedVolatility)}
           </p>
-          <p className="text-[10px] text-zinc-500 mt-1">
+          <p className="text-xs text-zinc-400 mt-1">
             Annualisée (CAC 40 référence : ~16-18%)
           </p>
         </div>
@@ -135,8 +126,8 @@ export default function RiskAnalysisPanel({
           <p className="text-xl font-bold text-rose-400">
             -{formatPercent(maxDrawdown.maxDrawdownPct)}
           </p>
-          <p className="text-[10px] text-zinc-500 mt-1">
-            Pire baisse historique : -{formatEUR(maxDrawdown.maxDrawdownAmount)}
+          <p className="text-xs text-zinc-400 mt-1">
+            Pire baisse depuis un sommet, hors apports
           </p>
         </div>
 
@@ -153,10 +144,10 @@ export default function RiskAnalysisPanel({
                 : "text-white"
             }`}
           >
-            {diversification.topHoldingWeight.toFixed(1)}%
+            {formatPercent(diversification.topHoldingWeight / 100)}
           </p>
-          <p className="text-[10px] text-zinc-500 mt-1">
-            Secteur n°1 : {diversification.topSectorWeight.toFixed(1)}%
+          <p className="text-xs text-zinc-400 mt-1">
+            Secteur n°1 : {formatPercent(diversification.topSectorWeight / 100)}
           </p>
         </div>
       </div>

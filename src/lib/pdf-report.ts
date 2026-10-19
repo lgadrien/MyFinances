@@ -1,7 +1,7 @@
 import jsPDF from "jspdf";
 import autoTable from "jspdf-autotable";
-import type { EnrichedPortfolioPosition } from "@/hooks/usePortfolio";
-import { formatEUR, formatPercent } from "./utils";
+import type { EnrichedPortfolioPosition } from "@/lib/types";
+import { formatPercent } from "./utils";
 
 export interface FiscalReportData {
   totalValue: number;
@@ -9,9 +9,18 @@ export interface FiscalReportData {
   totalPV: number;
   totalDividends: number;
   cashBalance: number;
+  planGain: number;
+  taxRate: number;
   positions: EnrichedPortfolioPosition[];
   year?: number;
 }
+
+// L'Helvetica de jsPDF n'encode pas les espaces fines/insécables du format fr-FR : toute la chaîne sortirait illisible
+const ascii = (s: string) => s.replace(/[\u202f\u00a0]/g, " ");
+
+/** Montant réel en euros, même en mode confidentialité : c'est un document fiscal. */
+export const formatPdfEUR = (n: number) =>
+  ascii(new Intl.NumberFormat("fr-FR", { style: "currency", currency: "EUR" }).format(n));
 
 export function generateFiscalReportPDF(data: FiscalReportData) {
   const doc = new jsPDF({
@@ -30,9 +39,9 @@ export function generateFiscalReportPDF(data: FiscalReportData) {
   });
 
   const totalCapital = data.totalValue + data.cashBalance;
-  const taxableGain = Math.max(0, data.totalPV);
-  const socialTaxes = taxableGain * 0.172;
-  const netValueIfLiquidated = totalCapital - socialTaxes;
+  const taxableGain = Math.max(0, data.planGain);
+  const taxes = taxableGain * data.taxRate;
+  const netValueIfLiquidated = totalCapital - taxes;
 
   // ── Palette de couleurs moderne ──
   const primary = [109, 40, 217]; // Violet #6D28D9
@@ -65,7 +74,7 @@ export function generateFiscalReportPDF(data: FiscalReportData) {
   doc.setTextColor(255, 255, 255);
   doc.setFont("helvetica", "bold");
   doc.setFontSize(8.5);
-  doc.text("PEA BANCAIRE 🇫🇷", 152, 17.5);
+  doc.text("PEA BANCAIRE", 152, 17.5);
 
   // ── 2. Cadre Synthèse Patrimoniale ──
   let y = 42;
@@ -77,14 +86,14 @@ export function generateFiscalReportPDF(data: FiscalReportData) {
   y += 6;
   const colW = 44;
   const kpis = [
-    { label: "Valorisation Totale", value: formatEUR(totalCapital), color: primary },
-    { label: "Total Investi (PRU)", value: formatEUR(data.totalInvested), color: dark },
+    { label: "Valorisation Totale", value: formatPdfEUR(totalCapital), color: primary },
+    { label: "Total Investi (PRU)", value: formatPdfEUR(data.totalInvested), color: dark },
     {
       label: "Plus-Value Latente",
-      value: (data.totalPV >= 0 ? "+" : "") + formatEUR(data.totalPV),
+      value: (data.totalPV >= 0 ? "+" : "") + formatPdfEUR(data.totalPV),
       color: data.totalPV >= 0 ? [16, 185, 129] : [239, 68, 68],
     },
-    { label: "Dividendes Cumulés", value: formatEUR(data.totalDividends), color: [16, 185, 129] },
+    { label: "Dividendes Cumulés", value: formatPdfEUR(data.totalDividends), color: [16, 185, 129] },
   ];
 
   kpis.forEach((kpi, i) => {
@@ -121,25 +130,25 @@ export function generateFiscalReportPDF(data: FiscalReportData) {
 
   doc.text("• Régime fiscal applicable :", 18, y + 7);
   doc.setFont("helvetica", "bold");
-  doc.text("Exonération d'impôt sur le revenu après 5 ans (seuls les prélèvements sociaux s'appliquent).", 62, y + 7);
+  doc.text("18,6 % de prélèvements sociaux ; avant 5 ans, retrait = clôture du plan et + 12,8 % d'IR.", 62, y + 7);
 
   doc.setFont("helvetica", "normal");
-  doc.text(`• Assiette imposable estimée (Plus-Value Globale) : `, 18, y + 13);
+  doc.text(`• Assiette imposable estimée (gain net du plan) : `, 18, y + 13);
   doc.setFont("helvetica", "bold");
-  doc.text(formatEUR(taxableGain), 95, y + 13);
+  doc.text(formatPdfEUR(taxableGain), 95, y + 13);
 
   doc.setFont("helvetica", "normal");
-  doc.text(`• Prélèvements Sociaux applicables (taux forfaitaire 17.2%) : `, 18, y + 19);
+  doc.text(`• Impôt et prélèvements sociaux (taux applicable ${(data.taxRate * 100).toLocaleString("fr-FR")} %) : `, 18, y + 19);
   doc.setFont("helvetica", "bold");
   doc.setTextColor(239, 68, 68);
-  doc.text(`- ${formatEUR(socialTaxes)}`, 105, y + 19);
+  doc.text(`- ${formatPdfEUR(taxes)}`, 105, y + 19);
 
   doc.setTextColor(dark[0], dark[1], dark[2]);
   doc.setFont("helvetica", "normal");
   doc.text(`• Valeur Nette après liquidation intégrale estimée : `, 18, y + 25);
   doc.setFont("helvetica", "bold");
   doc.setTextColor(16, 185, 129);
-  doc.text(formatEUR(netValueIfLiquidated), 92, y + 25);
+  doc.text(formatPdfEUR(netValueIfLiquidated), 92, y + 25);
 
   // ── 4. Tableau d'Inventaire Détaillé des Positions ──
   y += 36;
@@ -155,11 +164,11 @@ export function generateFiscalReportPDF(data: FiscalReportData) {
       p.name || p.ticker,
       p.sector || "Autre",
       p.totalQuantity.toFixed(2),
-      formatEUR(p.pru),
-      p.currentPrice ? formatEUR(p.currentPrice) : "—",
-      p.capitalValue ? formatEUR(p.capitalValue) : "—",
-      `${(p.plusValue || 0) >= 0 ? "+" : ""}${formatEUR(p.plusValue || 0)} (${formatPercent(perf)})`,
-      formatEUR(p.dividends || 0),
+      formatPdfEUR(p.pru),
+      p.currentPrice ? formatPdfEUR(p.currentPrice) : "—",
+      p.capitalValue ? formatPdfEUR(p.capitalValue) : "—",
+      `${(p.plusValue || 0) >= 0 ? "+" : ""}${formatPdfEUR(p.plusValue || 0)} (${ascii(formatPercent(perf))})`,
+      formatPdfEUR(p.dividends || 0),
     ];
   });
 
