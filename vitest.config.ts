@@ -18,8 +18,6 @@ export default defineConfig({
         "src/components/**",
         // Hooks React (dépendent du DOM / contexte React — testables via @testing-library)
         "src/hooks/**",
-        // Middleware Next.js (Edge runtime)
-        "src/middleware.ts",
         // Fichiers de config / types purs / données statiques
         "src/lib/types.ts",
         "src/lib/french-instruments.ts",
@@ -30,6 +28,8 @@ export default defineConfig({
         "src/stores/**",
         // PDF generation (dépend de jsPDF, difficile à tester unitairement)
         "src/lib/pdf-report.ts",
+        // Logo PNG (ImageResponse)
+        "src/lib/app-icon.tsx",
         // Utilitaires UI (formatters avec hooks Zustand)
         "src/lib/utils.tsx",
       ],

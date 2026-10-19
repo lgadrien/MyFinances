@@ -8,7 +8,7 @@ import {
   Tooltip,
   ResponsiveContainer,
 } from "recharts";
-import { CHART_TOOLTIP_STYLE } from "@/lib/utils";
+import { CHART_TOOLTIP_STYLE, formatEUR } from "@/lib/utils";
 
 interface DashboardDividendChartProps {
   dividendHistory: { month: string; amount: number }[];
@@ -30,13 +30,11 @@ export default function DashboardDividendChart({
           tick={{ fill: "#a1a1aa", fontSize: 12 }}
           axisLine={{ stroke: "#27272a" }}
           tickLine={false}
-          tickFormatter={(v) => `${v}€`}
+          tickFormatter={formatEUR}
+          width={80}
         />
         <Tooltip
-          formatter={(value) => [
-            `${Number(value ?? 0).toFixed(2)} €`,
-            "Dividendes",
-          ]}
+          formatter={(value) => [formatEUR(Number(value ?? 0)), "Dividendes"]}
           {...CHART_TOOLTIP_STYLE}
           cursor={{ fill: "rgba(139, 92, 246, 0.08)" }}
         />

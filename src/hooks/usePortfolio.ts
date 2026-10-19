@@ -4,29 +4,28 @@
  * Encapsule la logique de chargement et de calcul de la page Portefeuille PEA.
  */
 
-import { useEffect, useState, useMemo, useCallback } from "react";
-import { subDays, subMonths, subYears, parseISO } from "date-fns";
-import { fetchBatchStockPrices } from "@/lib/data";
+import { useEffect, useState, useMemo } from "react";
+import { subDays, subMonths, subYears, parseISO, format } from "date-fns";
+import toast from "react-hot-toast";
+import { fetchBatchStockPrices, fetchSettings } from "@/lib/data";
 import { useTransactions } from "@/hooks/useTransactions";
 import {
+  calculateDividends,
+  calculatePlanGain,
   calculatePortfolioPositions,
-  type PortfolioPosition,
+  enrichPositions,
+  peaTaxRate,
+  type EnrichedPortfolioPosition,
 } from "@/lib/calculations";
 import { FRENCH_INSTRUMENTS } from "@/lib/french-instruments";
 
 export type TimeRange = "1W" | "1M" | "1Y" | "Max";
 
-export interface EnrichedPortfolioPosition extends PortfolioPosition {
-  currentPrice: number;
-  capitalValue: number;
-  plusValue: number;
-}
-
-// eslint-disable-next-line @typescript-eslint/no-explicit-any
-export type HistoryPoint = Record<string, any>;
+export type HistoryPoint = { date: string; total_value: number; total_invested: number };
 
 export interface UsePortfolioReturn {
   positions: EnrichedPortfolioPosition[];
+  history: HistoryPoint[];
   filteredHistory: HistoryPoint[];
   timeRange: TimeRange;
   setTimeRange: (r: TimeRange) => void;
@@ -45,6 +44,10 @@ export interface UsePortfolioReturn {
   totalValue: number;
   totalPV: number;
   totalPerformance: number;
+  cashBalance: number;
+  totalDividends: number;
+  planGain: number;
+  taxRate: number;
   sectorData: { name: string; value: number; percent: number }[];
   assetData: { name: string; value: number; percent: number }[];
 }
@@ -52,7 +55,7 @@ export interface UsePortfolioReturn {
 export function usePortfolio(): UsePortfolioReturn {
   const [positions, setPositions] = useState<EnrichedPortfolioPosition[]>([]);
   const [history, setHistory] = useState<HistoryPoint[]>([]);
-  const [filteredHistory, setFilteredHistory] = useState<HistoryPoint[]>([]);
+  const [cashBalance, setCashBalance] = useState(0);
   const [timeRange, setTimeRange] = useState<TimeRange>("1M");
   const [loading, setLoading] = useState(true);
   const [refreshing, setRefreshing] = useState(false);
@@ -72,84 +75,70 @@ export function usePortfolio(): UsePortfolioReturn {
 
   const { transactions, isLoading: isTxLoading } = useTransactions();
 
-  const loadData = useCallback(async () => {
+  const [reloadKey, setReloadKey] = useState(0);
+
+  // Chargement défini dans l'effet : ses setState n'arrivent qu'après un await
+  useEffect(() => {
     if (isTxLoading) return;
 
-    try {
-      setRefreshing(true);
-      setLoading(true);
+    async function loadData() {
+      try {
+        // Positions first: the three requests below are independent and run in parallel
+        const activePositions = calculatePortfolioPositions(
+          transactions,
+          instrumentMap,
+        );
 
-      // 1. History
-      const historyRes = await fetch("/api/portfolio/history");
-      const historyData = await historyRes.json();
-      setHistory(Array.isArray(historyData) ? historyData : []);
+        const [historyData, settings, quotes] = await Promise.all([
+          fetch("/api/portfolio/history").then((r) => r.json()),
+          fetchSettings(),
+          // Prix live via un seul appel batch (1 requête HTTP au lieu de N)
+          fetchBatchStockPrices(activePositions.map((p) => p.ticker)),
+        ]);
+        setHistory(Array.isArray(historyData) ? historyData : []);
+        if (settings) setCashBalance(settings.cash_balance);
 
-      // 2. Positions
-      const initialPositions = calculatePortfolioPositions(
-        transactions,
-        instrumentMap,
-      );
-      const activePositions = initialPositions.filter(
-        (p) => p.totalQuantity > 0.0001,
-      );
-
-      // Prix live via un seul appel batch (1 requête HTTP au lieu de N)
-      const quotes = await fetchBatchStockPrices(
-        activePositions.map((p) => p.ticker),
-      );
-
-      const enriched: EnrichedPortfolioPosition[] = activePositions.map((pos) => {
-        const currentPrice = quotes[pos.ticker]?.price ?? pos.pru;
-        const capitalValue = currentPrice * pos.totalQuantity;
-        const plusValue = capitalValue - pos.totalInvested;
-        return {
-          ...pos,
-          currentPrice,
-          capitalValue,
-          plusValue,
-        } as EnrichedPortfolioPosition;
-      });
-
-      setPositions(enriched);
-
-      // Init target allocations
-      setTargetAllocations((prev) => {
-        if (Object.keys(prev).length > 0 || enriched.length === 0) return prev;
-        const total = enriched.reduce((s, p) => s + (p.capitalValue ?? 0), 0);
-        const targets: Record<string, number> = {};
-        for (const p of enriched) {
-          targets[p.ticker] =
-            total > 0 ? ((p.capitalValue ?? 0) / total) * 100 : 0;
+        const missing = activePositions.filter((p) => !quotes[p.ticker]).map((p) => p.ticker);
+        if (missing.length) {
+          toast.error(`Cours indisponible, valorisé au PRU : ${missing.join(", ")}`, { id: "missing-quotes" });
         }
-        return targets;
-      });
-    } catch (err) {
-      console.error("Failed to load portfolio:", err);
-    } finally {
-      setLoading(false);
-      setRefreshing(false);
-    }
-  }, [instrumentMap, transactions, isTxLoading]);
 
-  useEffect(() => {
+        const enriched = enrichPositions(activePositions, quotes);
+
+        setPositions(enriched);
+
+        // Init target allocations
+        setTargetAllocations((prev) => {
+          if (Object.keys(prev).length > 0 || enriched.length === 0) return prev;
+          const total = enriched.reduce((s, p) => s + (p.capitalValue ?? 0), 0);
+          const targets: Record<string, number> = {};
+          for (const p of enriched) {
+            targets[p.ticker] =
+              total > 0 ? ((p.capitalValue ?? 0) / total) * 100 : 0;
+          }
+          return targets;
+        });
+      } catch (err) {
+        console.error("Failed to load portfolio:", err);
+      } finally {
+        setLoading(false);
+        setRefreshing(false);
+      }
+    }
+
     loadData();
-  }, [loadData]);
+  }, [instrumentMap, transactions, isTxLoading, reloadKey]);
 
   // Filtrage de l'historique selon la période sélectionnée
-  useEffect(() => {
-    if (!history.length) {
-      setFilteredHistory([]);
-      return;
-    }
+  const filteredHistory = useMemo(() => {
     const now = new Date();
-    let filtered = [...history];
     if (timeRange === "1W")
-      filtered = history.filter((d) => parseISO(d.date) >= subDays(now, 7));
-    else if (timeRange === "1M")
-      filtered = history.filter((d) => parseISO(d.date) >= subMonths(now, 1));
-    else if (timeRange === "1Y")
-      filtered = history.filter((d) => parseISO(d.date) >= subYears(now, 1));
-    setFilteredHistory(filtered);
+      return history.filter((d) => parseISO(d.date) >= subDays(now, 7));
+    if (timeRange === "1M")
+      return history.filter((d) => parseISO(d.date) >= subMonths(now, 1));
+    if (timeRange === "1Y")
+      return history.filter((d) => parseISO(d.date) >= subYears(now, 1));
+    return history;
   }, [history, timeRange]);
 
   // Calcul des données pour les pie charts
@@ -184,15 +173,24 @@ export function usePortfolio(): UsePortfolioReturn {
   const totalValue = positions.reduce((s, p) => s + (p.capitalValue || 0), 0);
   const totalPV = totalValue - totalInvested;
   const totalPerformance = totalInvested > 0 ? totalPV / totalInvested : 0;
+  const totalDividends = calculateDividends(transactions);
+  const planGain = calculatePlanGain(transactions, totalValue);
+  const today = format(new Date(), "yyyy-MM-dd");
+  const firstDate = transactions.reduce((min, t) => (t.date < min ? t.date : min), today);
+  const taxRate = peaTaxRate(firstDate, today);
 
   return {
     positions,
+    history,
     filteredHistory,
     timeRange,
     setTimeRange,
     loading,
     refreshing,
-    refresh: loadData,
+    refresh: () => {
+      setRefreshing(true);
+      setReloadKey((k) => k + 1);
+    },
     isRebalancingOpen,
     setIsRebalancingOpen,
     rebalanceCash,
@@ -203,6 +201,10 @@ export function usePortfolio(): UsePortfolioReturn {
     totalValue,
     totalPV,
     totalPerformance,
+    cashBalance,
+    totalDividends,
+    planGain,
+    taxRate,
     sectorData,
     assetData,
   };

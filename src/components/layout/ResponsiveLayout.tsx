@@ -80,10 +80,9 @@ export default function ResponsiveLayout({
       )}
 
       {/* Alerts Modal */}
-      <AlertsCenterModal
-        isOpen={isModalOpen}
-        onClose={() => setIsModalOpen(false)}
-      />
+      {isModalOpen && (
+        <AlertsCenterModal isOpen onClose={() => setIsModalOpen(false)} />
+      )}
 
       {/* PWA Mobile Install Banner */}
       {!isLoginPage && <PWAInstallPrompt />}

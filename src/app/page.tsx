@@ -20,7 +20,7 @@ import AnimatedDonut from "@/components/ui/AnimatedDonut";
 import PositionSparklineCell from "@/components/ui/PositionSparklineCell";
 import { useDashboard } from "@/hooks/useDashboard";
 import { useCountUp } from "@/hooks/useCountUp";
-import { formatEUR, formatPrice, getGeography } from "@/lib/utils";
+import { formatEUR, formatPercent, formatPrice, getGeography } from "@/lib/utils";
 
 const DashboardDividendChart = dynamic(
   () => import("@/components/DashboardDividendChart"),
@@ -200,7 +200,7 @@ export default function DashboardPage() {
 
       {/* ── Settings Panel ───────────────────────────────────────── */}
       {isSettingsOpen && (
-        <div className="animate-in slide-in-from-top-4 rounded-2xl border border-violet-500/30 bg-violet-500/5 p-6 backdrop-blur-sm">
+        <div className="animate-in slide-in-from-top-4 rounded-2xl border border-violet-500/30 bg-violet-500/5 p-6">
           <div className="mb-4 flex items-center gap-2">
             <Target className="h-5 w-5 text-violet-400" />
             <h2 className="text-lg font-bold text-white">Paramètres</h2>
@@ -278,8 +278,8 @@ export default function DashboardPage() {
             trend={{
               value:
                 totalInvested > 0
-                  ? `${((totalPlusValue / totalInvested) * 100).toFixed(1)}%`
-                  : "0%",
+                  ? formatPercent(totalPlusValue / totalInvested)
+                  : formatPercent(0),
               positive: totalPlusValue >= 0,
             }}
             accentColor={totalPlusValue >= 0 ? "emerald" : "amber"}
@@ -289,7 +289,7 @@ export default function DashboardPage() {
 
         {/* Capital Total — carte custom avec progress bar animée */}
         <div
-          className="col-span-2 xl:col-span-1 group relative overflow-hidden rounded-2xl border border-zinc-800/80 bg-gradient-to-br from-violet-500/10 to-violet-600/5 p-5 backdrop-blur-sm transition-all duration-300 hover:-translate-y-0.5 hover:border-zinc-700/60 hover:shadow-xl hover:shadow-violet-500/10"
+          className="col-span-2 xl:col-span-1 group relative overflow-hidden rounded-2xl border border-zinc-800/80 bg-gradient-to-br from-violet-500/10 to-violet-600/5 p-5 transition-all duration-300 hover:-translate-y-0.5 hover:border-zinc-700/60 hover:shadow-xl hover:shadow-violet-500/10"
           style={{
             animationDelay: "240ms",
             animation: "statsCardIn 0.5s cubic-bezier(0.16, 1, 0.3, 1) both",
@@ -316,7 +316,7 @@ export default function DashboardPage() {
             <div className="mb-1.5 flex justify-between text-xs text-zinc-500">
               <span>Objectif : {formatEUR(targetCapital)}</span>
               <span className="font-semibold text-violet-400">
-                {progressPct.toFixed(1)}%
+                {formatPercent(progressPct / 100)}
               </span>
             </div>
             <div className="h-1.5 w-full overflow-hidden rounded-full bg-zinc-800">
@@ -332,7 +332,7 @@ export default function DashboardPage() {
       {/* ── Charts ───────────────────────────────────────────────── */}
       <div className="grid grid-cols-1 gap-6 xl:grid-cols-2">
         {/* AnimatedDonut — Répartition Capital */}
-        <div className="rounded-2xl border border-zinc-800 bg-gradient-to-br from-zinc-900/60 to-black p-6 backdrop-blur-sm">
+        <div className="rounded-2xl border border-zinc-800 bg-gradient-to-br from-zinc-900/60 to-black p-6">
           <div className="mb-4 flex flex-col justify-between gap-4 sm:flex-row sm:items-center">
             <div className="flex items-center gap-2">
               <Sparkles className="h-4 w-4 text-violet-400" />
@@ -366,7 +366,7 @@ export default function DashboardPage() {
         </div>
 
         {/* Bar Chart — Historique Dividendes */}
-        <div className="rounded-2xl border border-zinc-800 bg-gradient-to-br from-zinc-900/60 to-black p-6 backdrop-blur-sm">
+        <div className="rounded-2xl border border-zinc-800 bg-gradient-to-br from-zinc-900/60 to-black p-6">
           <h2 className="mb-4 text-lg font-bold text-white">
             Historique des Dividendes
           </h2>
@@ -379,7 +379,7 @@ export default function DashboardPage() {
       {/* ── Projections & Liquidités ─────────────────────────────── */}
       <div className="grid grid-cols-1 gap-6 lg:grid-cols-2">
         {/* Prévisions Dividendes */}
-        <div className="rounded-2xl border border-zinc-800 bg-gradient-to-br from-zinc-900/60 to-black p-6 backdrop-blur-sm">
+        <div className="rounded-2xl border border-zinc-800 bg-gradient-to-br from-zinc-900/60 to-black p-6">
           <div className="mb-4 flex items-center justify-between">
             <div className="flex items-center gap-2">
               <CalendarDays className="h-5 w-5 text-violet-400" />
@@ -393,7 +393,7 @@ export default function DashboardPage() {
           </div>
           {projectedDividends.length > 0 ? (
             <div className="space-y-3">
-              {projectedDividends.map((pd, i) => (
+              {projectedDividends.slice(0, 4).map((pd, i) => (
                 <div
                   key={pd.month}
                   className="flex items-center justify-between rounded-xl border border-zinc-800/40 bg-zinc-900/30 px-4 py-3 transition-colors hover:bg-zinc-800/30"
@@ -402,7 +402,8 @@ export default function DashboardPage() {
                   <div className="flex items-center gap-3">
                     <div className="h-2 w-2 rounded-full bg-emerald-400 animate-glow-pulse" />
                     <span className="text-sm font-medium text-zinc-300 capitalize">
-                      {new Date(pd.month + "-01").toLocaleDateString("fr-FR", {
+                      {/* Date locale (année, mois) : "YYYY-MM-01" serait lu en UTC et reculerait d'un mois à l'ouest */}
+                      {new Date(Number(pd.month.slice(0, 4)), Number(pd.month.slice(5, 7)) - 1).toLocaleDateString("fr-FR", {
                         month: "long",
                         year: "numeric",
                       })}
@@ -422,7 +423,7 @@ export default function DashboardPage() {
         </div>
 
         {/* Capital et Liquidités */}
-        <div className="animate-glow-pulse rounded-2xl border border-zinc-800 bg-gradient-to-br from-zinc-900/60 to-black p-6 backdrop-blur-sm shadow-[0_0_20px_rgba(139,92,246,0.08)]">
+        <div className="animate-glow-pulse rounded-2xl border border-zinc-800 bg-gradient-to-br from-zinc-900/60 to-black p-6 shadow-[0_0_20px_rgba(139,92,246,0.08)]">
           <div className="mb-4 flex items-center justify-between">
             <div className="flex items-center gap-2">
               <Coins className="h-5 w-5 text-fuchsia-400" />
@@ -466,7 +467,7 @@ export default function DashboardPage() {
       </div>
 
       {/* ── Positions du Portefeuille ─────────────────────────────── */}
-      <div className="rounded-2xl border border-zinc-800 bg-gradient-to-br from-zinc-900/60 to-black p-4 sm:p-6 backdrop-blur-sm">
+      <div className="rounded-2xl border border-zinc-800 bg-gradient-to-br from-zinc-900/60 to-black p-4 sm:p-6">
         <h2 className="mb-4 text-lg font-bold text-white">
           Positions du Portefeuille
         </h2>

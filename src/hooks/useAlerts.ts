@@ -7,7 +7,8 @@
 
 "use client";
 
-import { useState, useCallback, useMemo } from "react";
+import { useState, useCallback, useEffect, useMemo } from "react";
+import { create } from "zustand";
 import toast from "react-hot-toast";
 
 export type AlertType =
@@ -33,28 +34,43 @@ export interface StockAlert {
 
 const STORAGE_KEY = "myfinances_stock_alerts";
 
+// One list for the whole app: each useAlerts() caller used to keep its own copy and overwrite the others
+const useAlertStore = create<{ alerts: StockAlert[] }>(() => ({ alerts: [] }));
+let loadedFromStorage = false;
+
+function loadFromStorage() {
+  if (loadedFromStorage) return;
+  loadedFromStorage = true;
+  try {
+    useAlertStore.setState({ alerts: JSON.parse(localStorage.getItem(STORAGE_KEY) ?? "[]") });
+  } catch {
+    // Unreadable storage: start with no alerts
+  }
+}
+
+// Writes read storage first, so an early write can't drop the saved alerts
+function currentAlerts() {
+  loadFromStorage();
+  return useAlertStore.getState().alerts;
+}
+
+// Save alerts to localStorage
+function persistAlerts(newAlerts: StockAlert[]) {
+  useAlertStore.setState({ alerts: newAlerts });
+  try {
+    localStorage.setItem(STORAGE_KEY, JSON.stringify(newAlerts));
+  } catch (e) {
+    console.error("Failed to save alerts:", e);
+  }
+}
+
 export function useAlerts() {
-  const [alerts, setAlerts] = useState<StockAlert[]>(() => {
-    if (typeof window === "undefined") return [];
-    try {
-      const stored = localStorage.getItem(STORAGE_KEY);
-      return stored ? JSON.parse(stored) : [];
-    } catch {
-      return [];
-    }
-  });
+  const alerts = useAlertStore((s) => s.alerts);
   const [isModalOpen, setIsModalOpen] = useState(false);
   const [hasRequestedPermission, setHasRequestedPermission] = useState(false);
 
-  // Save alerts to localStorage
-  const persistAlerts = useCallback((newAlerts: StockAlert[]) => {
-    setAlerts(newAlerts);
-    try {
-      localStorage.setItem(STORAGE_KEY, JSON.stringify(newAlerts));
-    } catch (e) {
-      console.error("Failed to save alerts:", e);
-    }
-  }, []);
+  // Read storage after mount, not during render, so the server HTML and the first client render match
+  useEffect(loadFromStorage, []);
 
   // Ask for browser notification permission
   const requestNotificationPermission = useCallback(async () => {
@@ -86,8 +102,7 @@ export function useAlerts() {
         createdAt: new Date().toISOString(),
       };
 
-      const updated = [newAlert, ...alerts];
-      persistAlerts(updated);
+      persistAlerts([newAlert, ...currentAlerts()]);
 
       toast.success(
         `Alerte configurée sur ${newAlert.ticker} (${getAlertLabel(newAlert.type, newAlert.threshold)})`,
@@ -100,23 +115,19 @@ export function useAlerts() {
 
       return newAlert;
     },
-    [alerts, hasRequestedPermission, persistAlerts, requestNotificationPermission],
+    [hasRequestedPermission, requestNotificationPermission],
   );
 
   // Delete an alert
-  const deleteAlert = useCallback(
-    (id: string) => {
-      const updated = alerts.filter((a) => a.id !== id);
-      persistAlerts(updated);
-      toast.success("Alerte supprimée");
-    },
-    [alerts, persistAlerts],
-  );
+  const deleteAlert = useCallback((id: string) => {
+    persistAlerts(currentAlerts().filter((a) => a.id !== id));
+    toast.success("Alerte supprimée");
+  }, []);
 
   // Toggle active/dismissed
   const toggleAlert = useCallback(
     (id: string) => {
-      const updated = alerts.map((a) => {
+      const updated = currentAlerts().map((a) => {
         if (a.id === id) {
           return {
             ...a,
@@ -127,26 +138,13 @@ export function useAlerts() {
       });
       persistAlerts(updated);
     },
-    [alerts, persistAlerts],
-  );
-
-  // Dismiss triggered alert
-  const dismissAlert = useCallback(
-    (id: string) => {
-      const updated = alerts.map((a) => {
-        if (a.id === id) {
-          return { ...a, status: "DISMISSED" as const };
-        }
-        return a;
-      });
-      persistAlerts(updated);
-    },
-    [alerts, persistAlerts],
+    [],
   );
 
   // Check alerts against a price / indicator map
   const checkAlerts = useCallback(
     (quotes: Record<string, { price: number; rsi?: number }>) => {
+      const alerts = currentAlerts();
       if (!alerts.length || !quotes) return;
 
       let hasChanges = false;
@@ -223,13 +221,9 @@ export function useAlerts() {
         persistAlerts(updated);
       }
     },
-    [alerts, persistAlerts],
+    [],
   );
 
-  const activeAlerts = useMemo(
-    () => alerts.filter((a) => a.status === "ACTIVE"),
-    [alerts],
-  );
   const triggeredAlerts = useMemo(
     () => alerts.filter((a) => a.status === "TRIGGERED"),
     [alerts],
@@ -238,7 +232,6 @@ export function useAlerts() {
 
   return {
     alerts,
-    activeAlerts,
     triggeredAlerts,
     unreadCount,
     isModalOpen,
@@ -246,7 +239,6 @@ export function useAlerts() {
     createAlert,
     deleteAlert,
     toggleAlert,
-    dismissAlert,
     checkAlerts,
     requestNotificationPermission,
   };

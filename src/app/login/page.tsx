@@ -24,11 +24,17 @@ export default function LoginPage() {
       });
 
       if (res.ok) {
-        // Successful login
-        router.push("/");
-        router.refresh(); // Refresh to update middleware state
+        // Back to the page the proxy sent us from, never to another site
+        const dest = new URL(
+          new URLSearchParams(window.location.search).get("from") ?? "/",
+          window.location.origin,
+        );
+        router.push(dest.origin === window.location.origin ? dest.pathname + dest.search : "/");
+        router.refresh(); // Refresh to update proxy state
       } else {
-        setError("Mot de passe incorrect");
+        // 401 wrong password, 429 too many attempts, 500 server misconfigured
+        const data = await res.json().catch(() => null);
+        setError(data?.error ?? "Mot de passe incorrect");
       }
     } catch {
       setError("Une erreur est survenue");
@@ -55,11 +61,13 @@ export default function LoginPage() {
 
         <form onSubmit={handleSubmit} className="space-y-4">
           <div>
-            <label className="mb-1.5 block text-xs font-medium text-zinc-400">
+            <label htmlFor="password" className="mb-1.5 block text-xs font-medium text-zinc-400">
               Mot de passe
             </label>
             <div className="relative">
               <input
+                id="password"
+                autoComplete="current-password"
                 type={showPassword ? "text" : "password"}
                 value={password}
                 onChange={(e) => setPassword(e.target.value)}
@@ -71,6 +79,7 @@ export default function LoginPage() {
               <button
                 type="button"
                 onClick={() => setShowPassword(!showPassword)}
+                aria-label={showPassword ? "Masquer le mot de passe" : "Afficher le mot de passe"}
                 className="absolute right-3 top-1/2 -translate-y-1/2 text-zinc-500 transition-colors hover:text-zinc-300"
               >
                 {showPassword ? (

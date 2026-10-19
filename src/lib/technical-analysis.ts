@@ -70,7 +70,8 @@ export function rsi(closes: number[], period = 14): (number | null)[] {
   avgGain /= period;
   avgLoss /= period;
 
-  result[period] = avgLoss === 0 ? 100 : 100 - 100 / (1 + avgGain / avgLoss);
+  // Série plate (ni hausse ni baisse) : RSI neutre, pas 100
+  result[period] = avgLoss === 0 ? (avgGain === 0 ? 50 : 100) : 100 - 100 / (1 + avgGain / avgLoss);
 
   for (let i = period + 1; i < closes.length; i++) {
     const diff = closes[i] - closes[i - 1];
@@ -81,7 +82,7 @@ export function rsi(closes: number[], period = 14): (number | null)[] {
     avgGain = (avgGain * (period - 1) + gain) / period;
     avgLoss = (avgLoss * (period - 1) + loss) / period;
 
-    result[i] = avgLoss === 0 ? 100 : 100 - 100 / (1 + avgGain / avgLoss);
+    result[i] = avgLoss === 0 ? (avgGain === 0 ? 50 : 100) : 100 - 100 / (1 + avgGain / avgLoss);
   }
   return result;
 }
@@ -178,7 +179,7 @@ export function bollingerBands(
 
 export function atr(data: OHLCV[], period = 14): (number | null)[] {
   const result: (number | null)[] = new Array(data.length).fill(null);
-  if (data.length < 2) return result;
+  if (data.length <= period) return result;
 
   const trueRanges: number[] = [];
   for (let i = 1; i < data.length; i++) {
@@ -509,9 +510,3 @@ export const SIGNAL_CONFIG: Record<
     badgeVariant: "danger",
   },
 };
-
-/** Transforme un signal sous-indicateur en texte court */
-export function signalToFR(s: TrendSignal | null): string {
-  if (s === null) return "—";
-  return SIGNAL_CONFIG[s].label;
-}

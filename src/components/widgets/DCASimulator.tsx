@@ -16,7 +16,7 @@ import {
   CartesianGrid,
 } from "recharts";
 import { calculateDCASimulation } from "@/lib/dca-calculator";
-import { formatEUR } from "@/lib/utils";
+import { formatEUR, formatPercent } from "@/lib/utils";
 
 interface DCASimulatorProps {
   currentPortfolioValue?: number;
@@ -46,10 +46,10 @@ export default function DCASimulator({
     simulation;
 
   const multiplier =
-    totalContributed > 0 ? (finalValue / totalContributed).toFixed(1) : "1.0";
+    totalContributed > 0 ? (finalValue / totalContributed).toFixed(1).replace(".", ",") : "1,0";
 
   return (
-    <div className="rounded-2xl border border-zinc-800 bg-gradient-to-br from-zinc-900/60 to-black p-6 backdrop-blur-sm shadow-[0_0_20px_rgba(139,92,246,0.06)]">
+    <div className="rounded-2xl border border-zinc-800 bg-gradient-to-br from-zinc-900/60 to-black p-6 shadow-[0_0_20px_rgba(139,92,246,0.06)]">
       {/* Header */}
       <div className="flex flex-wrap items-center justify-between gap-4 mb-6">
         <div className="flex items-center gap-3">
@@ -73,7 +73,7 @@ export default function DCASimulator({
       </div>
 
       {/* KPI Cards */}
-      <div className="grid grid-cols-1 sm:grid-cols-3 gap-4 mb-6">
+      <div className="grid grid-cols-1 xl:grid-cols-3 gap-4 mb-6">
         <div className="rounded-xl border border-violet-500/30 bg-violet-600/10 p-4">
           <span className="text-xs font-semibold text-violet-300">
             Capital Final Estimé (à {years} ans)
@@ -106,7 +106,7 @@ export default function DCASimulator({
             +{formatEUR(totalGains)}
           </p>
           <p className="text-[10px] text-emerald-500 mt-1">
-            Soit +{totalContributed > 0 ? ((totalGains / totalContributed) * 100).toFixed(0) : 0}% de profit brut
+            Soit +{formatPercent(totalContributed > 0 ? totalGains / totalContributed : 0)} de profit brut
           </p>
         </div>
       </div>
@@ -233,7 +233,8 @@ export default function DCASimulator({
                   stroke="#71717a"
                   fontSize={10}
                   tickLine={false}
-                  tickFormatter={(v) => `${(v / 1000).toFixed(0)}k€`}
+                  tickFormatter={formatEUR}
+                  width={100}
                 />
                 <Tooltip
                   content={({ active, payload }) => {

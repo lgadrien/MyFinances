@@ -2,48 +2,29 @@
 
 import { useState } from "react";
 import { FileText, Download } from "lucide-react";
-import { generateFiscalReportPDF } from "@/lib/pdf-report";
-import type { EnrichedPortfolioPosition } from "@/hooks/usePortfolio";
+import type { FiscalReportData } from "@/lib/pdf-report";
+import { formatEUR } from "@/lib/utils";
 
-interface TaxSimulatorProps {
-  totalCapital: number;
-  totalPlusValue: number;
-  totalInvested?: number;
-  totalDividends?: number;
-  cashBalance?: number;
-  positions?: EnrichedPortfolioPosition[];
-}
-
-export default function TaxSimulator({
-  totalCapital,
-  totalPlusValue,
-  totalInvested = 0,
-  totalDividends = 0,
-  cashBalance = 0,
-  positions = [],
-}: TaxSimulatorProps) {
+export default function TaxSimulator(props: FiscalReportData) {
+  const { totalValue, cashBalance, planGain, taxRate } = props;
+  const totalCapital = totalValue + cashBalance;
   const [amountToWithdraw, setAmountToWithdraw] =
     useState<number>(totalCapital);
   const [isExporting, setIsExporting] = useState(false);
 
-  // PEA rules: Prélèvements Sociaux (17.2%) on the share of Plus-Value proportional to withdrawal
-  const withdrawalRatio =
-    totalCapital > 0 ? amountToWithdraw / totalCapital : 0;
-  const taxablePlusValue = Math.max(0, totalPlusValue * withdrawalRatio);
-  const taxes = taxablePlusValue * 0.172;
-  const netAmount = amountToWithdraw - taxes;
+  // PEA: the plan's gain is taxed pro rata of the withdrawal over the plan value (shares + cash)
+  const withdrawal = Math.min(Math.max(0, amountToWithdraw), totalCapital);
+  const withdrawalRatio = totalCapital > 0 ? withdrawal / totalCapital : 0;
+  const taxablePlusValue = Math.max(0, planGain) * withdrawalRatio;
+  const taxes = taxablePlusValue * taxRate;
+  const netAmount = withdrawal - taxes;
 
-  const handleExportPDF = () => {
+  const handleExportPDF = async () => {
     setIsExporting(true);
     try {
-      generateFiscalReportPDF({
-        totalValue: totalCapital,
-        totalInvested: totalInvested || Math.max(0, totalCapital - totalPlusValue),
-        totalPV: totalPlusValue,
-        totalDividends,
-        cashBalance,
-        positions,
-      });
+      // jsPDF (~140 KB gzip) is only loaded when the report is requested
+      const { generateFiscalReportPDF } = await import("@/lib/pdf-report");
+      generateFiscalReportPDF(props);
     } catch (e) {
       console.error("PDF generation failed:", e);
     } finally {
@@ -52,14 +33,14 @@ export default function TaxSimulator({
   };
 
   return (
-    <div className="rounded-2xl border border-zinc-800 bg-gradient-to-br from-zinc-900/50 to-black p-6 backdrop-blur-sm shadow-[0_0_15px_rgba(139,92,246,0.06)]">
+    <div className="rounded-2xl border border-zinc-800 bg-gradient-to-br from-zinc-900/50 to-black p-6 shadow-[0_0_15px_rgba(139,92,246,0.06)]">
       <div className="mb-4 flex flex-wrap items-center justify-between gap-3">
         <div>
           <h2 className="text-lg font-bold text-white">
             Simulateur de fiscalité & Retrait PEA
           </h2>
           <p className="text-xs text-zinc-400 mt-0.5">
-            Régime PEA après 5 ans : 0% IR • 17.2% Prélèvements Sociaux sur la quote-part de gain
+            18,6 % de prélèvements sociaux sur la quote-part de gain • avant 5 ans, le retrait clôture le plan et ajoute 12,8 % d&apos;IR
           </p>
         </div>
 
@@ -83,16 +64,12 @@ export default function TaxSimulator({
             type="number"
             min="0"
             max={totalCapital}
-            value={amountToWithdraw.toFixed(0)}
+            value={withdrawal.toFixed(0)}
             onChange={(e) => setAmountToWithdraw(Number(e.target.value))}
             className="w-full rounded-xl border border-zinc-700 bg-zinc-800 px-4 py-2 text-sm text-zinc-200 outline-none focus:border-violet-500"
           />
           <p className="mt-1 text-xs text-zinc-500">
-            Maximum possible :{" "}
-            {new Intl.NumberFormat("fr-FR", {
-              style: "currency",
-              currency: "EUR",
-            }).format(totalCapital)}
+            Maximum possible (titres + espèces) : {formatEUR(totalCapital)}
           </p>
         </div>
 
@@ -100,38 +77,28 @@ export default function TaxSimulator({
           <div className="flex justify-between text-sm mb-2">
             <span className="text-zinc-400">Retrait brut souhaité</span>
             <span className="text-white font-medium">
-              {new Intl.NumberFormat("fr-FR", {
-                style: "currency",
-                currency: "EUR",
-              }).format(amountToWithdraw)}
+              {formatEUR(withdrawal)}
             </span>
           </div>
           <div className="flex justify-between text-sm mb-2">
-            <span className="text-zinc-400">Assiette taxable estimée (Quote-part Plus-Value)</span>
+            <span className="text-zinc-400">Assiette taxable estimée (quote-part du gain du plan)</span>
             <span className="text-zinc-300">
-              {new Intl.NumberFormat("fr-FR", {
-                style: "currency",
-                currency: "EUR",
-              }).format(taxablePlusValue)}
+              {formatEUR(taxablePlusValue)}
             </span>
           </div>
           <div className="flex justify-between text-sm mb-2 border-b border-zinc-800 pb-2">
-            <span className="text-zinc-400">Prélèvements Sociaux (17.2%)</span>
+            <span className="text-zinc-400">
+              Impôt et prélèvements sociaux ({(taxRate * 100).toLocaleString("fr-FR")} %)
+            </span>
             <span className="text-rose-400 font-semibold">
-              -
-              {new Intl.NumberFormat("fr-FR", {
-                style: "currency",
-                currency: "EUR",
-              }).format(taxes)}
+              {taxes > 0 ? "-" : ""}
+              {formatEUR(taxes)}
             </span>
           </div>
           <div className="flex justify-between font-bold text-lg mt-2">
             <span className="text-white">Net perçu estimé</span>
             <span className="text-emerald-400">
-              {new Intl.NumberFormat("fr-FR", {
-                style: "currency",
-                currency: "EUR",
-              }).format(netAmount)}
+              {formatEUR(netAmount)}
             </span>
           </div>
         </div>

@@ -1,6 +1,6 @@
 import { unstable_cache } from "next/cache";
 
-const FETCH_TIMEOUT_MS = 6_000; // 6 s — Yahoo Finance can be slow
+export const FETCH_TIMEOUT_MS = 6_000; // 6 s — Yahoo Finance can be slow
 
 export interface StockQuote {
   ticker: string;

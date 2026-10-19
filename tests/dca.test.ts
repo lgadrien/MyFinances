@@ -34,6 +34,20 @@ describe("DCA & Compound Interest Calculator", () => {
     expect(result.milestones).toHaveLength(11); // Year 0 to 10
   });
 
+  it("stops deposits at the 150 000 € PEA cap", () => {
+    const result = calculateDCASimulation({
+      initialCapital: 140000,
+      monthlyContribution: 2000,
+      years: 1,
+      annualGrowthRate: 0,
+      dividendYieldRate: 0,
+    });
+
+    // 140 000 + 5 × 2 000 = 150 000 €, then no more deposits
+    expect(result.totalContributed).toBe(150000);
+    expect(result.finalValue).toBe(150000);
+  });
+
   it("handles empty initial deposit gracefully", () => {
     const result = calculateDCASimulation({
       initialCapital: 0,

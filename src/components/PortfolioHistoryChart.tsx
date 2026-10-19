@@ -85,15 +85,9 @@ export default function PortfolioHistoryChart({
         <YAxis
           stroke="#52525b"
           tick={{ fontSize: 12 }}
-          tickFormatter={(val) =>
-            new Intl.NumberFormat("fr-FR", {
-              style: "currency",
-              currency: "EUR",
-              maximumFractionDigits: 0,
-            }).format(val)
-          }
+          tickFormatter={formatEUR}
           domain={["auto", "auto"]}
-          width={80}
+          width={90}
         />
         <Tooltip content={<CustomAreaTooltip />} />
         <Area

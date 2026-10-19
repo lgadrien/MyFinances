@@ -113,6 +113,7 @@ export type EnrichedChartPoint = HistoryPoint & {
 };
 
 interface TechnicalAnalysisPanelProps {
+  ticker: string;
   trendScore: TrendScore | null;
   enrichedData: EnrichedChartPoint[];
   signalCfg: (typeof SIGNAL_CONFIG)[TrendSignal] | null;
@@ -120,6 +121,7 @@ interface TechnicalAnalysisPanelProps {
 }
 
 export function TechnicalAnalysisPanel({
+  ticker,
   trendScore,
   enrichedData,
   signalCfg,
@@ -194,8 +196,8 @@ export function TechnicalAnalysisPanel({
           {[
             { label: "MACD", value: trendScore.indicators.macd, suffix: "" },
             { label: "Histogramme MACD", value: trendScore.indicators.macdHistogram, suffix: "" },
-            { label: "EMA 20", value: trendScore.indicators.ema20, suffix: " €" },
-            { label: "EMA 50", value: trendScore.indicators.ema50, suffix: " €" },
+            { label: "EMA 20", value: trendScore.indicators.ema20, suffix: ticker.startsWith("^") ? " pts" : " €" },
+            { label: "EMA 50", value: trendScore.indicators.ema50, suffix: ticker.startsWith("^") ? " pts" : " €" },
             {
               label: "Bollinger %B",
               value:

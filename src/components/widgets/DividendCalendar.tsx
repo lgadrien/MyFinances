@@ -53,7 +53,7 @@ export default function DividendCalendar({
     .reduce((s, [, v]) => s + v, 0);
 
   return (
-    <div className="rounded-2xl border border-zinc-800 bg-gradient-to-br from-zinc-900/60 to-black p-6 backdrop-blur-sm">
+    <div className="rounded-2xl border border-zinc-800 bg-gradient-to-br from-zinc-900/60 to-black p-6">
       {/* Header */}
       <div className="mb-5 flex items-center justify-between">
         <div>

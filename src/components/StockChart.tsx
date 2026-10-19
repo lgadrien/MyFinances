@@ -16,6 +16,7 @@ import { StockChartHeader } from "./stock-chart/StockChartHeader";
 import { MainPriceChart, type HistoryPoint } from "./stock-chart/MainPriceChart";
 import { TechnicalAnalysisPanel } from "./stock-chart/TechnicalAnalysisPanel";
 import AlertsCenterModal from "@/components/alerts/AlertsCenterModal";
+import { formatQuote } from "@/lib/utils";
 
 interface StockChartProps {
   ticker: string;
@@ -199,25 +200,25 @@ export default function StockChart({ ticker, name, onClose }: StockChartProps) {
               <span>
                 O{" "}
                 <span className="font-medium text-zinc-300">
-                  {crosshairData.open.toFixed(2)}
+                  {formatQuote(crosshairData.open, ticker)}
                 </span>
               </span>
               <span>
                 H{" "}
                 <span className="font-medium text-emerald-400">
-                  {crosshairData.high.toFixed(2)}
+                  {formatQuote(crosshairData.high, ticker)}
                 </span>
               </span>
               <span>
                 L{" "}
                 <span className="font-medium text-red-400">
-                  {crosshairData.low.toFixed(2)}
+                  {formatQuote(crosshairData.low, ticker)}
                 </span>
               </span>
               <span>
                 C{" "}
                 <span className="font-medium text-zinc-200">
-                  {crosshairData.close.toFixed(2)}
+                  {formatQuote(crosshairData.close, ticker)}
                 </span>
               </span>
             </div>
@@ -236,6 +237,7 @@ export default function StockChart({ ticker, name, onClose }: StockChartProps) {
           ) : activeTab === "chart" ? (
             <>
               <MainPriceChart
+                ticker={ticker}
                 data={enrichedData}
                 minPrice={minPrice}
                 maxPrice={maxPrice}
@@ -253,19 +255,19 @@ export default function StockChart({ ticker, name, onClose }: StockChartProps) {
                   <span>
                     Min:{" "}
                     <span className="font-medium text-red-400">
-                      {minPrice.toFixed(2)} €
+                      {formatQuote(minPrice, ticker)}
                     </span>
                   </span>
                   <span className="hidden sm:inline">
                     Moy:{" "}
                     <span className="font-medium text-zinc-300">
-                      {avgPrice.toFixed(2)} €
+                      {formatQuote(avgPrice, ticker)}
                     </span>
                   </span>
                   <span>
                     Max:{" "}
                     <span className="font-medium text-emerald-400">
-                      {maxPrice.toFixed(2)} €
+                      {formatQuote(maxPrice, ticker)}
                     </span>
                   </span>
                   <span className="text-zinc-600 hidden md:inline">
@@ -278,6 +280,7 @@ export default function StockChart({ ticker, name, onClose }: StockChartProps) {
             </>
           ) : (
             <TechnicalAnalysisPanel
+              ticker={ticker}
               trendScore={trendScore}
               enrichedData={enrichedData}
               signalCfg={signalCfg}
@@ -287,12 +290,15 @@ export default function StockChart({ ticker, name, onClose }: StockChartProps) {
         </div>
       </div>
 
-      <AlertsCenterModal
-        isOpen={isAlertModalOpen}
-        onClose={() => setIsAlertModalOpen(false)}
-        initialTicker={ticker}
-        initialPrice={lastPoint?.close ?? 0}
-      />
+      {/* Mounted on open, so the suggested threshold uses the price loaded by then */}
+      {isAlertModalOpen && (
+        <AlertsCenterModal
+          isOpen
+          onClose={() => setIsAlertModalOpen(false)}
+          initialTicker={ticker}
+          initialPrice={lastPoint?.close ?? 0}
+        />
+      )}
     </div>
   );
 }

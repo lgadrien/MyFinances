@@ -19,7 +19,7 @@ import {
 import { Loader2 } from "lucide-react";
 
 interface BenchmarkChartProps {
-  portfolioHistory?: { date: string; total_value: number }[];
+  portfolioHistory?: { date: string; total_value: number; total_invested: number }[];
 }
 
 export default function BenchmarkChart({ portfolioHistory = [] }: BenchmarkChartProps) {
@@ -48,7 +48,7 @@ export default function BenchmarkChart({ portfolioHistory = [] }: BenchmarkChart
   }, [data, benchmark, portfolioHistory]);
 
   return (
-    <div className="rounded-2xl border border-zinc-800 bg-gradient-to-br from-zinc-900/50 to-black p-6 backdrop-blur-sm">
+    <div className="rounded-2xl border border-zinc-800 bg-gradient-to-br from-zinc-900/50 to-black p-6">
       <div className="mb-4 flex flex-wrap items-center justify-between gap-3">
         <div>
           <h2 className="text-lg font-bold text-white">

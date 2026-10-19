@@ -1,7 +1,13 @@
 "use client";
 
 import { useSettingsStore } from "@/stores/useSettingsStore";
-import { Eye, EyeOff, DollarSign, Euro } from "lucide-react";
+import { Eye, EyeOff, DollarSign, Euro, LogOut } from "lucide-react";
+
+async function logout() {
+  await fetch("/api/auth/logout", { method: "POST" }).catch(() => {});
+  // Full reload drops every cached query; replace keeps the protected page out of history
+  window.location.replace("/login");
+}
 
 export default function GlobalSettingsToggles({
   isCollapsed = false,
@@ -31,6 +37,13 @@ export default function GlobalSettingsToggles({
           title="Changer de devise"
         >
           {currency === "EUR" ? <Euro className="h-5 w-5 text-violet-400" /> : <DollarSign className="h-5 w-5 text-green-400" />}
+        </button>
+        <button
+          onClick={logout}
+          className="rounded-lg p-2 text-zinc-400 transition-colors hover:bg-zinc-800 hover:text-white"
+          title="Se déconnecter"
+        >
+          <LogOut className="h-5 w-5" />
         </button>
       </div>
     );
@@ -70,6 +83,17 @@ export default function GlobalSettingsToggles({
           <DollarSign className="h-5 w-5 shrink-0 text-green-400" />
         )}
         {!isCollapsed && <span>Devise ({currency})</span>}
+      </button>
+
+      <button
+        onClick={logout}
+        className={`group flex items-center rounded-xl py-2.5 text-sm font-medium transition-all duration-200 hover:bg-zinc-900 ${
+          isCollapsed ? "justify-center px-0 w-full" : "gap-3 px-3"
+        } text-zinc-500`}
+        title="Se déconnecter"
+      >
+        <LogOut className="h-5 w-5 shrink-0" />
+        {!isCollapsed && <span>Déconnexion</span>}
       </button>
     </div>
   );

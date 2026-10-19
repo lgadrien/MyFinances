@@ -89,7 +89,6 @@ export default function StatsCard({
   const animated = useCountUp(rawValue ?? 0, {
     duration: 1000,
     delay: index * 120, // stagger : chaque carte démarre 120ms après la précédente
-    skipSmallChanges: true,
   });
 
   const displayValue =
@@ -100,7 +99,7 @@ export default function StatsCard({
       className={`
         h-full group relative overflow-hidden rounded-2xl border border-zinc-800/80
         bg-gradient-to-br ${colors.bg}
-        p-5 backdrop-blur-sm
+        p-4 sm:p-5
         transition-all duration-300 ease-out
         hover:-translate-y-0.5 hover:border-zinc-700/60
         hover:shadow-xl ${colors.glow}
@@ -133,7 +132,7 @@ export default function StatsCard({
           <p className="text-[10px] font-semibold uppercase tracking-widest text-zinc-500">
             {label}
           </p>
-          <p className="truncate text-2xl font-bold tracking-tight text-white tabular-nums">
+          <p className="truncate text-xl font-bold tracking-tight text-white tabular-nums sm:text-2xl">
             {displayValue}
           </p>
           {trend && (
@@ -159,10 +158,10 @@ export default function StatsCard({
           )}
         </div>
 
-        {/* Icône avec fond coloré */}
+        {/* Icône avec fond coloré (masquée sur téléphone : elle prenait la place du montant) */}
         <div
           className={`
-            flex h-11 w-11 shrink-0 items-center justify-center rounded-xl
+            hidden h-11 w-11 shrink-0 items-center justify-center rounded-xl sm:flex
             ${colors.iconBg} ring-1 ring-white/5
             transition-transform duration-300 group-hover:scale-110
           `}

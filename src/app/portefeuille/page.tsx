@@ -40,6 +40,7 @@ export default function PortfolioPage() {
   const [chartView, setChartView] = useState<"history" | "benchmark">("history");
   const {
     positions,
+    history,
     filteredHistory,
     timeRange,
     setTimeRange,
@@ -56,6 +57,10 @@ export default function PortfolioPage() {
     totalValue,
     totalPV,
     totalPerformance,
+    cashBalance,
+    totalDividends,
+    planGain,
+    taxRate,
     sectorData,
     assetData,
   } = usePortfolio();
@@ -109,24 +114,24 @@ export default function PortfolioPage() {
       </div>
 
       {/* KPI Cards */}
-      <div className="grid grid-cols-2 gap-3 sm:gap-6 sm:grid-cols-3">
-        <div className="rounded-2xl border border-zinc-800 bg-zinc-900/50 p-4 sm:p-6 backdrop-blur">
+      <div className="grid grid-cols-2 gap-3 sm:gap-6 lg:grid-cols-3">
+        <div className="rounded-2xl border border-zinc-800 bg-zinc-900/50 p-4 sm:p-6">
           <p className="text-xs sm:text-sm font-medium text-zinc-400">Valeur Totale</p>
-          <p className="mt-1 sm:mt-2 text-xl sm:text-3xl font-bold text-white">
+          <p className="mt-1 sm:mt-2 text-xl sm:text-2xl xl:text-3xl font-bold text-white">
             {loading ? "..." : formatEUR(totalValue)}
           </p>
         </div>
-        <div className="rounded-2xl border border-zinc-800 bg-zinc-900/50 p-4 sm:p-6 backdrop-blur">
+        <div className="rounded-2xl border border-zinc-800 bg-zinc-900/50 p-4 sm:p-6">
           <p className="text-xs sm:text-sm font-medium text-zinc-400">Investissement</p>
-          <p className="mt-1 sm:mt-2 text-xl sm:text-3xl font-bold text-zinc-200">
+          <p className="mt-1 sm:mt-2 text-xl sm:text-2xl xl:text-3xl font-bold text-zinc-200">
             {loading ? "..." : formatEUR(totalInvested)}
           </p>
         </div>
-        <div className="col-span-2 sm:col-span-1 rounded-2xl border border-zinc-800 bg-zinc-900/50 p-4 sm:p-6 backdrop-blur">
+        <div className="col-span-2 lg:col-span-1 rounded-2xl border border-zinc-800 bg-zinc-900/50 p-4 sm:p-6">
           <p className="text-xs sm:text-sm font-medium text-zinc-400">Plus/Moins-Value</p>
-          <div className="mt-1 sm:mt-2 flex items-baseline gap-2">
+          <div className="mt-1 sm:mt-2 flex flex-wrap items-baseline gap-x-2">
             <p
-              className={`text-2xl sm:text-3xl font-bold ${
+              className={`text-2xl xl:text-3xl font-bold ${
                 totalPV >= 0 ? "text-emerald-400" : "text-rose-400"
               }`}
             >
@@ -172,13 +177,9 @@ export default function PortfolioPage() {
         </div>
 
         {chartView === "benchmark" ? (
-          <BenchmarkChart
-            portfolioHistory={
-              filteredHistory as { date: string; total_value: number }[]
-            }
-          />
+          <BenchmarkChart portfolioHistory={history} />
         ) : (
-          <div className="rounded-2xl border border-zinc-800 bg-zinc-900/50 p-6 backdrop-blur">
+          <div className="rounded-2xl border border-zinc-800 bg-zinc-900/50 p-6">
             <div className="mb-6 flex items-center justify-between">
               <h3 className="text-lg font-semibold text-white">
                 Évolution du Portefeuille
@@ -211,7 +212,7 @@ export default function PortfolioPage() {
       {!loading && positions.length > 0 && (
         <div className="grid gap-6 md:grid-cols-2">
           {/* Sector Allocation — AnimatedDonut interactif */}
-          <div className="rounded-2xl border border-zinc-800 bg-zinc-900/50 p-6 backdrop-blur">
+          <div className="rounded-2xl border border-zinc-800 bg-zinc-900/50 p-6">
             <h3 className="mb-4 text-lg font-semibold text-white">
               Répartition Sectorielle
             </h3>
@@ -224,7 +225,7 @@ export default function PortfolioPage() {
           </div>
 
           {/* Asset Allocation — AnimatedDonut interactif */}
-          <div className="rounded-2xl border border-zinc-800 bg-zinc-900/50 p-6 backdrop-blur">
+          <div className="rounded-2xl border border-zinc-800 bg-zinc-900/50 p-6">
             <h3 className="mb-4 text-lg font-semibold text-white">
               Répartition par Actif
             </h3>
@@ -241,17 +242,12 @@ export default function PortfolioPage() {
       {/* Risk Analysis & Quantitative Health Panel */}
       {!loading && positions.length > 0 && (
         <div className="w-full">
-          <RiskAnalysisPanel
-            positions={positions}
-            history={filteredHistory as { total_value: number; date?: string }[]}
-            totalInvested={totalInvested}
-            totalValue={totalValue}
-          />
+          <RiskAnalysisPanel positions={positions} history={history} />
         </div>
       )}
 
       {/* Portfolio Rebalancing Tool */}
-      <div className="rounded-2xl border border-zinc-800 bg-gradient-to-br from-zinc-900/50 to-black p-6 backdrop-blur-sm shadow-[0_0_15px_rgba(139,92,246,0.1)]">
+      <div className="rounded-2xl border border-zinc-800 bg-gradient-to-br from-zinc-900/50 to-black p-6 shadow-[0_0_15px_rgba(139,92,246,0.1)]">
         <div
           className="flex cursor-pointer items-center justify-between"
           onClick={() => setIsRebalancingOpen(!isRebalancingOpen)}
@@ -323,7 +319,7 @@ export default function PortfolioPage() {
                           {formatEUR(currentVal)}
                         </td>
                         <td className="py-3 text-right">
-                          {currentPct.toFixed(1)}%
+                          {formatPercent(currentPct / 100)}
                         </td>
                         <td className="py-3 text-right">
                           <input
@@ -370,10 +366,13 @@ export default function PortfolioPage() {
       {/* Tax Simulator Tool */}
       <div className="w-full">
         <TaxSimulator
-          totalCapital={totalValue}
-          totalPlusValue={Math.max(0, totalPV)}
+          totalValue={totalValue}
           totalInvested={totalInvested}
-          totalDividends={positions.reduce((s, p) => s + (p.dividends || 0), 0)}
+          totalPV={totalPV}
+          totalDividends={totalDividends}
+          cashBalance={cashBalance}
+          planGain={planGain}
+          taxRate={taxRate}
           positions={positions}
         />
       </div>
@@ -404,7 +403,7 @@ export default function PortfolioPage() {
               return (
                 <div
                   key={pos.ticker}
-                  className="rounded-2xl border border-zinc-800 bg-zinc-900/50 p-4 shadow-sm backdrop-blur-sm transition-colors hover:bg-zinc-800/30"
+                  className="rounded-2xl border border-zinc-800 bg-zinc-900/50 p-4 shadow-sm transition-colors hover:bg-zinc-800/30"
                 >
                   <div className="mb-3 flex items-start justify-between">
                     <div className="flex items-center gap-3">
@@ -471,7 +470,7 @@ export default function PortfolioPage() {
       </div>
 
       {/* Desktop Table */}
-      <div className="hidden overflow-hidden rounded-2xl border border-zinc-800 bg-gradient-to-br from-zinc-900/50 to-black backdrop-blur-sm md:block">
+      <div className="hidden overflow-hidden rounded-2xl border border-zinc-800 bg-gradient-to-br from-zinc-900/50 to-black md:block">
         <div className="overflow-x-auto">
           <table className="w-full min-w-max text-sm">
             <thead>

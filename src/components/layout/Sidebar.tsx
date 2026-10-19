@@ -41,7 +41,7 @@ export default function Sidebar({
 
   return (
     <aside
-      className={`flex h-screen flex-col border-r border-zinc-800 bg-black backdrop-blur-xl transition-all duration-300 ${
+      className={`flex h-screen flex-col border-r border-zinc-800 bg-black transition-all duration-300 ${
         isCollapsed ? "w-20" : "w-64"
       } ${className}`}
     >
@@ -49,6 +49,7 @@ export default function Sidebar({
       {onToggle && (
         <button
           onClick={onToggle}
+          aria-label={isCollapsed ? "Déplier le menu" : "Replier le menu"}
           className="absolute -right-3 top-6 z-50 flex h-6 w-6 items-center justify-center rounded-full border border-zinc-700 bg-zinc-900 text-zinc-400 transition-colors hover:text-white"
         >
           <ChevronLeft

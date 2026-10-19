@@ -1,8 +1,11 @@
 @import "tailwindcss";
 
-@layer utilities {
-  .pb-safe {
-    padding-bottom: env(safe-area-inset-bottom, 16px);
+/* iOS zooms into fields under 16px on focus: keep them at 16px on phones now that pinch-zoom is allowed */
+@media (max-width: 767px) {
+  input,
+  select,
+  textarea {
+    font-size: 16px;
   }
 }
 
@@ -82,8 +85,9 @@ body {
     transform: translateY(0);
   }
 }
+/* No fill-mode: a transform left on the page wrapper would trap its position:fixed children (modals) */
 .animate-fade-in {
-  animation: fadeIn 0.45s cubic-bezier(0.16, 1, 0.3, 1) forwards;
+  animation: fadeIn 0.45s cubic-bezier(0.16, 1, 0.3, 1);
 }
 
 /* Entrée des StatsCards (scale + fade) */
@@ -223,20 +227,4 @@ tbody tr {
 
 .animate-glow-pulse {
   animation: glowPulse 2.5s ease-in-out infinite;
-}
-
-/* ── Badge trend pulse ───────────────────────────────────────────── */
-
-@keyframes trendPulse {
-  0%,
-  100% {
-    opacity: 1;
-  }
-  50% {
-    opacity: 0.6;
-  }
-}
-
-.animate-trend-pulse {
-  animation: trendPulse 2s ease-in-out infinite;
 }

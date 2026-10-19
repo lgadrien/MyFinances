@@ -12,6 +12,10 @@ on:
   pull_request:
     branches: ["**"]
 
+# The pipeline only reads the repository
+permissions:
+  contents: read
+
 # Cancel any in-progress run for the same ref (avoids duplicate CI on fast pushes)
 concurrency:
   group: ci-${{ github.ref }}
@@ -32,7 +36,7 @@ jobs:
       - name: Set up Node.js
         uses: actions/setup-node@v4
         with:
-          node-version: 20
+          node-version: 24
           cache: "npm"
 
       # ── 3. Install dependencies ─────────────────────────────────────────────

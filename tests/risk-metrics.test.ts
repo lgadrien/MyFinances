@@ -5,6 +5,7 @@ import {
   calculateSharpeRatio,
   calculateMaxDrawdown,
   calculateDiversificationScore,
+  computePortfolioRiskMetrics,
 } from "@/lib/risk-metrics";
 
 describe("Risk & Portfolio Metrics", () => {
@@ -17,10 +18,25 @@ describe("Risk & Portfolio Metrics", () => {
   });
 
   it("calculates annualized volatility from returns", () => {
-    const returns = [0.01, -0.01, 0.02, -0.015, 0.005, -0.005];
-    const vol = calculateVolatility(returns);
-    expect(vol).toBeGreaterThan(0);
-    expect(vol).toBeLessThan(1); // Realistic volatility < 100%
+    // Sample std of [0.01, -0.01] = 0.01414 → × √252
+    expect(calculateVolatility([0.01, -0.01])).toBeCloseTo(0.2245, 4);
+  });
+
+  it("treats a deposit as a cash flow, not as performance", () => {
+    const invested = [10000, 10000, 20000, 20000];
+    const history = [10000, 10100, 20100, 20000].map((total_value, i) => ({
+      total_value,
+      total_invested: invested[i],
+    }));
+    const metrics = computePortfolioRiskMetrics(history, []);
+    expect(metrics.annualizedVolatility).toBeCloseTo(0.1211, 4);
+    // Mean daily return × 252, the deposit day counting as 0 %
+    expect(metrics.annualizedReturn).toBeCloseTo(((0.01 + 0 - 100 / 20100) / 3) * 252, 10);
+  });
+
+  it("does not count a break-even sale as a drawdown", () => {
+    const history = [10000, 10000, 5000].map((v) => ({ total_value: v, total_invested: v }));
+    expect(computePortfolioRiskMetrics(history, []).maxDrawdown.maxDrawdownPct).toBe(0);
   });
 
   it("calculates Sharpe Ratio with positive and negative excess returns", () => {

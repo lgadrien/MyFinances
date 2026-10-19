@@ -1,34 +1,51 @@
 import { describe, it, expect } from "vitest";
+import {
+  calculatePlanGain,
+  peaTaxRate,
+  type Transaction,
+} from "@/lib/calculations";
 
-describe("PEA Taxation Logic", () => {
-  it("calculates social security deductions (17.2%) proportionally to capital gain share", () => {
-    const totalCapital = 10000;
-    const totalPlusValue = 2000; // 20% gain
-    const withdrawal = 5000; // 50% partial withdrawal
+const tx = (
+  type: Transaction["type"],
+  quantity: number,
+  unit_price: number,
+  total_amount: number,
+  fees = 0,
+): Transaction => ({
+  id: "",
+  ticker: "AI.PA",
+  type,
+  date: "2020-01-02",
+  quantity,
+  unit_price,
+  total_amount,
+  fees,
+  created_at: "",
+});
 
-    const withdrawalRatio = withdrawal / totalCapital; // 0.5
-    const taxableGain = totalPlusValue * withdrawalRatio; // 1000 €
-    const tax = taxableGain * 0.172; // 172 €
-    const netReceived = withdrawal - tax; // 4828 €
-
-    expect(withdrawalRatio).toBe(0.5);
-    expect(taxableGain).toBe(1000);
-    expect(tax).toBeCloseTo(172, 2);
-    expect(netReceived).toBeCloseTo(4828, 2);
+describe("PEA taxation", () => {
+  it("taxes the dividends kept in the plan, not only the latent gain", () => {
+    // 10 000 € of shares still worth 10 000 €, plus 500 € of dividends in cash
+    const gain = calculatePlanGain(
+      [tx("Achat", 100, 100, 10000), tx("Dividende", 0, 0, 500)],
+      10000,
+    );
+    expect(gain).toBe(500);
+    expect(gain * peaTaxRate("2020-01-02", "2026-10-19")).toBeCloseTo(93, 2);
   });
 
-  it("yields 0 taxes when portfolio is at a loss", () => {
-    const totalCapital = 8000;
-    const totalPlusValue = -2000; // Loss
-    const withdrawal = 4000;
+  it("counts the realised gain of a closed position", () => {
+    const transactions = [tx("Achat", 10, 100, 1000), tx("Vente", 10, 200, 2000)];
+    expect(calculatePlanGain(transactions, 0)).toBe(1000);
+  });
 
-    const withdrawalRatio = withdrawal / totalCapital;
-    const taxableGain = Math.max(0, totalPlusValue * withdrawalRatio);
-    const tax = taxableGain * 0.172;
-    const netReceived = withdrawal - tax;
+  it("deducts buy and sale fees from the gain", () => {
+    const transactions = [tx("Achat", 10, 100, 1000, 5), tx("Vente", 10, 200, 2000, 5)];
+    expect(calculatePlanGain(transactions, 0)).toBe(990);
+  });
 
-    expect(taxableGain).toBe(0);
-    expect(tax).toBe(0);
-    expect(netReceived).toBe(4000);
+  it("applies 31.4 % before the 5th anniversary and 18.6 % after (LFSS 2026)", () => {
+    expect(peaTaxRate("2024-03-01", "2026-10-19")).toBe(0.314);
+    expect(peaTaxRate("2021-10-19", "2026-10-19")).toBe(0.186);
   });
 });

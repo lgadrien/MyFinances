@@ -13,23 +13,17 @@ import {
 } from "@/lib/data";
 import { useTransactions } from "@/hooks/useTransactions";
 import {
-  calculateTotalInvested,
   calculateDividends,
   calculatePortfolioPositions,
+  enrichPositions,
   groupDividendsByMonth,
-  type PortfolioPosition,
+  type EnrichedPortfolioPosition,
 } from "@/lib/calculations";
 import { FRENCH_INSTRUMENTS } from "@/lib/french-instruments";
 import toast from "react-hot-toast";
 
-export interface EnrichedPosition extends PortfolioPosition {
-  currentPrice: number;
-  plusValue: number;
-  capitalValue: number;
-}
-
 export interface DashboardData {
-  positions: EnrichedPosition[];
+  positions: EnrichedPortfolioPosition[];
   dividendHistory: { month: string; amount: number }[];
   projectedDividends: { month: string; amount: number }[];
   totalInvested: number;
@@ -48,7 +42,7 @@ export interface DashboardData {
 }
 
 export function useDashboard(): DashboardData {
-  const [positions, setPositions] = useState<EnrichedPosition[]>([]);
+  const [positions, setPositions] = useState<EnrichedPortfolioPosition[]>([]);
   const [dividendHistory, setDividendHistory] = useState<
     { month: string; amount: number }[]
   >([]);
@@ -61,6 +55,7 @@ export function useDashboard(): DashboardData {
   const [totalCapital, setTotalCapital] = useState(0);
   const [cashBalance, setCashBalance] = useState(0);
   const [targetCapital, setTargetCapital] = useState(10000);
+  const [settingsLoaded, setSettingsLoaded] = useState(false);
   const [loading, setLoading] = useState(true);
   const [savingSettings, setSavingSettings] = useState(false);
   const [isSettingsOpen, setIsSettingsOpen] = useState(false);
@@ -71,14 +66,14 @@ export function useDashboard(): DashboardData {
     async function load() {
       // Si les transactions chargent, on attend
       if (isTxLoading) return;
-      
-      setLoading(true);
+
       try {
         // Paramètres utilisateur
         const settings = await fetchSettings();
         if (settings) {
           setCashBalance(settings.cash_balance);
           setTargetCapital(settings.target_capital);
+          setSettingsLoaded(true);
         }
 
         // Lookup table pour enrichir les positions avec nom/secteur
@@ -93,19 +88,15 @@ export function useDashboard(): DashboardData {
 
         // Prix live via un seul appel batch (1 requête HTTP au lieu de N)
         const quotes = await fetchBatchStockPrices(pos.map((p) => p.ticker));
+        const missing = pos.filter((p) => !quotes[p.ticker]).map((p) => p.ticker);
+        if (missing.length) {
+          toast.error(`Cours indisponible, valorisé au PRU : ${missing.join(", ")}`, { id: "missing-quotes" });
+        }
 
-        const enriched: EnrichedPosition[] = pos.map((p) => {
-          const currentPrice = quotes[p.ticker]?.price ?? p.pru;
-          return {
-            ...p,
-            currentPrice,
-            plusValue: (currentPrice - p.pru) * p.totalQuantity,
-            capitalValue: currentPrice * p.totalQuantity,
-          };
-        });
+        const enriched = enrichPositions(pos, quotes);
 
         setPositions(enriched);
-        setTotalInvested(calculateTotalInvested(transactions));
+        setTotalInvested(enriched.reduce((s, p) => s + p.totalInvested, 0));
         setTotalDividends(calculateDividends(transactions));
         setTotalPlusValue(enriched.reduce((s, p) => s + (p.plusValue || 0), 0));
         setTotalCapital(enriched.reduce((s, p) => s + (p.capitalValue || 0), 0));
@@ -140,8 +131,7 @@ export function useDashboard(): DashboardData {
           Array.from(projectedMap.entries())
             .filter(([m]) => m >= new Date().toISOString().substring(0, 7))
             .sort(([a], [b]) => a.localeCompare(b))
-            .map(([month, amount]) => ({ month, amount }))
-            .slice(0, 4),
+            .map(([month, amount]) => ({ month, amount })),
         );
       } catch (err) {
         console.error("Error loading dashboard data:", err);
@@ -154,6 +144,11 @@ export function useDashboard(): DashboardData {
   }, [transactions, isTxLoading]);
 
   const handleSaveSettings = async () => {
+    // Paramètres jamais chargés : sauvegarder écraserait le vrai solde par les valeurs par défaut
+    if (!settingsLoaded) {
+      toast.error("Paramètres non chargés : sauvegarde bloquée pour ne pas écraser vos valeurs.");
+      return;
+    }
     setSavingSettings(true);
     const ok = await updateSettings(cashBalance, targetCapital);
     if (ok) {

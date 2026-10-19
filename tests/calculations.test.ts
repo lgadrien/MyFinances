@@ -1,11 +1,29 @@
 import { describe, it, expect } from "vitest";
 import {
-  calculateTotalInvested,
   calculateDividends,
   calculatePortfolioPositions,
+  enrichPositions,
   groupDividendsByMonth,
   type Transaction,
 } from "@/lib/calculations";
+
+const tx = (
+  type: Transaction["type"],
+  quantity: number,
+  unit_price: number,
+  total_amount: number,
+  date = "2025-01-01",
+): Transaction => ({
+  id: "",
+  ticker: "AI.PA",
+  type,
+  date,
+  quantity,
+  unit_price,
+  total_amount,
+  fees: 0,
+  created_at: "",
+});
 
 describe("Financial Calculations Engine", () => {
   it("calculates PRU correctly with multiple purchases and fees", () => {
@@ -146,8 +164,36 @@ describe("Financial Calculations Engine", () => {
 
     // Bought 10 @ 50 + 2 fees -> PRU = 50.20
     // Sold 5 -> Remaining 5 shares @ 50.20 PRU = 251.00 € invested in portfolio
-    const totalInvested = calculateTotalInvested(transactions);
+    const totalInvested = calculatePortfolioPositions(transactions).reduce(
+      (sum, p) => sum + p.totalInvested,
+      0,
+    );
     expect(totalInvested).toBe(251);
+  });
+
+  it("uses total_amount as the cost when unit_price is 0 (CSV import)", () => {
+    const [position] = calculatePortfolioPositions([tx("Achat", 10, 0, 1000)]);
+    expect(position.pru).toBe(100);
+  });
+
+  it("drops closed positions but keeps their dividends in the total", () => {
+    const transactions = [
+      tx("Achat", 10, 100, 1000, "2025-01-01"),
+      tx("Dividende", 0, 0, 50, "2025-05-01"),
+      tx("Vente", 10, 100, 1000, "2025-06-01"),
+    ];
+    expect(calculatePortfolioPositions(transactions)).toEqual([]);
+    expect(calculateDividends(transactions)).toBe(50);
+  });
+
+  it("values positions at the live quote, or at the PRU when the quote is missing", () => {
+    const positions = calculatePortfolioPositions([
+      tx("Achat", 10, 100, 1000),
+      { ...tx("Achat", 5, 20, 100), ticker: "BN.PA" },
+    ]);
+    const [ai, bn] = enrichPositions(positions, { "AI.PA": { price: 120 } });
+    expect(ai).toMatchObject({ currentPrice: 120, capitalValue: 1200, plusValue: 200 });
+    expect(bn).toMatchObject({ currentPrice: 20, capitalValue: 100, plusValue: 0 });
   });
 
   it("calculates net dividends accurately", () => {

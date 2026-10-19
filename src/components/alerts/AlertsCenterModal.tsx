@@ -1,6 +1,6 @@
 "use client";
 
-import { useState } from "react";
+import { useEffect, useEffectEvent, useState } from "react";
 import {
   Bell,
   X,
@@ -50,6 +50,14 @@ export default function AlertsCenterModal({
     initialPrice > 0 ? Math.round(initialPrice * 1.05 * 100) / 100 : 150,
   );
 
+  const close = useEffectEvent(() => onClose());
+  useEffect(() => {
+    if (!isOpen) return;
+    const onKey = (e: KeyboardEvent) => e.key === "Escape" && close();
+    document.addEventListener("keydown", onKey);
+    return () => document.removeEventListener("keydown", onKey);
+  }, [isOpen]);
+
   if (!isOpen) return null;
 
   const handleCreate = async (e: React.FormEvent) => {
@@ -85,7 +93,12 @@ export default function AlertsCenterModal({
 
   return (
     <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/80 p-4 backdrop-blur-sm animate-in fade-in duration-200">
-      <div className="relative w-full max-w-xl rounded-2xl border border-zinc-800 bg-zinc-900 shadow-2xl overflow-hidden">
+      <div
+        role="dialog"
+        aria-modal="true"
+        aria-labelledby="alerts-title"
+        className="relative w-full max-w-xl rounded-2xl border border-zinc-800 bg-zinc-900 shadow-2xl overflow-hidden"
+      >
         {/* Header */}
         <div className="flex items-center justify-between border-b border-zinc-800 px-6 py-4">
           <div className="flex items-center gap-2.5">
@@ -93,7 +106,7 @@ export default function AlertsCenterModal({
               <Bell className="h-5 w-5" />
             </div>
             <div>
-              <h2 className="text-lg font-bold text-white">
+              <h2 id="alerts-title" className="text-lg font-bold text-white">
                 Centre d&apos;Alertes & Objectifs
               </h2>
               <p className="text-xs text-zinc-400">
@@ -103,6 +116,7 @@ export default function AlertsCenterModal({
           </div>
           <button
             onClick={onClose}
+            aria-label="Fermer"
             className="rounded-lg p-1.5 text-zinc-400 hover:bg-zinc-800 hover:text-white"
           >
             <X className="h-5 w-5" />
