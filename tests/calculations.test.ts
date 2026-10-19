@@ -1,5 +1,6 @@
 import { describe, it, expect } from "vitest";
 import {
+  calculateDailyChange,
   calculateDividends,
   calculatePortfolioPositions,
   enrichPositions,
@@ -194,6 +195,22 @@ describe("Financial Calculations Engine", () => {
     const [ai, bn] = enrichPositions(positions, { "AI.PA": { price: 120 } });
     expect(ai).toMatchObject({ currentPrice: 120, capitalValue: 1200, plusValue: 200 });
     expect(bn).toMatchObject({ currentPrice: 20, capitalValue: 100, plusValue: 0 });
+  });
+
+  it("sums the day's change over open positions and rates it against yesterday's value", () => {
+    const positions = enrichPositions(
+      calculatePortfolioPositions([
+        tx("Achat", 10, 100, 1000),
+        { ...tx("Achat", 5, 20, 100), ticker: "BN.PA" },
+        { ...tx("Achat", 2, 50, 100), ticker: "ML.PA" }, // no quote: valued at the PRU, no change
+      ]),
+      { "AI.PA": { price: 110 }, "BN.PA": { price: 18 } },
+    );
+    const quotes = { "AI.PA": { change: 10 }, "BN.PA": { change: -2 } };
+
+    // +10 × 10 − 2 × 5 = +90 on a 1 290 value today, so 1 200 yesterday
+    expect(calculateDailyChange(positions, quotes)).toEqual({ amount: 90, percent: 90 / 1200 });
+    expect(calculateDailyChange([], {})).toEqual({ amount: 0, percent: 0 });
   });
 
   it("calculates net dividends accurately", () => {

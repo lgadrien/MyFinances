@@ -399,6 +399,11 @@ export default function MarchePage() {
         }
         return sortDir === "desc" ? -cmp : cmp;
       });
+    } else {
+      // Default order: owned, then favorites, then the rest (stable sort keeps the current order inside each group)
+      const rank = (r: MarketRow) =>
+        r.owned ? 0 : favorites.includes(r.ticker) ? 1 : 2;
+      result.sort((a, b) => rank(a) - rank(b));
     }
 
     return result;
@@ -540,7 +545,7 @@ export default function MarchePage() {
             (search.length >= 2 || addableResults.length > 0) && (
               <div className="absolute left-0 right-0 top-full z-50 mt-2 max-h-60 overflow-y-auto rounded-xl border border-zinc-700 bg-zinc-900 shadow-xl">
                 {isSearching ? (
-                  <div className="p-4 text-center text-xs text-zinc-500">
+                  <div className="p-4 text-center text-xs text-zinc-400">
                     Recherche en cours...
                   </div>
                 ) : addableResults.length > 0 ? (
@@ -569,7 +574,7 @@ export default function MarchePage() {
                     ))}
                   </div>
                 ) : search.length >= 2 ? (
-                  <div className="p-4 text-center text-xs text-zinc-500">
+                  <div className="p-4 text-center text-xs text-zinc-400">
                     Aucun résultat trouvé sur les marchés
                   </div>
                 ) : null}
@@ -579,7 +584,7 @@ export default function MarchePage() {
       </div>
 
       {/* Results count */}
-      <p className="text-xs text-slate-500">
+      <p className="text-xs text-slate-400">
         {filteredAndSorted.length} résultat(s)
       </p>
 
@@ -598,12 +603,12 @@ export default function MarchePage() {
       {/* Market Data */}
 
       {/* Mobile Feed */}
-      <div className="space-y-3 xl:hidden">
+      <div className="space-y-2 xl:hidden">
         {allRows.length === 0 && (loading || refreshing)
           ? Array.from({ length: 5 }).map((_, i) => (
               <div
                 key={i}
-                className="h-24 w-full animate-pulse rounded-2xl bg-zinc-900"
+                className="h-14 w-full animate-pulse rounded-xl bg-zinc-900"
               />
             ))
           : filteredAndSorted.map((row) => {
@@ -616,47 +621,31 @@ export default function MarchePage() {
                       selectedTicker === row.ticker ? null : row.ticker,
                     )
                   }
-                  className={`relative rounded-2xl border bg-zinc-900/50 p-4 shadow-sm transition-all active:scale-[0.98] ${
+                  className={`flex min-h-14 items-center gap-3 rounded-xl border bg-zinc-900/50 pl-3 pr-1 transition-all active:scale-[0.98] ${
                     selectedTicker === row.ticker
                       ? "border-emerald-500/50 ring-1 ring-emerald-500/20"
                       : "border-zinc-800"
                   }`}
                 >
-                  <div className="mb-3 flex items-start justify-between">
-                    <div className="flex items-center gap-3">
-                      <div
-                        className={`flex h-10 w-10 items-center justify-center rounded-xl bg-gradient-to-br ${
-                          isIndex
-                            ? "from-blue-500/20 to-blue-600/10"
-                            : "from-zinc-700/50 to-zinc-800/50"
-                        }`}
-                      >
-                        {isIndex ? (
-                          <BarChart3 className="h-5 w-5 text-blue-400" />
-                        ) : row.changePercent >= 0 ? (
-                          <TrendingUp className="h-5 w-5 text-emerald-400" />
-                        ) : (
-                          <TrendingDown className="h-5 w-5 text-rose-400" />
-                        )}
-                      </div>
-                      <div>
-                        <button type="button" className="block max-w-[140px] truncate text-left font-bold text-white">
-                          {row.name}
-                        </button>
-                        <div className="flex items-center gap-2">
-                          <p className="text-xs text-zinc-500">{row.ticker}</p>
-                          {isIndex && (
-                            <span className="rounded-md bg-blue-500/10 px-1.5 py-0.5 text-[10px] font-medium text-blue-400">
-                              INDICE
-                            </span>
-                          )}
-                        </div>
-                      </div>
+                  <div className="min-w-0 flex-1">
+                    <button type="button" className="block max-w-full truncate text-left text-sm font-bold text-white">
+                      {row.name}
+                    </button>
+                    <div className="flex items-center gap-2">
+                      <p className="text-xs text-zinc-400">{row.ticker}</p>
+                      {isIndex && (
+                        <span className="rounded-md bg-blue-500/10 px-1.5 py-0.5 text-xs font-medium text-blue-400">
+                          INDICE
+                        </span>
+                      )}
                     </div>
-                    <div className="text-right">
-                      <p className="font-bold text-white">
-                        {row.price > 0 ? formatQuote(row.price, row.ticker) : "—"}
-                      </p>
+                  </div>
+                  <div className="shrink-0 text-right">
+                    <p className="text-sm font-bold text-white">
+                      {row.price > 0 ? formatQuote(row.price, row.ticker) : "—"}
+                    </p>
+                    {/* No change shown until the quote has loaded (it would read "+0,00 %") */}
+                    {row.price > 0 && (
                       <p
                         className={`text-xs font-semibold ${
                           row.changePercent >= 0
@@ -667,29 +656,25 @@ export default function MarchePage() {
                         {row.changePercent >= 0 ? "+" : ""}
                         {formatPercent(row.changePercent / 100)}
                       </p>
-                    </div>
+                    )}
                   </div>
-
-                  <div className="flex items-center justify-between border-t border-zinc-800/50 pt-3">
-                    <span className="text-xs text-zinc-500">{row.sector}</span>
-                    <button
-                      onClick={(e) => handleToggleFavorite(e, row.ticker)}
-                      aria-label={
+                  <button
+                    onClick={(e) => handleToggleFavorite(e, row.ticker)}
+                    aria-label={
+                      favorites.includes(row.ticker)
+                        ? `Retirer ${row.ticker} des favoris`
+                        : `Ajouter ${row.ticker} aux favoris`
+                    }
+                    className="flex h-11 w-11 shrink-0 items-center justify-center"
+                  >
+                    <Star
+                      className={`h-4 w-4 ${
                         favorites.includes(row.ticker)
-                          ? `Retirer ${row.ticker} des favoris`
-                          : `Ajouter ${row.ticker} aux favoris`
-                      }
-                      className="p-1"
-                    >
-                      <Star
-                        className={`h-4 w-4 ${
-                          favorites.includes(row.ticker)
-                            ? "fill-amber-400 text-amber-400"
-                            : "text-zinc-600"
-                        }`}
-                      />
-                    </button>
-                  </div>
+                          ? "fill-amber-400 text-amber-400"
+                          : "text-zinc-600"
+                      }`}
+                    />
+                  </button>
                 </div>
               );
             })}
@@ -796,11 +781,11 @@ export default function MarchePage() {
                               {row.name}
                             </button>
                             <div className="flex items-center gap-2">
-                              <p className="text-xs text-zinc-500">
+                              <p className="text-xs text-zinc-400">
                                 {row.ticker}
                               </p>
                               {isIndex && (
-                                <span className="rounded-md bg-blue-500/10 px-1.5 py-0.5 text-[10px] font-medium text-blue-400">
+                                <span className="rounded-md bg-blue-500/10 px-1.5 py-0.5 text-xs font-medium text-blue-400">
                                   INDICE
                                 </span>
                               )}
@@ -818,7 +803,7 @@ export default function MarchePage() {
                               {formatQuote(row.price, row.ticker)}
                             </span>
                           ) : (
-                            <span className="text-xs text-zinc-600">—</span>
+                            <span className="text-xs text-zinc-400">—</span>
                           )
                         ) : (
                           <div className="ml-auto h-4 w-20 animate-pulse rounded bg-zinc-700" />
@@ -851,7 +836,7 @@ export default function MarchePage() {
                               </span>
                             </div>
                           ) : (
-                            <span className="text-xs text-zinc-600">—</span>
+                            <span className="text-xs text-zinc-400">—</span>
                           )
                         ) : (
                           <div className="ml-auto h-4 w-16 animate-pulse rounded bg-zinc-700" />
@@ -889,7 +874,7 @@ export default function MarchePage() {
                             {trendCfg.emoji} {trendCfg.label}
                           </span>
                         ) : row.loaded ? (
-                          <span className="text-xs text-zinc-600">—</span>
+                          <span className="text-xs text-zinc-400">—</span>
                         ) : (
                           <div className="mx-auto h-4 w-16 animate-pulse rounded bg-zinc-700" />
                         )}

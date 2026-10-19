@@ -90,7 +90,7 @@ export default function RiskAnalysisPanel({
           <div className="flex items-center justify-between text-xs text-zinc-400 mb-1">
             <span>Ratio de Sharpe</span>
             <span
-              className={`rounded-md px-1.5 py-0.5 text-[10px] font-semibold ${sharpeBadge.color}`}
+              className={`rounded-md px-1.5 py-0.5 text-xs font-semibold ${sharpeBadge.color}`}
             >
               {sharpeBadge.text}
             </span>
@@ -98,7 +98,7 @@ export default function RiskAnalysisPanel({
           <p className="text-xl font-bold text-white">
             {sharpeRatio.toFixed(2)}
           </p>
-          <p className="text-[10px] text-zinc-500 mt-1">
+          <p className="text-xs text-zinc-400 mt-1">
             Rendement excédentaire par unité de risque (taux sans risque 3%)
           </p>
         </div>
@@ -112,7 +112,7 @@ export default function RiskAnalysisPanel({
           <p className="text-xl font-bold text-white">
             {formatPercent(annualizedVolatility)}
           </p>
-          <p className="text-[10px] text-zinc-500 mt-1">
+          <p className="text-xs text-zinc-400 mt-1">
             Annualisée (CAC 40 référence : ~16-18%)
           </p>
         </div>
@@ -126,7 +126,7 @@ export default function RiskAnalysisPanel({
           <p className="text-xl font-bold text-rose-400">
             -{formatPercent(maxDrawdown.maxDrawdownPct)}
           </p>
-          <p className="text-[10px] text-zinc-500 mt-1">
+          <p className="text-xs text-zinc-400 mt-1">
             Pire baisse depuis un sommet, hors apports
           </p>
         </div>
@@ -146,7 +146,7 @@ export default function RiskAnalysisPanel({
           >
             {formatPercent(diversification.topHoldingWeight / 100)}
           </p>
-          <p className="text-[10px] text-zinc-500 mt-1">
+          <p className="text-xs text-zinc-400 mt-1">
             Secteur n°1 : {formatPercent(diversification.topSectorWeight / 100)}
           </p>
         </div>

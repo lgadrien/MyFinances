@@ -196,7 +196,7 @@ export default function StockChart({ ticker, name, onClose }: StockChartProps) {
 
           {/* OHLC info on hover */}
           {activeTab === "chart" && crosshairData && (
-            <div className="ml-3 hidden md:flex gap-3 text-xs text-zinc-500">
+            <div className="ml-3 hidden md:flex gap-3 text-xs text-zinc-400">
               <span>
                 O{" "}
                 <span className="font-medium text-zinc-300">
@@ -251,7 +251,7 @@ export default function StockChart({ ticker, name, onClose }: StockChartProps) {
 
               {/* Stats row */}
               <div className="border-t border-zinc-800/30 px-6 py-3">
-                <div className="flex items-center justify-between text-xs text-zinc-500">
+                <div className="flex items-center justify-between text-xs text-zinc-400">
                   <span>
                     Min:{" "}
                     <span className="font-medium text-red-400">

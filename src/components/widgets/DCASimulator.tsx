@@ -22,6 +22,12 @@ interface DCASimulatorProps {
   currentPortfolioValue?: number;
 }
 
+/** Months since the start, in French ("1 an 5 mois", "10 ans"). */
+const durationLabel = (m: number) =>
+  [Math.floor(m / 12) && `${Math.floor(m / 12)} ${m >= 24 ? "ans" : "an"}`, m % 12 && `${m % 12} mois`]
+    .filter(Boolean)
+    .join(" ") || "Départ";
+
 export default function DCASimulator({
   currentPortfolioValue = 5000,
 }: DCASimulatorProps) {
@@ -47,6 +53,13 @@ export default function DCASimulator({
 
   const multiplier =
     totalContributed > 0 ? (finalValue / totalContributed).toFixed(1).replace(".", ",") : "1,0";
+
+  // X ticks = whole years (as months), thinned so labels fit a ~360px phone ("10 ans" is the widest)
+  const yearStep = years <= 5 ? 1 : years < 10 ? 2 : years <= 20 ? 5 : 10;
+  const yearTicks = Array.from(
+    { length: Math.floor(years / yearStep) },
+    (_, i) => (i + 1) * yearStep * 12,
+  );
 
   return (
     <div className="rounded-2xl border border-zinc-800 bg-gradient-to-br from-zinc-900/60 to-black p-6 shadow-[0_0_20px_rgba(139,92,246,0.06)]">
@@ -81,7 +94,7 @@ export default function DCASimulator({
           <p className="text-2xl sm:text-3xl font-extrabold text-white mt-1">
             {formatEUR(finalValue)}
           </p>
-          <p className="text-[10px] text-violet-400 mt-1">
+          <p className="text-xs text-violet-400 mt-1">
             Avec réinvestissement des dividendes
           </p>
         </div>
@@ -93,7 +106,7 @@ export default function DCASimulator({
           <p className="text-xl sm:text-2xl font-bold text-zinc-200 mt-1">
             {formatEUR(totalContributed)}
           </p>
-          <p className="text-[10px] text-zinc-500 mt-1">
+          <p className="text-xs text-zinc-400 mt-1">
             {formatEUR(initialCapital)} initial + {formatEUR(monthlyContribution)}/mois
           </p>
         </div>
@@ -105,7 +118,7 @@ export default function DCASimulator({
           <p className="text-xl sm:text-2xl font-bold text-emerald-400 mt-1">
             +{formatEUR(totalGains)}
           </p>
-          <p className="text-[10px] text-emerald-500 mt-1">
+          <p className="text-xs text-emerald-500 mt-1">
             Soit +{formatPercent(totalContributed > 0 ? totalGains / totalContributed : 0)} de profit brut
           </p>
         </div>
@@ -210,7 +223,7 @@ export default function DCASimulator({
 
           <div className="h-56 w-full">
             <ResponsiveContainer width="100%" height="100%">
-              <AreaChart data={monthlyData} margin={{ top: 10, right: 10, left: -20, bottom: 0 }}>
+              <AreaChart data={monthlyData} margin={{ top: 10, right: 20, left: -20, bottom: 0 }}>
                 <defs>
                   <linearGradient id="colorValue" x1="0" y1="0" x2="0" y2="1">
                     <stop offset="5%" stopColor="#8b5cf6" stopOpacity={0.4} />
@@ -223,11 +236,15 @@ export default function DCASimulator({
                 </defs>
                 <CartesianGrid strokeDasharray="3 3" stroke="#27272a" vertical={false} />
                 <XAxis
-                  dataKey="year"
+                  dataKey="month"
+                  type="number"
+                  domain={["dataMin", "dataMax"]}
+                  ticks={yearTicks}
+                  interval={0}
                   stroke="#71717a"
                   fontSize={10}
                   tickLine={false}
-                  tickFormatter={(v) => `${v}a`}
+                  tickFormatter={(m) => `${m / 12} an${m > 12 ? "s" : ""}`}
                 />
                 <YAxis
                   stroke="#71717a"
@@ -242,7 +259,7 @@ export default function DCASimulator({
                       const d = payload[0].payload;
                       return (
                         <div className="rounded-lg border border-zinc-700 bg-zinc-900 p-2 text-xs shadow-xl">
-                          <p className="font-semibold text-zinc-300">Année {d.year}</p>
+                          <p className="font-semibold text-zinc-300">{durationLabel(d.month)}</p>
                           <p className="text-violet-400 font-bold mt-1">
                             Valeur : {formatEUR(d.value)}
                           </p>
@@ -283,7 +300,7 @@ export default function DCASimulator({
       {/* Milestones Table */}
       <div className="overflow-x-auto">
         <table className="w-full text-left text-xs text-zinc-300">
-          <thead className="border-b border-zinc-800 text-[10px] uppercase text-zinc-400">
+          <thead className="border-b border-zinc-800 text-xs uppercase text-zinc-400">
             <tr>
               <th className="py-2">Étape</th>
               <th className="py-2 text-right">Total Versé</th>

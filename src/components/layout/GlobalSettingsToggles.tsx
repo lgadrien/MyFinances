@@ -1,7 +1,7 @@
 "use client";
 
 import { useSettingsStore } from "@/stores/useSettingsStore";
-import { Eye, EyeOff, DollarSign, Euro, LogOut } from "lucide-react";
+import { Eye, EyeOff, DollarSign, Euro, LogOut, MoreVertical } from "lucide-react";
 
 async function logout() {
   await fetch("/api/auth/logout", { method: "POST" }).catch(() => {});
@@ -38,13 +38,24 @@ export default function GlobalSettingsToggles({
         >
           {currency === "EUR" ? <Euro className="h-5 w-5 text-violet-400" /> : <DollarSign className="h-5 w-5 text-green-400" />}
         </button>
-        <button
-          onClick={logout}
-          className="rounded-lg p-2 text-zinc-400 transition-colors hover:bg-zinc-800 hover:text-white"
-          title="Se déconnecter"
-        >
-          <LogOut className="h-5 w-5" />
-        </button>
+        {/* Logout lives in a menu so a mis-tap next to the currency toggle can't sign the user out */}
+        <details className="relative">
+          <summary
+            aria-label="Plus d'options"
+            className="cursor-pointer list-none rounded-lg p-2 text-zinc-400 transition-colors hover:bg-zinc-800 hover:text-white [&::-webkit-details-marker]:hidden"
+          >
+            <MoreVertical className="h-5 w-5" />
+          </summary>
+          <div className="absolute right-0 top-full z-50 mt-1 w-44 rounded-xl border border-zinc-800 bg-zinc-900 p-1 shadow-xl">
+            <button
+              onClick={logout}
+              className="flex w-full items-center gap-2 rounded-lg px-3 py-2 text-sm text-zinc-300 transition-colors hover:bg-zinc-800 hover:text-white"
+            >
+              <LogOut className="h-4 w-4" />
+              Se déconnecter
+            </button>
+          </div>
+        </details>
       </div>
     );
   }

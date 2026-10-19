@@ -68,6 +68,21 @@ export function enrichPositions(
   });
 }
 
+/** Variation du jour : Σ (variation du cours en € × quantité) des positions ouvertes, et son % de la valeur de la veille. */
+export function calculateDailyChange(
+  positions: EnrichedPortfolioPosition[],
+  quotes: Record<string, { change: number }>,
+): { amount: number; percent: number } {
+  let amount = 0;
+  let value = 0;
+  for (const p of positions) {
+    amount += (quotes[p.ticker]?.change ?? 0) * p.totalQuantity;
+    value += p.capitalValue;
+  }
+  const previousValue = value - amount;
+  return { amount, percent: previousValue > 0 ? amount / previousValue : 0 };
+}
+
 /**
  * Calcule les positions du portefeuille avec PRU chronologique et dividendes.
  */

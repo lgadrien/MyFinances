@@ -1,7 +1,8 @@
 /**
  * src/components/widgets/DividendCalendar.tsx
  * ─────────────────────────────────────────────────────────────────────────────
- * Calendrier annuel des dividendes — 12 mois en grille.
+ * Carte unique des dividendes : total reçu depuis le début, puis calendrier annuel (12 mois en grille).
+ * Sans aucun dividende (ni reçu, ni projeté), seul un message vide s'affiche.
  * Affiche pour chaque mois :
  *   - Dividendes effectivement reçus (vert)
  *   - Dividendes projetés (violet, pointillés)
@@ -51,6 +52,17 @@ export default function DividendCalendar({
   const totalProjected = Object.entries(projectedByMonth)
     .filter(([m]) => m.startsWith(String(year)))
     .reduce((s, [, v]) => s + v, 0);
+  const allTimeReceived = Object.values(receivedByMonth).reduce((s, v) => s + v, 0);
+  const hasProjection = Object.values(projectedByMonth).some((v) => v > 0);
+
+  if (allTimeReceived <= 0 && !hasProjection) {
+    return (
+      <div className="rounded-2xl border border-zinc-800 bg-gradient-to-br from-zinc-900/60 to-black p-6">
+        <h2 className="text-lg font-bold text-white">Calendrier des Dividendes</h2>
+        <p className="mt-1 text-sm text-zinc-500">Aucun dividende pour l&apos;instant</p>
+      </div>
+    );
+  }
 
   return (
     <div className="rounded-2xl border border-zinc-800 bg-gradient-to-br from-zinc-900/60 to-black p-6">
@@ -60,7 +72,12 @@ export default function DividendCalendar({
           <h2 className="text-lg font-bold text-white">
             Calendrier des Dividendes
           </h2>
-          <p className="text-xs text-zinc-500 mt-0.5">Reçus et projetés</p>
+          <p className="text-xs text-zinc-400 mt-0.5">
+            Total reçu :{" "}
+            <span className="font-semibold text-zinc-200 tabular-nums">
+              {formatEUR(allTimeReceived)}
+            </span>
+          </p>
         </div>
         {/* Sélecteur d'année */}
         <div className="flex items-center gap-1 rounded-xl border border-zinc-800 bg-zinc-900/50 px-2 py-1">
@@ -85,7 +102,7 @@ export default function DividendCalendar({
       {/* Total annuel */}
       <div className="mb-5 flex gap-4">
         <div className="flex-1 rounded-xl border border-emerald-500/20 bg-emerald-500/5 px-4 py-3">
-          <p className="text-[10px] font-semibold uppercase tracking-wider text-emerald-400/70">
+          <p className="text-xs font-semibold uppercase tracking-wider text-emerald-400/70">
             Reçus {year}
           </p>
           <p className="mt-0.5 text-base font-bold text-emerald-400 tabular-nums">
@@ -93,7 +110,7 @@ export default function DividendCalendar({
           </p>
         </div>
         <div className="flex-1 rounded-xl border border-violet-500/20 bg-violet-500/5 px-4 py-3">
-          <p className="text-[10px] font-semibold uppercase tracking-wider text-violet-400/70">
+          <p className="text-xs font-semibold uppercase tracking-wider text-violet-400/70">
             Projetés {year}
           </p>
           <p className="mt-0.5 text-base font-bold text-violet-400 tabular-nums">
@@ -136,7 +153,7 @@ export default function DividendCalendar({
                 {received > 0 && (
                   <div className="group relative">
                     <div className="mx-auto h-1.5 rounded-full bg-emerald-500" />
-                    <p className="mt-1 text-[10px] font-bold text-emerald-400 tabular-nums">
+                    <p className="mt-1 text-xs font-bold text-emerald-400 tabular-nums">
                       {formatEUR(received)}
                     </p>
                   </div>
@@ -150,7 +167,7 @@ export default function DividendCalendar({
                           "repeating-linear-gradient(90deg, #8b5cf6 0 4px, transparent 4px 7px)",
                       }}
                     />
-                    <p className="mt-1 text-[10px] font-medium text-violet-400/80 tabular-nums">
+                    <p className="mt-1 text-xs font-medium text-violet-400/80 tabular-nums">
                       ~{formatEUR(projected)}
                     </p>
                   </div>
@@ -167,7 +184,7 @@ export default function DividendCalendar({
       </div>
 
       {/* Légende */}
-      <div className="mt-4 flex items-center gap-4 text-[10px] text-zinc-500">
+      <div className="mt-4 flex items-center gap-4 text-xs text-zinc-400">
         <span className="flex items-center gap-1.5">
           <span className="inline-block h-1.5 w-5 rounded-full bg-emerald-500" />
           Reçu

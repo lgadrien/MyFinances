@@ -243,7 +243,7 @@ export default function AlertsCenterModal({
                   <p className="text-sm font-medium text-zinc-300">
                     Aucune alerte configurée pour le moment
                   </p>
-                  <p className="text-xs text-zinc-500 mt-1">
+                  <p className="text-xs text-zinc-400 mt-1">
                     Soyez notifié dès qu&apos;une action atteint un objectif de cours ou un RSI clé.
                   </p>
                   <button
@@ -280,11 +280,11 @@ export default function AlertsCenterModal({
                               <span className="font-bold text-white">
                                 {alert.name}
                               </span>
-                              <span className="rounded-md bg-zinc-800 px-2 py-0.5 text-[10px] font-medium text-zinc-400">
+                              <span className="rounded-md bg-zinc-800 px-2 py-0.5 text-xs font-medium text-zinc-400">
                                 {alert.ticker}
                               </span>
                               {isTriggered && (
-                                <span className="inline-flex items-center gap-1 rounded-full bg-violet-500/20 px-2 py-0.5 text-[10px] font-semibold text-violet-300 ring-1 ring-violet-500/30 animate-pulse">
+                                <span className="inline-flex items-center gap-1 rounded-full bg-violet-500/20 px-2 py-0.5 text-xs font-semibold text-violet-300 ring-1 ring-violet-500/30 animate-pulse">
                                   <CheckCircle2 className="h-3 w-3" />
                                   Déclenchée !
                                 </span>
@@ -298,7 +298,7 @@ export default function AlertsCenterModal({
                                 {alert.message}
                               </p>
                             )}
-                            <p className="text-[10px] text-zinc-500 mt-1 flex items-center gap-1">
+                            <p className="text-xs text-zinc-400 mt-1 flex items-center gap-1">
                               <Clock className="h-3 w-3" />
                               Créée le {new Date(alert.createdAt).toLocaleDateString("fr-FR")}
                             </p>

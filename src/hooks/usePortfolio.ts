@@ -5,7 +5,7 @@
  */
 
 import { useEffect, useState, useMemo } from "react";
-import { subDays, subMonths, subYears, parseISO, format } from "date-fns";
+import { format } from "date-fns";
 import toast from "react-hot-toast";
 import { fetchBatchStockPrices, fetchSettings } from "@/lib/data";
 import { useTransactions } from "@/hooks/useTransactions";
@@ -19,16 +19,11 @@ import {
 } from "@/lib/calculations";
 import { FRENCH_INSTRUMENTS } from "@/lib/french-instruments";
 
-export type TimeRange = "1W" | "1M" | "1Y" | "Max";
-
 export type HistoryPoint = { date: string; total_value: number; total_invested: number };
 
 export interface UsePortfolioReturn {
   positions: EnrichedPortfolioPosition[];
   history: HistoryPoint[];
-  filteredHistory: HistoryPoint[];
-  timeRange: TimeRange;
-  setTimeRange: (r: TimeRange) => void;
   loading: boolean;
   refreshing: boolean;
   refresh: () => void;
@@ -43,20 +38,16 @@ export interface UsePortfolioReturn {
   totalInvested: number;
   totalValue: number;
   totalPV: number;
-  totalPerformance: number;
   cashBalance: number;
   totalDividends: number;
   planGain: number;
   taxRate: number;
-  sectorData: { name: string; value: number; percent: number }[];
-  assetData: { name: string; value: number; percent: number }[];
 }
 
 export function usePortfolio(): UsePortfolioReturn {
   const [positions, setPositions] = useState<EnrichedPortfolioPosition[]>([]);
   const [history, setHistory] = useState<HistoryPoint[]>([]);
   const [cashBalance, setCashBalance] = useState(0);
-  const [timeRange, setTimeRange] = useState<TimeRange>("1M");
   const [loading, setLoading] = useState(true);
   const [refreshing, setRefreshing] = useState(false);
   const [isRebalancingOpen, setIsRebalancingOpen] = useState(false);
@@ -129,50 +120,9 @@ export function usePortfolio(): UsePortfolioReturn {
     loadData();
   }, [instrumentMap, transactions, isTxLoading, reloadKey]);
 
-  // Filtrage de l'historique selon la période sélectionnée
-  const filteredHistory = useMemo(() => {
-    const now = new Date();
-    if (timeRange === "1W")
-      return history.filter((d) => parseISO(d.date) >= subDays(now, 7));
-    if (timeRange === "1M")
-      return history.filter((d) => parseISO(d.date) >= subMonths(now, 1));
-    if (timeRange === "1Y")
-      return history.filter((d) => parseISO(d.date) >= subYears(now, 1));
-    return history;
-  }, [history, timeRange]);
-
-  // Calcul des données pour les pie charts
-  const sectorData = useMemo(() => {
-    const sectors: Record<string, number> = {};
-    positions.forEach((p) => {
-      const s = p.sector || "Autre";
-      sectors[s] = (sectors[s] || 0) + (p.capitalValue || 0);
-    });
-    const total = Object.values(sectors).reduce((a, b) => a + b, 0);
-    return Object.entries(sectors)
-      .map(([name, value]) => ({
-        name,
-        value,
-        percent: total > 0 ? value / total : 0,
-      }))
-      .sort((a, b) => b.value - a.value);
-  }, [positions]);
-
-  const assetData = useMemo(() => {
-    const total = positions.reduce((s, p) => s + (p.capitalValue || 0), 0);
-    return positions
-      .map((p) => ({
-        name: p.name,
-        value: p.capitalValue || 0,
-        percent: total > 0 ? (p.capitalValue || 0) / total : 0,
-      }))
-      .sort((a, b) => b.value - a.value);
-  }, [positions]);
-
   const totalInvested = positions.reduce((s, p) => s + p.totalInvested, 0);
   const totalValue = positions.reduce((s, p) => s + (p.capitalValue || 0), 0);
   const totalPV = totalValue - totalInvested;
-  const totalPerformance = totalInvested > 0 ? totalPV / totalInvested : 0;
   const totalDividends = calculateDividends(transactions);
   const planGain = calculatePlanGain(transactions, totalValue);
   const today = format(new Date(), "yyyy-MM-dd");
@@ -182,9 +132,6 @@ export function usePortfolio(): UsePortfolioReturn {
   return {
     positions,
     history,
-    filteredHistory,
-    timeRange,
-    setTimeRange,
     loading,
     refreshing,
     refresh: () => {
@@ -200,12 +147,9 @@ export function usePortfolio(): UsePortfolioReturn {
     totalInvested,
     totalValue,
     totalPV,
-    totalPerformance,
     cashBalance,
     totalDividends,
     planGain,
     taxRate,
-    sectorData,
-    assetData,
   };
 }

@@ -68,7 +68,7 @@ export default function TaxSimulator(props: FiscalReportData) {
             onChange={(e) => setAmountToWithdraw(Number(e.target.value))}
             className="w-full rounded-xl border border-zinc-700 bg-zinc-800 px-4 py-2 text-sm text-zinc-200 outline-none focus:border-violet-500"
           />
-          <p className="mt-1 text-xs text-zinc-500">
+          <p className="mt-1 text-xs text-zinc-400">
             Maximum possible (titres + espèces) : {formatEUR(totalCapital)}
           </p>
         </div>

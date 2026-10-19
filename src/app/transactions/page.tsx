@@ -292,7 +292,7 @@ export default function TransactionsPage() {
             {type === "all" ? "Toutes" : type}
           </button>
         ))}
-        <span className="ml-auto text-xs text-zinc-500">
+        <span className="ml-auto text-xs text-zinc-400">
           {filteredTransactions.length} opération(s)
         </span>
       </div>
@@ -340,7 +340,7 @@ export default function TransactionsPage() {
                           ? "VENTE"
                           : "DIV"}
                     </Badge>
-                    <span className="text-xs text-zinc-500">
+                    <span className="text-xs text-zinc-400">
                       {new Date(tx.date).toLocaleDateString("fr-FR")}
                     </span>
                   </div>
@@ -379,7 +379,7 @@ export default function TransactionsPage() {
                       {formatEUR(tx.total_amount)}
                     </p>
                     {tx.fees > 0 && (
-                      <p className="text-xs text-zinc-500">
+                      <p className="text-xs text-zinc-400">
                         Frais: {formatEUR(tx.fees)}
                       </p>
                     )}
@@ -913,7 +913,7 @@ function TransactionForm({
           readOnly={formData.type === "Achat" || formData.type === "Vente"}
         />
         {(formData.type === "Achat" || formData.type === "Vente") && (
-          <p className="mt-1.5 text-xs text-zinc-500">
+          <p className="mt-1.5 text-xs text-zinc-400">
             Calculé automatiquement : Quantité × Prix unitaire
           </p>
         )}
@@ -922,7 +922,7 @@ function TransactionForm({
       {/* Fees (Optional, collapsed) */}
       <details className="group">
         <summary className="cursor-pointer text-sm font-medium text-zinc-400 transition-colors hover:text-zinc-200">
-          + Frais (optionnel)
+          + Frais (optionnels)
         </summary>
         <div className="mt-3">
           <label htmlFor="tx-fees" className="sr-only">

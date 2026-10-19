@@ -48,7 +48,7 @@ export default function ResponsiveLayout({
               <span className="text-base font-bold text-white leading-none block">
                 MyFinances
               </span>
-              <span className="text-[9px] font-semibold uppercase tracking-widest text-violet-400">
+              <span className="text-xs font-semibold uppercase tracking-widest text-violet-400">
                 PEA Tracker
               </span>
             </div>
@@ -62,7 +62,7 @@ export default function ResponsiveLayout({
             >
               <Bell className="h-4 w-4" />
               {unreadCount > 0 && (
-                <span className="absolute -top-1 -right-1 flex h-4 w-4 items-center justify-center rounded-full bg-violet-600 text-[10px] font-bold text-white shadow-sm ring-2 ring-black">
+                <span className="absolute -top-1 -right-1 flex h-4 w-4 items-center justify-center rounded-full bg-violet-600 text-xs font-bold text-white shadow-sm ring-2 ring-black">
                   {unreadCount}
                 </span>
               )}

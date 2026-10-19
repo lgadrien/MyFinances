@@ -122,19 +122,19 @@ export default function PWAInstallPrompt() {
             </h3>
             <div className="text-xs text-zinc-300 space-y-3 mt-4 text-left">
               <p className="flex items-center gap-2">
-                <span className="flex h-5 w-5 shrink-0 items-center justify-center rounded-full bg-zinc-800 text-[10px] font-bold text-violet-400">
+                <span className="flex h-5 w-5 shrink-0 items-center justify-center rounded-full bg-zinc-800 text-xs font-bold text-violet-400">
                   1
                 </span>
                 <span>Appuyez sur le bouton <strong>Partager</strong> <Share className="inline h-3.5 w-3.5 text-violet-400" /> dans Safari.</span>
               </p>
               <p className="flex items-center gap-2">
-                <span className="flex h-5 w-5 shrink-0 items-center justify-center rounded-full bg-zinc-800 text-[10px] font-bold text-violet-400">
+                <span className="flex h-5 w-5 shrink-0 items-center justify-center rounded-full bg-zinc-800 text-xs font-bold text-violet-400">
                   2
                 </span>
                 <span>Faites défiler vers le bas et sélectionnez <strong>Sur l&apos;écran d&apos;accueil</strong> <PlusSquare className="inline h-3.5 w-3.5 text-violet-400" />.</span>
               </p>
               <p className="flex items-center gap-2">
-                <span className="flex h-5 w-5 shrink-0 items-center justify-center rounded-full bg-zinc-800 text-[10px] font-bold text-violet-400">
+                <span className="flex h-5 w-5 shrink-0 items-center justify-center rounded-full bg-zinc-800 text-xs font-bold text-violet-400">
                   3
                 </span>
                 <span>Appuyez sur <strong>Ajouter</strong> en haut à droite.</span>

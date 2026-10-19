@@ -51,7 +51,7 @@ function RSIGauge({ value }: { value: number }) {
           </span>
         </div>
       </div>
-      <div className="flex w-full justify-between text-[9px] text-zinc-600">
+      <div className="flex w-full justify-between text-xs text-zinc-400">
         <span>Survente</span>
         <span>Surachat</span>
       </div>
@@ -61,7 +61,7 @@ function RSIGauge({ value }: { value: number }) {
 
 // Badge component
 function SignalBadge({ signal }: { signal: TrendSignal | null }) {
-  if (!signal) return <span className="text-xs text-zinc-600">—</span>;
+  if (!signal) return <span className="text-xs text-zinc-400">—</span>;
   const cfg = SIGNAL_CONFIG[signal];
   return (
     <span
@@ -79,7 +79,7 @@ function ScoreBar({ score }: { score: number }) {
 
   return (
     <div className="space-y-1">
-      <div className="flex items-center justify-between text-[10px] text-zinc-500">
+      <div className="flex items-center justify-between text-xs text-zinc-400">
         <span>Baissier</span>
         <span>
           Score : {score > 0 ? "+" : ""}
@@ -141,7 +141,7 @@ export function TechnicalAnalysisPanel({
       <div className="px-6 py-5">
         <div className="mb-3 flex items-center justify-between">
           <span className="text-sm font-semibold text-zinc-300">Signal global</span>
-          <span className="text-xs text-zinc-500">Confiance : {trendScore.confidence}%</span>
+          <span className="text-xs text-zinc-400">Confiance : {trendScore.confidence}%</span>
         </div>
         <div className="flex items-center gap-3">
           <span className={`text-2xl font-extrabold ${signalCfg?.color}`}>
@@ -164,7 +164,7 @@ export function TechnicalAnalysisPanel({
           { label: "Volume", signal: trendScore.details.volumeSignal },
         ].map(({ label, signal }) => (
           <div key={label} className="flex flex-col items-center gap-2 bg-zinc-900/50 px-3 py-4">
-            <span className="text-[10px] font-semibold uppercase tracking-wider text-zinc-500">
+            <span className="text-xs font-semibold uppercase tracking-wider text-zinc-400">
               {label}
             </span>
             <SignalBadge signal={signal} />
@@ -174,7 +174,7 @@ export function TechnicalAnalysisPanel({
 
       {/* Valeurs brutes */}
       <div className="px-6 py-5">
-        <p className="mb-3 text-xs font-semibold uppercase tracking-wider text-zinc-500">
+        <p className="mb-3 text-xs font-semibold uppercase tracking-wider text-zinc-400">
           Valeurs des indicateurs
         </p>
 
@@ -226,7 +226,7 @@ export function TechnicalAnalysisPanel({
       {/* RSI chart */}
       {enrichedData.some((d) => d.rsi !== null) && (
         <div className="px-4 py-4">
-          <p className="mb-2 px-2 text-xs font-semibold text-zinc-500">RSI (14)</p>
+          <p className="mb-2 px-2 text-xs font-semibold text-zinc-400">RSI (14)</p>
           <div style={{ height: 120 }}>
             <ResponsiveContainer width="99%" height="99%" debounce={50}>
               <LineChart data={enrichedData} margin={{ top: 5, right: 10, left: 0, bottom: 0 }}>
@@ -267,7 +267,7 @@ export function TechnicalAnalysisPanel({
       {/* MACD chart */}
       {enrichedData.some((d) => d.macd !== null) && (
         <div className="px-4 py-4">
-          <p className="mb-2 px-2 text-xs font-semibold text-zinc-500">MACD (12/26/9)</p>
+          <p className="mb-2 px-2 text-xs font-semibold text-zinc-400">MACD (12/26/9)</p>
           <div style={{ height: 120 }}>
             <ResponsiveContainer width="99%" height="99%" debounce={50}>
               <BarChart data={enrichedData} margin={{ top: 5, right: 10, left: 0, bottom: 0 }}>
@@ -303,7 +303,7 @@ export function TechnicalAnalysisPanel({
         </div>
       )}
 
-      <div className="px-6 py-3 text-[10px] text-zinc-600">
+      <div className="px-6 py-3 text-xs text-zinc-400">
         ⚠️ Analyse technique fournie à titre indicatif uniquement. Ne constitue pas un conseil en
         investissement.
       </div>
